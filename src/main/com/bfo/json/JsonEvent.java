@@ -1,52 +1,53 @@
 package com.bfo.json;
 
-import java.io.*;
-
 /**
  * An event object which notifies a {@link JsonListener} of changes to a Json object.
+ * Events are fired on Json object for any changes to it or its descendants, so its
+ * possible to use this to audit changes to the object. Here's an example.
+ * </p>
+ * <pre style="background: #EEE; border: 1px solid #AAA; font-size: 0.8em">
+ * json.addListener(new JsonListener() {
+ *     public void jsonEvent(Json root, JsonEvent event) {
+ *     if (event.after == null) {
+ *         // this event is fired just before "event.before" was removed.
+ *         System.out.println(root.path(event.before) + " removed");
+ *     } else {
+ *         // this event is fired just after "event.after" was added.
+ *         // if event.before is not null it was the value before removal
+ *         System.out.println(root.path(event.after) + " added");
+ *     }
+ * }
+ * </pre>
  */
 public class JsonEvent {
 
-    public static enum Type { ADD, REMOVE, CHANGE };
+    /**
+     * The Json object before the event. Will have a parent only if after == null.
+     */
+    public final Json before;
 
     /**
-     * The Json object that the event was raised on
+     * The Json object after the event. If not null, this value will have a parent.
      */
-    public final Json json;
-
-    /**
-     * The key within that object that was modified
-     */
-    public final String key;
-
-    /**
-     * The type of event that took place
-     */
-    public final Type type;
+    public final Json after;
 
     /**
      * Create a new JsonEvent
-     * @param json the Json object this event applies to
-     * @param key the key that changed
-     * @param type the type of event
+     * @param before the Json object before the event
+     * @param after the Json object after the event
      */
-    public JsonEvent(Json json, String key, Type type) {
-        this.json = json;
-        this.key = key;
-        this.type = type;
+    public JsonEvent(Json before, Json after) {
+        this.before = before;
+        this.after = after;
     }
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("{\"type\":\"");
-        sb.append(type);
-        sb.append("\",\"key\":");
-        try {
-            IString.write(key, sb);
-            sb.append(",\"node\":");
-            json.write(sb, null);
-        } catch (IOException e) { }
-        sb.append("}");
+        sb.append("{\"before\":\"");
+        sb.append(before);
+        sb.append("\",\"after\":");
+        sb.append(after);
+        sb.append('}');
         return sb.toString();
     }
 

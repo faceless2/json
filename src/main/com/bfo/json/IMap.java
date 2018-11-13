@@ -29,20 +29,11 @@ class IMap extends Core {
     }
 
     Json put(String key, Json value) {
-        value.notifyRemove();
-        Json oldvalue = map.put(key, value);
-        if (oldvalue != null) {
-            oldvalue.notifyRemove();
-        }
-        return oldvalue;
+        return map.put(key, value);
     }
 
     Json remove(String key) {
-        Json oldvalue = map.remove(key);
-        if (oldvalue != null) {
-            oldvalue.notifyRemove();
-        }
-        return oldvalue;
+        return map.remove(key);
     }
 
     Json get(String key) {

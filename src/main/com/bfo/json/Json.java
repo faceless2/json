@@ -20,7 +20,10 @@ import java.nio.charset.*;
  * </p><p>
  * Paths specified as strings may be compound paths, eg <code>a.b</code>, <code>a.b[2]</code>. If
  * a part of the path contains a dot or square bracket it can be quoted and
- * referenced inside square brackets, eg <code>a.b["dotted.key"]</code>.
+ * referenced inside square brackets, eg <code>a.b["dotted.key"]</code>. For speed, values supplied
+ * between two quotes simply have their quotes removed; they are not unescaped. So <code>json.put("\"\"\", true)</code>
+ * will create the structure <code>{"\\"":true}</code>
+ * </p>
  *
  * <h2>Serialization</h2>
  * Object are read from the {@link #read} methods and written with the {@link #write} method. The process
@@ -30,7 +33,8 @@ import java.nio.charset.*;
  *
  * <h2>Events</h2>
  * Listeners can be attached to a Json object, and will received {@link JsonEvent JsonEvents} when changes are
- * made to this item <b>or its descendants</b>.
+ * made to this item <b>or its descendants</b>. See the {@link JsonEvent} API docs for an example of how to
+ * use this to record changes to an object.
  *
  * <h2>Thread Safety</h2>
  * This object is not synchronized, and if it is being modified in one thread while being read in another, external
@@ -66,17 +70,11 @@ public class Json {
 
     private static final JsonWriteOptions DEFAULTWRITEOPTIONS = new JsonWriteOptions();
     private static final JsonReadOptions DEFAULTREADOPTIONS = new JsonReadOptions();
-    static final INull NULL = new INull();
 
-    Core core;  // Referenced from BFOJsonProvider, otherwise static
+    private Core core;
     private Json parent;
     private Object parentkey;
     private List<JsonListener> listeners;
-    private List<JsonEvent> eventqueue;
-
-    Json() {
-        core = NULL;
-    }
 
     /**
      * <p>
@@ -106,7 +104,7 @@ public class Json {
     @SuppressWarnings("unchecked")
     public Json(Object object, JsonFactory factory) {
         if (object == null) {
-            core = NULL;
+            core = INull.INSTANCE;
         } else if (object instanceof Core) {
             core = (Core)object;
         } else if (object instanceof Json) {
@@ -154,7 +152,6 @@ public class Json {
     }
 
     private void setCore(Core core) {
-//        System.out.println("Set to "+core+" parent="+parent+" key="+parentkey);
         this.core = core;
     }
 
@@ -177,7 +174,7 @@ public class Json {
             return new Json(new IList());
         } else {
             try {
-                return read(new FastStringReader(in), DEFAULTREADOPTIONS);
+                return read(new CharSequenceReader(in), DEFAULTREADOPTIONS);
             } catch (IOException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -300,7 +297,7 @@ public class Json {
         do {
             if (j.listeners != null) {
                 for (JsonListener l : j.listeners) {
-                    l.jsonEvent(event);
+                    l.jsonEvent(j, event);
                 }
             }
         } while ((j = j.parent) != null);
@@ -365,44 +362,46 @@ public class Json {
         return parentkey;
     }
 
-    void notifyAdd(Json parent, Object parentkey) {
-//        new Exception("ADD: this="+this+" parent="+parent+" key="+parentkey).printStackTrace();
-        this.parent = parent;
-        this.parentkey = parentkey;
-        if (parent != null && parent.listeners != null) {
-            parent.fireEvent(new JsonEvent(parent, parentkey.toString(), JsonEvent.Type.ADD));
-        }
-    }
-
-    void notifyRemove() {
-//        new Exception("DEL: this="+this+" parent="+parent+" key="+parentkey).printStackTrace();
-        Json oparent = parent;
-        Object okey = parentkey;
-        parent = null;
-        parentkey = null;
-        if (oparent != null && oparent.listeners != null) {
-            oparent.fireEvent(new JsonEvent(oparent, okey.toString(), JsonEvent.Type.REMOVE));
+    static void notify(Json parent, Object parentkey, Json oldvalue, Json newvalue) {
+        if (newvalue == null) {
+            oldvalue.fireEvent(new JsonEvent(oldvalue, null));
+            oldvalue.parent = null;
+            oldvalue.parentkey = null;
+        } else {
+            if (oldvalue != null) {
+                oldvalue.parent = null;
+                oldvalue.parentkey = null;
+            }
+            newvalue.parent = parent;
+            newvalue.parentkey = parentkey;
+            newvalue.fireEvent(new JsonEvent(oldvalue, newvalue));
         }
     }
 
     /**
      * <p>
-     * Get the path from this node to the specified object
-     * If the "to" parameter is null or not an ancestor of
+     * Get the path from this node to the specified object,
+     * which should be a descendant of this node.
+     * If the parameter is null or not a descendant of
      * this object, this method returns null.
      * </p><p>
      * Specifically, if this method returns not null then it is the case that
-     * <code>to.get(this.path(to)) == this</code>.
+     * <code>this.get(this.find(node)) == node</code>.
      * </p>
-     * @param to the ancestor of this object to seek to
-     * @return the path from the ancestor to this object.
+     * <p>
+     * <i>Implementation note: this method is implemented by traversing
+     * up from the descendant to this object; possible because a
+     * Json object can only have one parent. So the operation is O(n).</i>
+     * </p>
+     * @param descendant the presumed descendant of this object to find in the tree
+     * @return the path from this node to the descendant object
      */
-    public String path(Json to) {
-        if (to == null) {
+    public String find(Json descendant) {
+        if (descendant == null) {
             return null;
         }
         StringBuilder sb = new StringBuilder();
-        if (getPath(sb, to)) {
+        if (descendant.getPath(sb, this)) {
             return sb.toString();
         }
         return null;
@@ -454,19 +453,26 @@ public class Json {
      * are created as required. If the path specifies an existing object then
      * the old object (which may be a subtree) is removed and returned.
      * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
-     * @param value the value to insert, which must not be null;
+     * @param value the value to insert, which must not be null, this or an ancestor of this
      * @return the object that was previously found at that path, which may be null
      */
     public Json put(String path, Object value) {
         if (path == null) {
-            throw new NullPointerException("path is null");
+            throw new IllegalArgumentException("path is null");
         }
         if (value == null) {
-            throw new NullPointerException("value is null");
+            throw new IllegalArgumentException("value is null");
         }
         Json object;
         if (value instanceof Json) {
             object = (Json)value;
+            Json t = this;
+            while (t != null) {
+                if (t == value) {
+                    throw new IllegalArgumentException("value is this or an ancestor");
+                }
+                t = t.parent;
+            }
         } else {
             object = new Json(value);
         }
@@ -479,11 +485,63 @@ public class Json {
         if (convert) {
             convertToMap();
         }
-        Json old = traverse(path, object);
-        if (listeners != null) {
-            fireEvent(new JsonEvent(this, path, JsonEvent.Type.CHANGE));
+
+        if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"' && core instanceof IMap) {
+            // Shortcut
+            path = readQuotedPath(path);
+            Map<String,Json> m = _mapValue();
+            Json oldvalue = m.get(path);
+            m.put(path, object);
+            notify(this, path, oldvalue, object);
+            return oldvalue;
         }
-        return old;
+        return traverse(path, object);
+    }
+
+    /**
+     * Given a quoted String, eg "test" in the path, return test (without quotes)
+     */
+    private static String readQuotedPath(String path) {
+        // Several ways we could do this. First, we could do full string parsing,
+        // which is not great as the keys we're being given have been supplied
+        // in the Java code, they're not encoded. Actually forcing someone to
+        // escape all their quotes etc. is a pain.
+        // 
+        // That means we allow """ to mean a solitary quote:no escaping, whatever
+        // is between begin/end quotes is verbatim.
+        return path.substring(1, path.length() - 1);
+    }
+
+    /**
+     * Put the specified value into this object with the specified path.
+     * Intended for use on arrays, this will also work with Maps that contain a key with this value.
+     * @param path the key - if a non-negative integer and this item is a list, the item will be inserted into the list at that point
+     * @param value the value to insert, which must not be null, this or an ancestor of this
+     * @return the object that was previously found at that path, which may be null
+     */
+    public Json put(int path, Object value) {
+        if (core instanceof IList && path >= 0) {
+            if (value == null) {
+                throw new IllegalArgumentException("value is null");
+            }
+            Json object;
+            if (value instanceof Json) {
+                object = (Json)value;
+                Json t = this;
+                while (t != null) {
+                    if (t == value) {
+                        throw new IllegalArgumentException("value is this or an ancestor");
+                    }
+                    t = t.parent;
+                }
+            } else {
+                object = new Json(value);
+            }
+            return buildlist(path, (IList)core, this, object);
+        } else {
+            convertToMap();
+            return put(Integer.toString(path), value);
+        }
     }
 
     /**
@@ -497,17 +555,21 @@ public class Json {
             boolean removed = false;
             Json parent = json.parent();
             if (parent == null) {
-                // ???
+                // Should not be possible - ???
             } else if (parent.isList()) {
                 int ix = ((Integer)json.getParentKey()).intValue();
-                ((IList)parent.core).remove(ix);
+                IList list = (IList)parent.core;
+                Json oldvalue = list.get(ix);
+                notify(parent, Integer.valueOf(ix), oldvalue, null);
+                list.remove(ix);
                 removed = true;
             } else if (parent.isMap()) {
-                ((IMap)parent.core).remove((String)json.getParentKey());
+                IMap map = (IMap)parent.core;
+                String key = (String)json.getParentKey();
+                Json oldvalue = map.get(key);
+                notify(parent, key, oldvalue, null);
+                map.remove(key);
                 removed = true;
-            }
-            if (removed && listeners != null) {
-                fireEvent(new JsonEvent(this, path, JsonEvent.Type.REMOVE));
             }
         }
         return json;
@@ -525,8 +587,8 @@ public class Json {
             IList list = (IList)core;
             for (int i=0;i<list.size();i++) {
                 if (list.get(i) == json) {
+                    notify(this, Integer.valueOf(i), json, null);
                     list.remove(i);
-                    fireEvent(new JsonEvent(this, Integer.toString(i), JsonEvent.Type.REMOVE));
                     return json;
                 }
             }
@@ -535,8 +597,8 @@ public class Json {
             for (Iterator<Map.Entry<String,Json>> i = map.mapValue().entrySet().iterator();i.hasNext();) {
                 Map.Entry<String,Json> e = i.next();
                 if (e.getValue() == json) {
+                    notify(this, e.getKey(), json, null);
                     i.remove();
-                    fireEvent(new JsonEvent(this, e.getKey(), JsonEvent.Type.REMOVE));
                     return json;
                 }
             }
@@ -545,8 +607,8 @@ public class Json {
     }
 
     /**
-     * Remove the specified item from this object. Intended for array deletion,
-     * this will also work with Maps that contain a key with this value.
+     * Remove the specified item from this object.
+     * Intended for use on arrays, this will also work with Maps that contain a key with this value.
      * Calling this method on a primitive type Json will return null.
      * @param path the key
      * @return the removed object, or null of no object was removed
@@ -569,7 +631,7 @@ public class Json {
         if (isList() || isMap()) {
             boolean full = false;
             if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"') {
-                path = path.substring(1, path.length() - 1);
+                path = readQuotedPath(path);
             } else {
                 for (int i=0;i<path.length();i++) {
                     char c = path.charAt(i);
@@ -625,7 +687,7 @@ public class Json {
         if (isList() || isMap()) {
             boolean full = false;
             if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"') {
-                path = path.substring(1, path.length() - 1);
+                path = readQuotedPath(path);
             } else {
                 for (int i=0;i<path.length();i++) {
                     char c = path.charAt(i);
@@ -841,7 +903,7 @@ public class Json {
                 }
                 listeners = tlisteners;
             } else if (!(core instanceof INull)) {
-                notifyRemove();
+                notify(parent, null, this, null);
             }
             setCore(imap);
         }
@@ -850,7 +912,7 @@ public class Json {
     private void convertToList() {
         if (!isList() && !isMap()) {
             IList ilist = new IList();
-            notifyRemove();
+            notify(parent, null, this, null);
             setCore(ilist);
         }
     }
@@ -862,20 +924,20 @@ public class Json {
     private static Json buildlist(int ix, IList ilist, Json ctx, Json child) {
         Json out = null;
         while (ilist.size() < ix) {
-            Json t = new Json();
+            Json t = new Json(null);
             int s = ilist.size();
             ilist.add(t);
-            t.notifyAdd(ctx, Integer.valueOf(s));
+            notify(ctx, Integer.valueOf(s), null, t);
         }
         if (ix == ilist.size()) {
             if (child == null) {
-                child = new Json();
+                child = new Json(null);
             }
             ilist.add(child);
-            child.notifyAdd(ctx, Integer.valueOf(ix));
+            notify(ctx, Integer.valueOf(ix), null, child);
         } else if (child != null) {
             out = ilist.set(ix, child);
-            child.notifyAdd(ctx, Integer.valueOf(ix));
+            notify(ctx, Integer.valueOf(ix), out, child);
         }
         return out;
     }
@@ -883,7 +945,7 @@ public class Json {
     private Json traverse(String path, Json finalchild) {
 //        System.out.println();
         if (path == null) {
-            throw new NullPointerException("Path is null");
+            throw new IllegalArgumentException("path is null");
         }
         Json output = null;
         Json ctx = this;
@@ -969,11 +1031,11 @@ public class Json {
                         IMap imap = (IMap)ctx.core;
                         newctx = imap.get(key);
                         if (finalchild != null && (newctx == null || last)) {
-                            Json t = imap.put(key, newctx = last ? finalchild : new Json());
+                            Json t = imap.put(key, newctx = last ? finalchild : new Json(null));
                             if (output == null) {
                                 output = t;
                             }
-                            newctx.notifyAdd(ctx, key);
+                            notify(ctx, key, t, newctx);
                         }
                     }
                 }
@@ -1018,11 +1080,11 @@ public class Json {
                         IMap imap = (IMap)ctx.core;
                         newctx = imap.get(key);
                         if (finalchild != null && (newctx == null || last)) {
-                            Json t = imap.put(key, newctx = last ? finalchild : new Json());
+                            Json t = imap.put(key, newctx = last ? finalchild : new Json(null));
                             if (output == null) {
                                 output = t;
                             }
-                            newctx.notifyAdd(ctx, key);
+                            notify(ctx, key, t, newctx);
                         }
                     }
                 }

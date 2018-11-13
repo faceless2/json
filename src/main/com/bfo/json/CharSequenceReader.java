@@ -3,24 +3,23 @@ package com.bfo.json;
 import java.io.*;
 import java.nio.CharBuffer;
 
-class FastStringReader extends Reader {
+/**
+ * Like StringReader but works on any CharSequence and has no locking
+ */
+class CharSequenceReader extends Reader {
 
     private static final int CONTEXT = 8;
     private final CharSequence buf;
     private final int length;
     private int off, mark;
 
-    FastStringReader(CharSequence s) {
+    CharSequenceReader(CharSequence s) {
         this.buf = s;
         this.length = buf.length();
     }
 
     public int read() {
         return off == length ? -1 : buf.charAt(off++);
-    }
-
-    public CharSequence substring(int start, int end) {
-        return buf.subSequence(start, end);
     }
 
     public void mark(int limit) {
@@ -117,5 +116,11 @@ class FastStringReader extends Reader {
 
     public void close() {
     }
+
+    /*
+    public CharSequence substring(int start, int end) {
+        return buf.subSequence(start, end);
+    }
+    */
 
 }

@@ -35,37 +35,37 @@ public class JsonPathProviderBFO implements JsonProvider {
 
     @Override
     public boolean isArray(Object o) {
-        return o != null && ((Json)o).isList();
+        return o instanceof Json && ((Json)o).isList();
     }
 
     @Override
     public boolean isMap(Object o) {
-        return o != null && ((Json)o).isMap();
+        return o instanceof Json && ((Json)o).isMap();
     }
 
     @Override
     public int length(Object o) {
         if (o instanceof List) {
             return ((List)o).size();
-        } else if (((Json)o).isList()) {
-            return ((IList)((Json)o).core).size();
-        } else if (((Json)o).isMap()) {
-            return ((IMap)((Json)o).core).size();
-        } else if (((Json)o).core instanceof IString) {
-            return ((IString)((Json)o).core).stringValue().length();
-        } else {
-            return 0;
+        } else if (o instanceof Json) {
+            Json json = (Json)o;
+            if (json.isList() || json.isMap()) {
+                return json.size();
+            } else if (json.isString()) {
+                return json.stringValue().length();
+            }
         }
+        return 0;
     }
 
     @Override
     public Iterable toIterable(Object o) {
-        return ((Json)o).core.listValue();
+        return ((Json)o).listValue();
     }
 
     @Override
     public Collection<String> getPropertyKeys(Object o) {
-        return ((Json)o).core.mapValue().keySet();
+        return ((Json)o).mapValue().keySet();
     }
 
     @Override
@@ -73,46 +73,67 @@ public class JsonPathProviderBFO implements JsonProvider {
         if (o instanceof List) {
             return ((List)o).get(idx);
         } else {
-            return ((Json)o).core.listValue().get(idx);
+            return ((Json)o).listValue().get(idx);
         }
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public Object getArrayIndex(Object o, int idx, boolean unwrap) {
-        return getArrayIndex(o, idx, unwrap);
+        return getArrayIndex(o, idx);
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void setArrayIndex(Object o, int idx, Object v) {
-        List l = (List)o;
-        if (l.size() > idx) {
-            l.set(idx, v);
-        } else {
-            while (l.size() < idx) {
-                l.add(null);
-            }
-            l.add(v);
-        }
+        ((Json)o).put(idx, v);
     }
 
     @Override
     public Object getMapValue(Object o, String key) {
-        return ((IMap)((Json)o).core).get(key.toString());
+        Object json = ((Json)o)._mapValue().get(key);
+        if (json == null) {
+            json = UNDEFINED;
+        }
+        return json;
+    }
+
+    private static String quoteKey(String s) {
+        for (int i=0;i<s.length();i++) {
+            char c = s.charAt(i);
+            if (c == '.' || c == '[' || c == ']') {
+                StringBuilder sb = new StringBuilder(s.length());
+                sb.append('"');
+                for (i=0;i<s.length();i++) {
+                    c = s.charAt(i);
+                    if (c == '"') {
+                        sb.append("\\\"");
+                    } else {
+                        sb.append(c);
+                    }
+                }
+                sb.append('"');
+                return sb.toString();
+            }
+        }
+        return s;
     }
 
     @Override
     public void setProperty(Object o, Object key, Object v) {
-        if (!(v instanceof Json)) {
-            v = new Json(v);
+        if (key instanceof Integer) {
+            ((Json)o).put(((Integer)key).intValue(), v);
+        } else {
+            ((Json)o).put(quoteKey(key.toString()), v);
         }
-        ((IMap)((Json)o).core).put(key.toString(), (Json)v);
     }
 
     @Override
     public void removeProperty(Object o, Object key) {
-        ((IMap)((Json)o).core).remove(key.toString());
+        if (key instanceof Integer) {
+            ((Json)o).remove(((Integer)key).intValue());
+        } else {
+            ((Json)o).remove(quoteKey(key.toString()));
+        }
     }
 
     @Override

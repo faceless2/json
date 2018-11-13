@@ -4,6 +4,11 @@ import java.io.*;
 
 class INull extends Core {
 
+    static final INull INSTANCE = new INull();
+
+    private INull() {
+    }
+
     @Override Object value() {
         return null;
     }

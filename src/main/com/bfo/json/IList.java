@@ -28,27 +28,18 @@ class IList extends Core {
     }
 
     void add(Json value) {
-        if (value.parent() != null) {
-            value.notifyRemove();
-        }
         list.add(value);
     }
 
     Json set(int ix, Json value) {
-        if (value.parent() != null) {
-            value.notifyRemove();
-        }
         if (ix == list.size()) {
             add(value);
             return null;
         } else {
             while (list.size() <= ix) {
-                list.add(new Json());
+                list.add(new Json(null));
             }
             Json oldvalue = list.set(ix, value);
-            if (oldvalue != null) {
-                oldvalue.notifyRemove();
-            }
             return oldvalue;
         }
     }
@@ -56,10 +47,7 @@ class IList extends Core {
     Json remove(int ix) {
         if (ix >= 0 && ix < list.size()) {
             Json oldvalue = list.remove(ix);
-            if (oldvalue != null) {
-                oldvalue.notifyRemove();
-                return oldvalue;
-            }
+            return oldvalue;
         }
         return null;
     }
@@ -92,7 +80,7 @@ class IList extends Core {
             if (child != null) {
                 child.getCore().write(sb, state);
             } else {
-                Json.NULL.write(sb, state);
+                INull.INSTANCE.write(sb, state);
             }
             state.filter.exit(key, ochild);
         }

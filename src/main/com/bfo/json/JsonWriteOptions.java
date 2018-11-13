@@ -77,7 +77,8 @@ public class JsonWriteOptions {
 
     /**
      * Set whether to normalize all Strings (including map keys) to Unicode {@link java.text.Normalizer.Form#NFC normal form C}
-     * when writing.
+     * when writing. Note that collapsing Map keys down to NFC could theoretically result in two keys of the
+     * same value being written out. This is not tested for during writing.
      * @param nfc the flag
      * @return this
      */

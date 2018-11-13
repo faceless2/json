@@ -186,7 +186,7 @@ class IString extends Core {
         boolean testsimple = true;
         for (int i = 0; i < len; i++) {
             char c = value.charAt(i);
-            if (c >= 0x30 && c < 0x80) {
+            if (c >= 0x30 && c < 0x80) {        // Optimize for most common case
                 sb.append(c);
             } else {
                 switch (c) {
@@ -318,24 +318,6 @@ class IString extends Core {
             throw new IllegalArgumentException("Unterminated string \""+sb+"\"");
         }
         return count;
-    }
-
-    static String parseFastString(char quote, FastStringReader reader) {
-        boolean inquotes = true;
-        int count = 0;
-        int c;
-        reader.mark(0);
-        int off = reader.tell();
-        while ((c=reader.read()) >= 0) {
-            if (c == quote) {
-                return reader.substring(off, off + count).toString();
-            } else if (c >= 128 || !literal[c]) {
-                break;
-            }
-            count++;
-        }
-        reader.reset();
-        return null;
     }
 
 }

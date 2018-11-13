@@ -75,7 +75,7 @@ class JsonReader {
                     Json child = (Json)o;
                     int size = list.size();
                     list._listValue().add(child);
-                    child.notifyAdd(list, Integer.valueOf(size));
+                    Json.notify(list, Integer.valueOf(size), null, child);
                 } else {
                     throw new IllegalArgumentException("Unexpected response "+o);
                 }
@@ -109,7 +109,7 @@ class JsonReader {
                     key = Normalizer.normalize((String)key, Normalizer.Form.NFC);
                 }
                 map._mapValue().put((String)key, child);
-                child.notifyAdd(map, key);
+                Json.notify(map, key, null, child);
                 if ((o = readEnd(reader, options)) == ENDMAP) {
                     break;
                 } else if (o != COMMA) {
@@ -224,9 +224,6 @@ class JsonReader {
             }
             reader.reset();
         } else if (c == '"') {
-            if (reader instanceof FastStringReader) {
-                out = IString.parseFastString((char)c, (FastStringReader)reader);
-            }
             if (out == null) {
                 try {
                     StringBuilder sb = new StringBuilder();
@@ -257,7 +254,7 @@ class JsonReader {
             } else if (q.equals("false")) {
                 out = new Json(new IBoolean(false, options.storeOptions()));
             } else if (q.equals("null")) {
-                out = new Json();
+                out = new Json(null);
             } else {
                 throw new IllegalArgumentException("Invalid token \""+q+"\" at "+reader);
             }
