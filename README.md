@@ -38,7 +38,7 @@ The BFO Json Parser is yet another Java Json parser, with the follow emphasis:
 ```java
 Json json = Json.read("{}"};
 json.put("a", "apples");
-json.put("b.c", "oranges");
+json.put("b.c", new Json("oranges"));
 json.put("b.c[1]", "pears"};
 System.out.println(json); // {"a":"apples","b":{"c":[null,"pears"]}}
 
