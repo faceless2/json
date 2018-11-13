@@ -67,5 +67,5 @@ json.write(System.out, new JsonWriteOptions().setPretty(true));
 ## Build instructions
 Download. Type "ant". Tests are run automatically and javadoc constructed in "docs". If you just want the Jar, type "ant build".
 
-This code is written by the team at bfo.com. If you like it, come and see what else we do.
+This code is written by the team at http://bfo.com. If you like it, come and see what else we do.
 
