@@ -1,0 +1,1353 @@
+package com.bfo.json;
+
+import java.util.*;
+import java.io.*;
+import java.nio.*;
+import java.nio.charset.*;
+
+/**
+ * Json implementation that tries to be simple, complete, fast and follow the principle of least surprise.
+ * This class represents every type of Json object; the type may vary, if for instance you call {@link #put}
+ * on this object. The various {@link #isNumber isNNN} methods can be used to determine the current type,
+ * or you can just call {@link #stringValue}, {@link #intValue} etc to attempt to retrieve a typed value.
+ *
+ * <h2>Paths</h2>
+ * <p>
+ * Paths passed into {@link #put put}, {@link #get get} and {@link #has has}
+ * may be Strings or integers. Integers would normally be used to access an
+ * item in a List, but if the parent object is a Map the path will be used
+ * as a string.
+ * </p><p>
+ * Paths specified as strings may be compound paths, eg <code>a.b</code>, <code>a.b[2]</code>. If
+ * a part of the path contains a dot or square bracket it can be quoted and
+ * referenced inside square brackets, eg <code>a.b["dotted.key"]</code>.
+ *
+ * <h2>Serialization</h2>
+ * Object are read from the {@link #read} methods and written with the {@link #write} method. The process
+ * can be controlled by specifying {@link JsonReadOptions} or {@link JsonWriteOptions} as appropriate, although
+ * the default will read/write as defined in <a href="https://tools.ietf.org/html/rfc8259">RFC8259</a>. In
+ * all cases the Stream is not closed at the end of the read or write.
+ *
+ * <h2>Events</h2>
+ * Listeners can be attached to a Json object, and will received {@link JsonEvent JsonEvents} when changes are
+ * made to this item <b>or its descendants</b>.
+ *
+ * <h2>Thread Safety</h2>
+ * This object is not synchronized, and if it is being modified in one thread while being read in another, external
+ * locking should be put in place.
+ *
+ * <h2>JSON Path</h2>
+ * The JsonPath implementation from <a href="https://github.com/json-path/JsonPath">https://github.com/json-path/JsonPath</a>
+ * is optional, but if this is in the classpath the {@link #eval} and {@link #evalAll} methods will work; if not in the
+ * classpath a ClassNotFoundException will be thrown
+ *
+ * <h2>Examples</h2>
+ * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
+ * Json json = Json.read("{}");
+ * json.put("a.b[0]", 0);
+ * assert json.get("a.b[0]").type().equals("number");
+ * assert json.get("a.b[0]").isNumber();
+ * assert json.get("a.b[0]").intValue() == 0;
+ * assert json.get("a").type().equals("map");
+ * json.put("a.b[2]", 1);
+ * assert json.toString().equals("{\"a\":{\"b\":[0,null,2]}}");
+ * json.put("a.b", true);
+ * assert json.toString().equals("{\"a\":{\"b\":true}}");
+ * json.write(System.out, null);
+ * Json json2 = Json.read("[]");
+ * json2.put("0", 0);
+ * json2.put("2", 2);
+ * assert json2.toString().equals("[0,null,2]");
+ * json2.put("a", "a");
+ * assert json2.toString().equals("{\"0\":0,\"2\":2,\"a\":\"a"}");
+ * </pre>
+ */
+public class Json {
+
+    private static final JsonWriteOptions DEFAULTWRITEOPTIONS = new JsonWriteOptions();
+    private static final JsonReadOptions DEFAULTREADOPTIONS = new JsonReadOptions();
+    static final INull NULL = new INull();
+
+    Core core;  // Referenced from BFOJsonProvider, otherwise static
+    private Json parent;
+    private Object parentkey;
+    private List<JsonListener> listeners;
+    private List<JsonEvent> eventqueue;
+
+    Json() {
+        core = NULL;
+    }
+
+    /**
+     * <p>
+     * Create a new Json object that represents the specified object. The
+     * object should be a {@link CharSequence}, {@link Boolean}, {@link Number},
+     * {@link Map} or {@link Collection}; if a Map or Collection, the values
+     * must also meet this criteria.
+     * </p><p>
+     * An alternative method for creating a Json object representing an empty
+     * map or list is to call {@link #read Json.read("{}")} or {@link #read Json.read("[]")}
+     * </p>
+     * @param object the object
+     * @throws ClassCastException if these conditions are not met
+     */
+    public Json(Object object) {
+        this(object, null);
+    }
+
+    /**
+     * Create a new Json object that represents the specified object.
+     * As for {@link #Json(Object)}, but first attempts to convert the
+     * object to a Json object by calling {@link JsonFactory#toJson}.
+     * @param object the object
+     * @param factory the factory for conversion, which may be null
+     * @throws ClassCastException if the object cannot be converted to Json
+     */
+    @SuppressWarnings("unchecked")
+    public Json(Object object, JsonFactory factory) {
+        if (object == null) {
+            core = NULL;
+        } else if (object instanceof Core) {
+            core = (Core)object;
+        } else if (object instanceof Json) {
+            core = ((Json)object).core;
+        } else {
+            if (factory != null) {
+                Json json = factory.toJson(object);
+                if (json != null) {
+                    core = json.core;
+                }
+            }
+            if (core == null) {
+                if (object instanceof CharSequence) {
+                    core = new IString(object.toString(), (byte)0);
+                } else if (object instanceof Boolean) {
+                    core = new IBoolean(((Boolean)object).booleanValue(), (byte)0);
+                } else if (object instanceof Number) {
+                    core = new INumber((Number)object, (byte)0);
+                } else if (object instanceof Map) {
+                    core = new IMap();
+                    Map map = (Map)object;
+                    for (Iterator<Map.Entry> i = map.entrySet().iterator();i.hasNext();) {
+                        Map.Entry e = i.next();
+                        String key = e.getKey().toString();
+                        Json value = new Json(e.getValue(), factory);
+                        ((IMap)core).put(key, value);
+                    }
+                } else if (object instanceof Collection) {
+                    core = new IList();
+                    Collection list = (Collection)object;
+                    for (Object o : list) {
+                        Json value = new Json(o, factory);
+                        ((IList)core).add(value);
+                    }
+                }
+            }
+        }
+        if (core == null) {
+            throw new IllegalArgumentException(object.getClass().getName());
+        }
+    }
+
+    Core getCore() {
+        return core;
+    }
+
+    private void setCore(Core core) {
+//        System.out.println("Set to "+core+" parent="+parent+" key="+parentkey);
+        this.core = core;
+    }
+
+    /**
+     * Read a Json object from the specified String. The object may be a structured
+     * type or a primitive value (boolean, number or string). The values "{}" and "[]"
+     * may be supplied to create a new Json map or array.
+     * @param in the String, which must not be null or empty.
+     * @return the Json object
+     * @throws IllegalArgumentException if the JSON is invalid
+     */
+    public static Json read(CharSequence in) {
+        if (in == null) {
+            throw new IllegalArgumentException("Can't read from a null string");
+        } else if (in.length() == 0) {
+            throw new IllegalArgumentException("Can't read from an empty string");
+        } else if (in.length() == 2 && in.toString().equals("{}")) {
+            return new Json(new IMap());
+        } else if (in.length() == 2 && in.toString().equals("[]")) {
+            return new Json(new IList());
+        } else {
+            try {
+                return read(new FastStringReader(in), DEFAULTREADOPTIONS);
+            } catch (IOException e) {
+                throw new IllegalArgumentException(e);
+            }
+        }
+    }
+
+    /**
+     * Read a Json object from the specified InputStream. If the
+     * stream begins with a valid byte-order mark, that will be used
+     * determine the encoding (which must be UTF-8 or UTF-16),
+     * otherwise the stream will be parsed as UTF-8
+     * @param in the InputStream
+     * @param options the options to use for reading, or null to use the default
+     * @return the Json object
+     * @throws IOException if an IO exception was encountered during reading
+     * @throws IllegalArgumentException if the JSON is invalid
+     */
+    public static Json read(InputStream in, JsonReadOptions options) throws IOException {
+        if (!in.markSupported()) {
+            in = new BufferedInputStream(in);
+        }
+        in.mark(3);
+        int v = in.read();
+        if (v == 0xEF) {
+            if ((v = in.read()) == 0xBB) {
+                if ((v = in.read()) == 0xBF) {
+                    return read(new InputStreamReader(in, "UTF-8"), options);
+                } else {
+                    throw new IOException("Invalid Json (begins with 0xEF 0xBB 0x"+Integer.toHexString(v));
+                }
+            } else {
+                throw new IOException("Invalid Json (begins with 0xEF 0x"+Integer.toHexString(v));
+            }
+        } else if (v == 0xFE) {
+            if ((v = in.read()) == 0xFF) {
+                return read(new InputStreamReader(in, "UTF-16BE"), options);
+            } else {
+                throw new IOException("Invalid Json (begins with 0xFE 0x"+Integer.toHexString(v));
+            }
+        } else if (v == 0xFF) {
+            if ((v = in.read()) == 0xFE) {
+                return read(new InputStreamReader(in, "UTF-16LE"), options);
+            } else {
+                throw new IOException("Invalid Json (begins with 0xFF 0x"+Integer.toHexString(v));
+            }
+        } else if (v < 0) {
+            throw new EOFException("Empty file");
+        } else {
+            in.reset();
+            return read(new InputStreamReader(in, "UTF-8"), options);
+        }
+    }
+
+    /**
+     * Read a Json object from the specified Reader.
+     * @param in the Reader
+     * @param options the options to use for reading, or null to use the default
+     * @return the Json object
+     * @throws IOException if an IO exception was encountered during reading
+     * @throws IllegalArgumentException if the JSON is invalid
+     */
+    public static Json read(Reader in, JsonReadOptions options) throws IOException {
+        if (options == null) {
+            options = DEFAULTREADOPTIONS;
+        }
+        if (!in.markSupported()) {
+            in = new BufferedReader(in);
+        }
+        return (Json)JsonReader.read(in, options);
+    }
+
+    /**
+     * Add a {@link JsonListener} to this class, if it has not already been added.
+     * The listener will received events for any changes to this object or its
+     * descendents - the {@link JsonEvent} will reference which object the event
+     * relates to, and the {@link #path} method can be used to construct the path
+     * to that object if of interest.
+     * @param listener listener to add, which may not be null
+     * @return this object
+     */
+    public Json addListener(JsonListener listener) {
+        if (listener == null) {
+            throw new IllegalArgumentException("listener is null");
+        }
+        if (listeners == null) {
+            listeners = new ArrayList<JsonListener>();
+        }
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+        return this;
+    }
+
+    /**
+     * Remove a {@link JsonListener} from this class
+     * @param listener listener to remove
+     * @return this object
+     */
+    public Json removeListener(JsonListener listener) {
+        if (listeners != null && listeners.remove(listener) && listeners.isEmpty()) {
+            listeners = null;
+        }
+        return this;
+    }
+
+    /**
+     * Return the read-only set of listeners on this class.
+     * @return a read-only collection of listeners, which will never be null
+     */
+    public Collection<JsonListener> getListeners() {
+        return listeners == null ? Collections.<JsonListener>emptyList() : Collections.unmodifiableCollection(listeners);
+    }
+
+    /**
+     * Fire a JsonEvent on this object and its ancestors
+     * @param event the event
+     */
+    protected void fireEvent(JsonEvent event) {
+        Json j = this;
+        do {
+            if (j.listeners != null) {
+                for (JsonListener l : j.listeners) {
+                    l.jsonEvent(event);
+                }
+            }
+        } while ((j = j.parent) != null);
+    }
+
+    /**
+     * Write the Json object to the specified output
+     * @param out the output
+     * @param options the JsonWriteOptions to use when writing, or null to use the default
+     * @return the "out" parameter
+     * @throws IOException if an IOException is thrown while writing
+     */
+    public Appendable write(Appendable out, JsonWriteOptions options) throws IOException {
+        if (options == null) {
+            options = DEFAULTWRITEOPTIONS;
+        }
+        SerializerState state = new SerializerState(this, options);
+        core.write(out, state);
+        if (out instanceof Flushable) {
+            ((Flushable)out).flush();
+        }
+        return out;
+    }
+
+    /**
+     * Create and return a deep copy of this Json tree
+     * @return a deep copy of this item
+     */
+    public Json duplicate() {
+        Json json;
+        if (isMap()) {
+            json = new Json(new IMap());
+            Map<String,Json> om = json._mapValue();
+            for (Map.Entry<String,Json> e : _mapValue().entrySet()) {
+                om.put(e.getKey(), e.getValue().duplicate());
+            }
+        } else if (isList()) {
+            json = new Json(new IList());
+            List<Json> il = _listValue();
+            List<Json> ol = json._listValue();
+            for (int i=0;i<il.size();i++) {
+                ol.add(il.get(i).duplicate());
+            }
+        } else {
+            json = new Json(core);
+        }
+        return json;
+    }
+
+    /**
+     * Get the parent of this node, if known
+     * @return the items parent, or null if it has not been added to another Json object
+     */
+    public Json parent() {
+        return parent;
+    }
+
+    /**
+     * Get the parent key of this node, if known.
+     */
+    Object getParentKey() {
+        return parentkey;
+    }
+
+    void notifyAdd(Json parent, Object parentkey) {
+//        new Exception("ADD: this="+this+" parent="+parent+" key="+parentkey).printStackTrace();
+        this.parent = parent;
+        this.parentkey = parentkey;
+        if (parent != null && parent.listeners != null) {
+            parent.fireEvent(new JsonEvent(parent, parentkey.toString(), JsonEvent.Type.ADD));
+        }
+    }
+
+    void notifyRemove() {
+//        new Exception("DEL: this="+this+" parent="+parent+" key="+parentkey).printStackTrace();
+        Json oparent = parent;
+        Object okey = parentkey;
+        parent = null;
+        parentkey = null;
+        if (oparent != null && oparent.listeners != null) {
+            oparent.fireEvent(new JsonEvent(oparent, okey.toString(), JsonEvent.Type.REMOVE));
+        }
+    }
+
+    /**
+     * <p>
+     * Get the path from this node to the specified object
+     * If the "to" parameter is null or not an ancestor of
+     * this object, this method returns null.
+     * </p><p>
+     * Specifically, if this method returns not null then it is the case that
+     * <code>to.get(this.path(to)) == this</code>.
+     * </p>
+     * @param to the ancestor of this object to seek to
+     * @return the path from the ancestor to this object.
+     */
+    public String path(Json to) {
+        if (to == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        if (getPath(sb, to)) {
+            return sb.toString();
+        }
+        return null;
+    }
+
+    private boolean getPath(StringBuilder sb, Json to) {
+        if (this == to) {
+            return true;
+        } else if (parent != null && parent.getPath(sb, to)) {
+            boolean stringok = false;
+            if (parentkey instanceof String) {
+                String pk = (String)parentkey;
+                stringok = true;
+                for (int i=0;i<pk.length();i++) {
+                    char c = pk.charAt(i);
+                    if (!(Character.isAlphabetic(c) || c =='_' || (c >='0' && c <= '9' && i > 0))) {
+                        stringok = false;
+                        break;
+                    }
+                }
+                if (stringok) {
+                    if (sb.length() > 0) {
+                        sb.append('.');
+                    }
+                    sb.append(parentkey);
+                } else {
+                    sb.append("[");
+                    try {
+                        IString.write(pk, sb);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);      // Can't happen.
+                    }
+                    sb.append("]");
+                }
+            } else {
+                sb.append('[');
+                sb.append(parentkey);
+                sb.append(']');
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Put the specified value into this object or one of its descendants.
+     * If the path specifies a compound key than any intermediate descendants
+     * are created as required. If the path specifies an existing object then
+     * the old object (which may be a subtree) is removed and returned.
+     * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
+     * @param value the value to insert, which must not be null;
+     * @return the object that was previously found at that path, which may be null
+     */
+    public Json put(String path, Object value) {
+        if (path == null) {
+            throw new NullPointerException("path is null");
+        }
+        if (value == null) {
+            throw new NullPointerException("value is null");
+        }
+        Json object;
+        if (value instanceof Json) {
+            object = (Json)value;
+        } else {
+            object = new Json(value);
+        }
+        boolean convert = true;
+        if (core instanceof IList) {
+            try {
+                convert = !Character.isDigit(path.charAt(0)) || Integer.parseInt(path) < 0;
+            } catch (Exception e) { }
+        }
+        if (convert) {
+            convertToMap();
+        }
+        Json old = traverse(path, object);
+        if (listeners != null) {
+            fireEvent(new JsonEvent(this, path, JsonEvent.Type.CHANGE));
+        }
+        return old;
+    }
+
+    /**
+     * Remove the item at the specified path from this object or one of its descendants.
+     * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
+     * @return the object that was removed, or null if nothing was removed
+     */
+    public Json remove(String path) {
+        Json json = traverse(path, null);
+        if (json != null) {
+            boolean removed = false;
+            Json parent = json.parent();
+            if (parent == null) {
+                // ???
+            } else if (parent.isList()) {
+                int ix = ((Integer)json.getParentKey()).intValue();
+                ((IList)parent.core).remove(ix);
+                removed = true;
+            } else if (parent.isMap()) {
+                ((IMap)parent.core).remove((String)json.getParentKey());
+                removed = true;
+            }
+            if (removed && listeners != null) {
+                fireEvent(new JsonEvent(this, path, JsonEvent.Type.REMOVE));
+            }
+        }
+        return json;
+    }
+
+    /**
+     * Remove the specified child from this object.
+     * Objects are compared with == not equals(). Calling this
+     * method on a primitive type Json returns null.
+     * @param json the object to remove
+     * @return the parameter "json" if it was removed, or null otherwise
+     */
+    public Json remove(Json json) {
+        if (isList()) {
+            IList list = (IList)core;
+            for (int i=0;i<list.size();i++) {
+                if (list.get(i) == json) {
+                    list.remove(i);
+                    fireEvent(new JsonEvent(this, Integer.toString(i), JsonEvent.Type.REMOVE));
+                    return json;
+                }
+            }
+        } else if (isMap()) {
+            IMap map = (IMap)core;
+            for (Iterator<Map.Entry<String,Json>> i = map.mapValue().entrySet().iterator();i.hasNext();) {
+                Map.Entry<String,Json> e = i.next();
+                if (e.getValue() == json) {
+                    i.remove();
+                    fireEvent(new JsonEvent(this, e.getKey(), JsonEvent.Type.REMOVE));
+                    return json;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Remove the specified item from this object. Intended for array deletion,
+     * this will also work with Maps that contain a key with this value.
+     * Calling this method on a primitive type Json will return null.
+     * @param path the key
+     * @return the removed object, or null of no object was removed
+     */
+    public Json remove(int path) {
+        if (isList()) {
+            return ((IList)core).remove(path);
+        } else if (isMap()) {
+            return ((IMap)core).remove(Integer.toString(path));
+        }
+        return null;
+    }
+
+    /**
+     * Return true if this object has a non-null descendent at the specified path.
+     * @param path the path
+     * @return true if this object is a list or map, it has the specified descendant and the descendant is not null
+     */
+    public boolean has(String path) {
+        if (isList() || isMap()) {
+            boolean full = false;
+            if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"') {
+                path = path.substring(1, path.length() - 1);
+            } else {
+                for (int i=0;i<path.length();i++) {
+                    char c = path.charAt(i);
+                    if (c == '.' || c == '[' || c == ']') {
+                        full = true;
+                        break;
+                    }
+                }
+            }
+            Json json = null;
+            if (full) {
+                json = traverse(path, null);
+            } else if (isMap()) {
+                json = _mapValue().get(path);
+            } else if (isList()) {
+                try {
+                    int ix = Integer.parseInt(path);
+                    json = ((IList)core).get(ix);
+                } catch (NumberFormatException e) { }
+            }
+            return json != null && !json.isNull();
+        }
+        return false;
+    }
+
+    /**
+     * Return true if this object has a non-null child at the specified path.
+     * Intended to identify if the array has a specified index, it will also work with maps.
+     * @param path the path
+     * @return true if this object is a list or map, it has the specified child and the child is not null
+     */
+    public boolean has(int path) {
+        if (isList()) {
+            Json j = ((IList)core).remove(path);
+            return j != null && !j.isNull();
+        } else if (isMap()) {
+            Json j = ((IMap)core).get(Integer.toString(path));
+            return j != null && !j.isNull();
+        }
+        return false;
+    }
+
+    /**
+     * Return the specified descendant of this object, or null
+     * if no value exists at the specified path.
+     * @param path the path, which must not be null
+     * @return the Json object at that path or null if none exists
+     */
+    public Json get(String path) {
+        if (path == null) {
+            throw new IllegalArgumentException("path is null");
+        }
+        if (isList() || isMap()) {
+            boolean full = false;
+            if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"') {
+                path = path.substring(1, path.length() - 1);
+            } else {
+                for (int i=0;i<path.length();i++) {
+                    char c = path.charAt(i);
+                    if (c == '.' || c == '[' || c == ']') {
+                        full = true;
+                        break;
+                    }
+                }
+            }
+            if (full) {
+                return traverse(path, null);
+            } else if (isMap()) {
+                return ((IMap)core).get(path);
+            } else if (isList()) {
+                try {
+                    int ix = Integer.parseInt(path);
+                    return ((IList)core).get(ix);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Return the specified child of this object, or null
+     * if no value exists at the specified path.
+     * @param path the path
+     * @return the object at the specified path, or null if none exists.
+     */
+    public Json get(int path) {
+        if (isList()) {
+            return ((IList)core).get(path);
+        } else if (isMap()) {
+            return ((IMap)core).get(Integer.toString(path));
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Return the size of this object, or zero if this object is a number, string, boolean or null.
+     * @return the size of the object
+     */
+    public int size() {
+        if (isList()) {
+            return ((IList)core).size();
+        } else if (isMap()) {
+            return ((IMap)core).size();
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * Return true if this node is a number, string, boolean, null or an empty map or list.
+     * @return true if the node is a leaf node.
+     */
+    public boolean isEmpty() {
+        if (isMap()) {
+            return ((IMap)core).size() == 0;
+        } else if (isList()) {
+            return ((IList)core).size() == 0;
+        } else {
+            return true;
+        }
+    }
+
+    /**
+     * Return an Iterator that will descend through every leaf node under this
+     * object in a depth-first traveral. The returned keys are relative to this node's path
+     * and start with a '.'. If this is called on a leaf nodes, it returns an empty iterator
+     * @return an Iterator as described
+     */
+    public Iterator<Map.Entry<String,Json>> leafIterator() {
+        if (!isMap() && !isList()) {
+            return Collections.<Map.Entry<String,Json>>emptyIterator();
+        }
+        return new Iterator<Map.Entry<String,Json>>() {
+            List<Iterator> stack;
+            List<Object> string;
+            Json last;
+
+            {
+                stack = new ArrayList<Iterator>();
+                string = new ArrayList<Object>();
+                last = Json.this;
+                if (isMap()) {
+                    stack.add(_mapValue().entrySet().iterator());
+                } else {
+                    stack.add(_listValue().listIterator());
+                }
+                string.add(null);
+            }
+
+            private boolean hasDown() {
+                boolean ret = last != null && (last.isMap() || last.isList());
+//                System.out.print(ret ? "{d}":"{!d}");
+                return ret;
+            }
+
+            private boolean hasUp() {
+                boolean ret =  !stack.isEmpty();
+//                System.out.print(ret ? "{y}":"{!u}");
+                return ret;
+            }
+
+            private boolean hasAcross() {
+                boolean ret = !stack.isEmpty() && stack.get(stack.size() - 1).hasNext();
+//                System.out.print(ret ? "{a}":"{!a}");
+                return ret;
+            }
+
+            private void down() {
+//                System.out.print("{D}");
+                if (last.isMap()) {
+                    stack.add(last._mapValue().entrySet().iterator());
+                    string.add(null);
+                } else if (last.isList()) {
+                    stack.add(last._listValue().listIterator());
+                    string.add(null);
+                } else {
+                    throw new NoSuchElementException();
+                }
+                last = null;
+            }
+
+            private void up() {
+//                System.out.print("{U}");
+                if (stack.isEmpty()) {
+                    throw new NoSuchElementException();
+                }
+                stack.remove(stack.size() - 1);
+                string.remove(string.size() - 1);
+                last = null;
+            }
+
+            @SuppressWarnings("unchecked")
+            private void across() {
+                Iterator i = stack.get(stack.size() - 1);
+                if (i instanceof ListIterator) {
+                    string.set(string.size() - 1, Integer.valueOf(((ListIterator)i).nextIndex()));
+                    last = (Json)i.next();
+                } else {
+                    Map.Entry<String,Object> e = (Map.Entry<String,Object>)i.next();
+                    string.set(string.size() - 1, e.getKey());
+                    last = (Json)e.getValue();
+                }
+//                System.out.print("{A}");
+            }
+
+            public boolean hasNext() {
+//                System.out.print("[");
+                if (hasAcross()) {
+                    across();
+                    if (!hasDown()) {
+//                        System.out.print("->true]");
+                        return true;
+                    }
+                }
+                while (hasDown()) {
+                    down();
+                }
+                if (hasAcross()) {
+                    return hasNext();
+                } else {
+                    while (hasUp()) {
+                        up();
+                        if (hasAcross()) {
+                            return hasNext();
+                        } 
+                    }
+                }
+//                System.out.print("->false]");
+                return false;
+            }
+
+            public Map.Entry<String,Json> next() {
+                StringBuilder sb = new StringBuilder();
+                for (int i=0;i<string.size();i++) {
+                    if (string.get(i) instanceof String) {
+                        sb.append('.');
+                        sb.append(string.get(i));
+                    } else {
+                        sb.append('[');
+                        sb.append(string.get(i));
+                        sb.append(']');
+                    }
+                }
+                return new AbstractMap.SimpleImmutableEntry<String,Json>(sb.toString(), last);
+            }
+
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
+    private void convertToMap() {
+        if (!isMap()) {
+            IMap imap = new IMap();
+            if (core instanceof IList) {
+                IList list = (IList)core;
+                List<JsonListener> tlisteners = listeners;
+                listeners = null;
+                for (int i=0;i<list.size();i++) {
+                    Json item = list.get(i);
+                    String key = Integer.toString(i);
+                    imap.put(key, item);
+                    item.parent = this;
+                    item.parentkey = key;
+                }
+                listeners = tlisteners;
+            } else if (!(core instanceof INull)) {
+                notifyRemove();
+            }
+            setCore(imap);
+        }
+    }
+
+    private void convertToList() {
+        if (!isList() && !isMap()) {
+            IList ilist = new IList();
+            notifyRemove();
+            setCore(ilist);
+        }
+    }
+
+    private static final Object DOT = new Object() { public String toString() { return "."; } };
+    private static final Object LB = new Object() { public String toString() { return "["; } };
+    private static final Object RB = new Object() { public String toString() { return "]"; } };
+
+    private static Json buildlist(int ix, IList ilist, Json ctx, Json child) {
+        Json out = null;
+        while (ilist.size() < ix) {
+            Json t = new Json();
+            int s = ilist.size();
+            ilist.add(t);
+            t.notifyAdd(ctx, Integer.valueOf(s));
+        }
+        if (ix == ilist.size()) {
+            if (child == null) {
+                child = new Json();
+            }
+            ilist.add(child);
+            child.notifyAdd(ctx, Integer.valueOf(ix));
+        } else if (child != null) {
+            out = ilist.set(ix, child);
+            child.notifyAdd(ctx, Integer.valueOf(ix));
+        }
+        return out;
+    }
+
+    private Json traverse(String path, Json finalchild) {
+//        System.out.println();
+        if (path == null) {
+            throw new NullPointerException("Path is null");
+        }
+        Json output = null;
+        Json ctx = this;
+        Object[] stack = new Object[5];
+        int lasti = 0, stacklen = 0;
+
+        stack[stacklen++] = DOT;
+//        System.out.println(Arrays.toString(stack));
+        int len = path.length();
+        for (int i=0;ctx != null && i<=len;i++) {
+            char c = i == len ? '.' : path.charAt(i);
+            boolean last = i == len || (i == len -1 && c == ']');;
+            if (c == '\'' || c == '\"') {
+                StringBuilder sb = new StringBuilder();
+                StringReader r = new StringReader(path);
+                try {
+                    r.skip(i+1);
+                    i += IString.parseString(c, r, sb);
+                    continue;
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (c == '.') {
+                String p = path.substring(lasti, i);
+                if (p.length() > 0) {
+                    stack[stacklen++] = p;
+                }
+                stack[stacklen++] = DOT;
+                lasti = i+1;
+            } else if (c == '[') {
+                String p = path.substring(lasti, i);
+                if (p.length() > 0) {
+                    stack[stacklen++] = p;
+                }
+                stack[stacklen++] = LB;
+                lasti = i+1;
+            } else if (c == ']') {
+                String p = path.substring(lasti, i);
+//                System.out.println("RB: string='"+p+"'");
+                if (p.length() > 1 && (c=p.charAt(0)) == p.charAt(p.length()-1) && c == '\"') {
+                    stack[stacklen++] = p.substring(1, p.length() - 1);
+                } else if (p.length() > 0) {
+                    if (Character.isDigit(p.charAt(0))) {
+                        try {
+                            stack[stacklen++] = Integer.valueOf(p);
+                        } catch (NumberFormatException e) {
+                            stack[stacklen++] = p;
+                        }
+                    } else {
+                        stack[stacklen++] = p;  // Putting unquoted string in as legit arg
+                    }
+                }
+                stack[stacklen++] = RB;
+                lasti = i+1;
+            } else {
+                continue;
+            }
+//            System.out.println(Arrays.toString(stack));
+            if (stack[0] == DOT && stack[1] instanceof String) {
+                // . WORD -
+                // if WORD is int and ctx is array, cvt to int and add to array,
+                // otherwise cvt to map and add to map
+                Json newctx = null;
+                String key = (String)stack[1];
+                if (ctx.isList()) {
+                    try {
+                        int ix = Integer.parseInt(key);
+                        IList ilist = (IList)ctx.core;
+                        if (finalchild != null) {
+                            Json t = buildlist(ix, ilist, ctx, last ? finalchild : null);
+                            if (output == null) {
+                                output = t;
+                            }
+                        }
+                        newctx = ilist.get(ix);
+                    } catch (NumberFormatException e) { }
+                }
+                if (newctx == null) {
+                    if (finalchild != null) {
+                        ctx.convertToMap();
+                    }
+                    if (ctx.isMap()) {
+                        IMap imap = (IMap)ctx.core;
+                        newctx = imap.get(key);
+                        if (finalchild != null && (newctx == null || last)) {
+                            Json t = imap.put(key, newctx = last ? finalchild : new Json());
+                            if (output == null) {
+                                output = t;
+                            }
+                            newctx.notifyAdd(ctx, key);
+                        }
+                    }
+                }
+//                System.out.println("CTX now "+ctx);
+                ctx = newctx;
+                stack[0] = stack[2];
+                stack[1] = stack[3];
+                stack[2] = null;
+                stack[3] = null;
+                stacklen -= 2;
+            } else if (stack[0] == LB && stack[2] == RB) {
+                // [ ? ]
+                Json newctx = null;
+                if (stack[1] instanceof Integer) {
+                    // [ INT ]
+                    // if ctx is array, add to array
+                    int ix = ((Integer)stack[1]).intValue();
+                    if (finalchild != null) {
+                        if (output == null) {
+                            output = new Json(ctx.core);
+                        }
+                        ctx.convertToList();
+                    }
+                    if (ctx.isList()) {
+                        IList ilist = (IList)ctx.core;
+                        if (finalchild != null) {
+                            Json t = buildlist(ix, ilist, ctx, last ? finalchild : null);
+                            if (output == null) {
+                                output = t;
+                            }
+                        }
+                        newctx = ilist.get(ix);
+                    }
+                }
+                if (newctx == null) {
+                    // [ STR ] - ctx to map, and add STR to map
+                    String key = stack[1].toString();
+                    if (finalchild != null) {
+                        ctx.convertToMap();
+                    }
+                    if (ctx.isMap()) {
+                        IMap imap = (IMap)ctx.core;
+                        newctx = imap.get(key);
+                        if (finalchild != null && (newctx == null || last)) {
+                            Json t = imap.put(key, newctx = last ? finalchild : new Json());
+                            if (output == null) {
+                                output = t;
+                            }
+                            newctx.notifyAdd(ctx, key);
+                        }
+                    }
+                }
+//                System.out.println("CTX now "+ctx);
+                ctx = newctx;
+                stack[0] = stack[3];
+                stack[1] = stack[4];
+                stack[2] = null;
+                stack[3] = null;
+                stack[4] = null;
+                stacklen -= 3;
+            } else if (stacklen > 3) {
+                break;
+            }
+        }
+        if (stacklen != 1 && ctx != null) {
+            throw new IllegalArgumentException("Invalid path \""+path+"\"");
+        }
+        if (finalchild != null) {
+            return output;
+        }
+        return ctx;
+    }
+
+    /**
+     * Return the type of this node, which may be "number", "string", "boolean", "list", "map" or "null"
+     * @return the object type
+     */
+    public String type() {
+        return core.type();
+    }
+
+    /**
+     * Return true if this node is null
+     * @return true if the object is null
+     */
+    public boolean isNull() {
+        return core instanceof INull;
+    }
+
+    /**
+     * Return true if this node is a number
+     * @return true if the object is a number
+     */
+    public boolean isNumber() {
+        return core instanceof INumber;
+    }
+
+    /**
+     * Return true if this node is a boolean
+     * @return true if the object is a boolean
+     */
+    public boolean isBoolean() {
+        return core instanceof IBoolean;
+    }
+
+    /**
+     * Return true if this node is a string
+     * @return true if the object is a string
+     */
+    public boolean isString() {
+        return core instanceof IString;
+    }
+
+    /**
+     * Return true if this node is a map
+     * @return true if the object is a map
+     */
+    public boolean isMap() {
+        return core instanceof IMap;
+    }
+
+    /**
+     * Return true if this node is a list
+     * @return true if the object is a list
+     */
+    public boolean isList() {
+        return core instanceof IList;
+    }
+
+    /**
+     * Return the value of this Json as a plain Java object,
+     * which may be a {@link String}, {@link Boolean}, {@link Number},
+     * {@link List}, {@link Map} or null.
+     * @return the object value
+     */
+    public Object value() {
+        return core.value();
+    }
+
+    /**
+     * Return the value of this node as a String. This method will always
+     * succeed. It will return null if this object represents null, but it
+     * otherwise identical to {@link #toString}
+     * @return the string value of this object
+     */
+    public String stringValue() {
+        return core.stringValue();
+    }
+
+    /**
+     * Return the value of this node as a Number.
+     * <ul>
+     * <li>A number will be returned as an Integer, Long, Double, BigInteger or BigDecimal as appropriate</li>
+     * <li>A string in the format specified in RFC8259 will be parsed and returned as an Integer, Long or Double (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * <li>An empty string will return 0 (if {@link JsonReadOptions#setLooseEmptyStrings "looseEmptyStrings"} was specified))</li>
+     * <li>A boolean will return an Integer that is 1 or 0 (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * <li>null will return null</li>
+     * </ul>
+     * @see JsonReadOptions
+     * @throws ClassCastException if none of these conditions are met
+     * @return the number value of this object
+     */
+    public Number numberValue() {
+        return core.numberValue();
+    }
+
+    /**
+     * Return the value of this node as an integer.
+     * <ul>
+     * <li>A number will be converted to int</li>
+     * <li>A string that can be parsed with Integer.parseInt will converted (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * <li>An empty string will return 0 (if {@link JsonReadOptions#setLooseEmptyStrings "looseEmptyStrings"} was specified))</li>
+     * <li>A boolean will return 1 or 0 (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * </ul>
+     * @see JsonReadOptions
+     * @throws ClassCastException if none of these conditions are met
+     * @return the int value of this object
+     */
+    public int intValue() {
+        return core.intValue();
+    }
+
+    /**
+     * Return the value of this node as a long.
+     * <ul>
+     * <li>A number will be converted to long</li>
+     * <li>A string that can be parsed with Long.parseLong will converted (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * <li>An empty string will return 0 (if {@link JsonReadOptions#setLooseEmptyStrings "looseEmptyStrings"} was specified))</li>
+     * <li>A boolean will return 1 or 0 (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * </ul>
+     * @see JsonReadOptions
+     * @throws ClassCastException if none of these conditions are met
+     * @return the long value of this object
+     */
+    public long longValue() {
+        return core.longValue();
+    }
+
+    /**
+     * Return the value of this node as an float.
+     * <ul>
+     * <li>A number will be converted to float</li>
+     * <li>A string in the format specified in RFC8259 will be parsed and returned (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * <li>An empty string will return 0 (if {@link JsonReadOptions#setLooseEmptyStrings "looseEmptyStrings"} was specified)</li>
+     * <li>A boolean will return 1 or 0 (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * </ul>
+     * @see JsonReadOptions
+     * @throws ClassCastException if none of these conditions are met
+     * @return the float value of this object
+     */
+    public float floatValue() {
+        return core.floatValue();
+    }
+
+    /**
+     * Return the value of this node as a double.
+     * <ul>
+     * <li>A number will be converted to double</li>
+     * <li>A string in the format specified in RFC8259 will be parsed and returned (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * <li>An empty string will return 0 (if {@link JsonReadOptions#setLooseEmptyStrings "looseEmptyStrings"} was specified)</li>
+     * <li>A boolean will return 1 or 0 (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * </ul>
+     * @see JsonReadOptions
+     * @throws ClassCastException if none of these conditions are met
+     * @return the double value of this object
+     */
+    public double doubleValue() {
+        return core.doubleValue();
+    }
+
+    /**
+     * Return the value of this node as a boolean.
+     * <ul>
+     * <li>A boolean will return its value</li>
+     * <li>A number evaluating to 0 will return false, otherwise it will return true (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * <li>The string "false", or one that represents a number evaluating to 0 will return false, otherwise it will return true (if {@link JsonReadOptions#setStrictTypes "strictTypes"} was not specified)</li>
+     * <li>An empty string will return false (if {@link JsonReadOptions#setLooseEmptyStrings "looseEmptyStrings"} was specified)</li>
+     * </ul>
+     * @see JsonReadOptions
+     * @throws ClassCastException if none of these conditions are met
+     * @return the boolean value of this object
+     */
+    public boolean booleanValue() {
+        return core.booleanValue();
+    }
+
+    /**
+     * Return the value of this node as a map. The returned Map is read-only
+     * @throws ClassCastException if the node is not a map.
+     * @return the read-only map value of this object
+     */
+    public Map<String,Json> mapValue() {
+        return Collections.unmodifiableMap(_mapValue());
+    }
+
+    Map<String,Json> _mapValue() {
+        return core.mapValue();
+    }
+
+    /**
+     * Return the value of this node as a list. The returned List is read-only
+     * @throws ClassCastException if the node is not a list
+     * @return the read-only list value of this object
+     */
+    public List<Json> listValue() {
+        return Collections.unmodifiableList(_listValue());
+    }
+
+    List<Json> _listValue() {
+        return core.listValue();
+    }
+
+    /**
+     * Return this Json value as a plain object. Unlike {@link #value} this
+     * method will traverse through its descendants, converting Json objects
+     * to plain objects so that the returned object is guaranteed to have
+     * no reference to this package. The returned value is as follows
+     * <ul>
+     * <li>If this object {@link #isNull is null}, return null</li>
+     * <li>If factory is not null and {@link JsonFactory#fromJson fromJson()} returns a non-null value, return that value</li> 
+     * <li>If this value is a string, number or boolean, return the value from {@link #value()}</li>
+     * <li>If this value is a list or map, populate the map values with the output of this method and return as a Map&lt;String,Object&gt; or List&lt;Object&gt;</li>
+     * </ul>
+     * @param factory the factory for conversion, which may be null
+     * @return a String, Number, Boolean, Map&lt;String,Object&gt;, List&lt;Object&gt; or null as described
+     */
+    public Object objectValue(JsonFactory factory) {
+        if (isNull()) {
+            return null;
+        }
+        if (factory != null) {
+            Object o = factory.fromJson(this);
+            if (o != null) {
+                return o;
+            }
+        }
+        if (isMap()) {
+            Map<String,Object> out = new LinkedHashMap<String,Object>(core.mapValue());
+            for (Map.Entry<String,Object> e : out.entrySet()) {
+                e.setValue(((Json)e.getValue()).objectValue(factory));
+            }
+            return out;
+        } else if (isList()) {
+            List<Json> list = core.listValue();
+            List<Object> out = new ArrayList<Object>(list.size());
+            for (Json o : list) {
+                out.add(o.objectValue(factory));
+            }
+            return out;
+        } else {
+            return value();
+        }
+    }
+
+    /**
+     * Return a hashCode based on the {@link #value()}
+     */
+    public int hashCode() {
+        return core.hashCode();
+    }
+
+    /**
+     * Return true if the specified object is a Json object and has an equal {@link #value() value}
+     */
+    public boolean equals(Object o) {
+        return o instanceof Json && core.equals(((Json)o).core);
+    }
+
+    /**
+     * Return a String representation of this Json object. Equivalent
+     * to calling <code>return {@link #write write}(new StringBuilder(), null).toString()</code>
+     */
+    public String toString() {
+        try {
+            return write(new StringBuilder(), null).toString();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    //--------------------------------------------------------
+    // jsonpath
+
+    /**
+     * Evaluate the "JSON path" expression at this node, and return the 
+     * single object it finds, or null if none were found.
+     * If more than one object is found, only the first is returned
+     * This method requires JsonPath to be in the classpath.
+     * @param path the JSON path expression
+     * @return the Json object matching the evaluation of the specified path from this node, or null if no node matches
+     */
+    public Json eval(String path) {
+        Object o = JsonPathProviderBFO.read(path, this);
+        if (o instanceof List) {
+            return (Json)((List)o).get(0);
+        } else {
+            return (Json)o;
+        }
+    }
+
+    /**
+     * Evaluate the "JSON path" expression at this node, and return the 
+     * set of objects it finds, or null if none were found.
+     * This method requires JsonPath to be in the classpath.
+     * @param path the JSON path expression
+     * @return a Collection of Json objects matching the evaluation of the specified path from this node, or null if no node matches
+     */
+    @SuppressWarnings("unchecked")
+    public List<Json> evalAll(String path) {
+        Object o = JsonPathProviderBFO.read(path, this);
+        if (o instanceof Json) {
+            o =  Collections.singletonList(o);
+        }
+        return (List<Json>)o;
+    }
+
+}
