@@ -9,7 +9,7 @@ The BFO Json Parser is yet another Java Json parser, with the follow emphasis:
 * A typical laptop in 2018 would be able to read Json at about 7MB/s and write at about 9MB/s. There are plenty of Java Json APIs claiming to be the fastest; benchmarking is not something I care to spend much time on, although informally it is testing faster than anything else I could find.
 
 ### correct
-* the API has been tested against the Json sample data made available by Nicolas Seriot at http://seriot.ch/parsing_json.php, and has been authored with reference to RFC8259
+* the API has been tested against the Json sample data made available by Nicolas Seriot at http://seriot.ch/parsing_json.php, and has been authored with reference to [RFC8259](https://tools.ietf.org/html/rfc8259)
 
 ### self-contained
 * the API has no external requirements. Although it compiles against the JsonPath implementation https://github.com/json-path/JsonPath, provided the "eval" methods are not used there is no need for those classes to be available at runtime. To build it, type "ant". No maven here, not ever.
@@ -26,42 +26,77 @@ The BFO Json Parser is yet another Java Json parser, with the follow emphasis:
 
 * Mapping JavaScript objects to a Java object can be done by use of a JsonFactory, however this is done after the object is read. Most of the complexity of other Java Json APIs comes from the mapping process between Json and Java objects; if you want to go down this route you have a trivially simple interface to implement, but you're on your own.
    
-* JavaScript is loosely typed, and this API acknowleges this: if you request an int value from a Json string, it will try to parse the String as an integer (although this is configurable).
+* JavaScript is loosely typed, and this API acknowleges this: if you request an int value from a Json string, it will try to parse the String as an integer. If you don't want this, see the JsonReadOptions to turn it off.
 
-* Json in the wild has many variations - comments are embedded, maps have unquoted keys, and so on. By default the API will adhere closely to RFC8259 when reading or writing, although this can be changed.
+* Json in the wild has many variations - comments are embedded, maps have unquoted keys, and so on. By default the API will adhere closely to RFC8259 when reading or writing, although this can be changed. Again see JsonReadOptions.
 
-* When reading Json numbers, they will be mapping to ints, longs, BigIntegers and double as appropriate. If BigDecimal support is required, this can be turned on with the appropriate JsonReadOption
+* When reading Json numbers, they will be mapping to ints, longs, BigIntegers and double as appropriate. If BigDecimal support is required, this can be turned on in JsonReadOptions
 
 * Things are read from Readers and written to Appendable. You can read from an InputStream too, in which case it will look for a BOM at the start of the stream
 
 ## Examples
 ```java
+// The basics
 Json json = Json.read("{}"};
 json.put("a", "apples");
 json.put("b.c", new Json("oranges"));
-json.put("b.c[1]", "pears"};
-System.out.println(json); // {"a":"apples","b":{"c":[null,"pears"]}}
+json.put("b.c[1]", 3};
+json.write(System.out, null); // {"a":"apples","b":{"c":[null,3]}}
+System.out.println(json.get("b.c[1]").stringValue()); // "3"
+System.out.println(json.get("b.c[1]").intValue()); // 3
+System.out.println(json); // the same
 
+// Types
 System.out.println(json.get("a").type()); // "string"
 System.out.println(json.type()); // "map"
 System.out.println(json.isMap()); // true
 System.out.println(json.get("b.c[1]")); // "pears"
 System.out.println(json.get("b").get("c").get(1)); // "pears"
 
+// Type conversion
 json.put("d", "2");
 json.put("e", "0");
 System.out.println(json.get("d")); // "2"
 System.out.println(json.get("d").type()); // "string"
 System.out.println(json.get("d").intValue()); // 2
+System.out.println(json.get("d").numberValue().getClass()); // java.lang.Integer
+json.put("d", "9999999999");
+System.out.println(json.get("d").numberValue().getClass()); // java.lang.Long
+json.put("d", "99999999999999999999999999");
+System.out.println(json.get("d").numberValue().getClass()); // java.math.BigInteger
 System.out.println(json.get("d").booleanValue()); // true
 System.out.println(json.get("e").booleanValue()); // false
+json.put("e", Json.read("[]"));
+System.out.println(json.get("e").type()); // "list"
+json.put("e[0]", false);
+System.out.println(json.get("e")); // [false] - e is a list
+json.put("e[\"a\"]", true); // will convert e to a map
+System.out.println(json.get("e")); // {"0":false,"a":true}
 
+// Serialization
 json = Json.read("{a: 1}");  // Fails, a is not quoted
 json = Json.read(new StringReader("{a: 1}"), new JsonReadOptions().setAllowUnquotedKey(true)); // OK
 json.write(System.out, new JsonWriteOptions().setPretty(true));
 // {
 //   "a": 1
 // }
+
+// Events
+json.addListener(new JsonListener() {
+    public void jsonEvent(Json root, JsonEvent event) {
+        if (event.after == null) {
+            System.out.println("Removed " + root.find(event.before));
+        } else if (event.before == null) {
+            System.out.println("Added " + root.find(event.after));
+        } else {
+            System.out.println("Changed " + root.find(event.after) + " from " + event.before+" to " + event.after);
+        }
+    }
+});
+json.put("a.b", true);  // "Added a.b"
+json.get("a.b").put("c", true);  // "Added a.b.c"
+json.get("a.b").put("c", false);  // "Changed a.b.c" from true to false
+json.remove("a.b"); // "Removed a.b"
 ```
 
 ## Build instructions
