@@ -48,20 +48,16 @@ System.out.println(json); // {"a":"apples","b":{"c":[null,3]},"d.e":true}
 json.write(System.out, null); // The same as above, but doesn't serialize to a String first.
 System.out.println(json.get("b.c[1]").stringValue()); // "3"
 System.out.println(json.get("b.c[1]").intValue()); // 3
+System.out.println(json.get("b").get("c").get(1).intValue()); // 3
 
 // Types
-System.out.println(json.get("a").type()); // "string"
+json.put("d", "2");
+json.put("e", 0);
 System.out.println(json.type()); // "map"
 System.out.println(json.isMap()); // true
-System.out.println(json.get("b.c[1]")); // "pears"
-System.out.println(json.get("b").get("c").get(1)); // "pears"
-
-// Type conversion
-json.put("d", "2");
-json.put("e", "0");
 System.out.println(json.get("d")); // "2"
 System.out.println(json.get("d").type()); // "string"
-System.out.println(json.get("d").intValue()); // 2
+System.out.println(json.get("d").intValue()); // 2 (automatically converted from string)
 System.out.println(json.get("d").numberValue().getClass()); // java.lang.Integer
 json.put("d", "9999999999");
 System.out.println(json.get("d").numberValue().getClass()); // java.lang.Long
