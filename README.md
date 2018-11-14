@@ -43,10 +43,11 @@ Json json = Json.read("{}"}; // Create a new map
 json.put("a", "apples"); // Add a string
 json.put("b.c", new Json("oranges")); // Add an intermediate map and another string
 json.put("b.c[1]", 3}; // Replace previous string with an array, add a null then a number.
-json.write(System.out, null); // {"a":"apples","b":{"c":[null,3]}}
+System.out.println(json); // {"a":"apples","b":{"c":[null,3]}}
+json.write(System.out, null); // The same as above, but doesn't serialize to a String first.
 System.out.println(json.get("b.c[1]").stringValue()); // "3"
 System.out.println(json.get("b.c[1]").intValue()); // 3
-System.out.println(json); // the same
+
 
 // Types
 System.out.println(json.get("a").type()); // "string"
