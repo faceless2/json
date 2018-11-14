@@ -22,8 +22,9 @@ The BFO Json Parser is yet another Java Json parser, with the follow emphasis:
 * Option of mapping Json to more complex Java objects is possible, but not included with the code. By default data is retrieved as  Maps, Lists and primitive types only
 
 ## Building and Documentation
-Download with `git clone http://github.com/faceless2/json`. Type `ant`. Tests are run automatically and javadoc constructed in "docs". If you just want the Jar, type `ant build`.
-The API docs will always be available at https://faceless2.github.io/json/docs/index.html
+* Prebuilt binary available at https://faceless2.github.io/json/dist/bfojson-1.jar
+* The API docs will always be available at https://faceless2.github.io/json/docs/index.html
+* Or download with `git clone http://github.com/faceless2/json`. Type `ant`. Jar is in `dist`, docs are in `docs`
  
 ## Design Decisions
 * Mapping JavaScript objects to a Java object can be done by use of a JsonFactory, however this is done after the object is read. Most of the complexity of other Java Json APIs comes from the mapping process between Json and Java objects; if you want to go down this route you have a trivially simple interface to implement, but you're on your own.
