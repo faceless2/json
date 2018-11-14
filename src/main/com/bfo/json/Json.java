@@ -250,7 +250,7 @@ public class Json {
      * Add a {@link JsonListener} to this class, if it has not already been added.
      * The listener will received events for any changes to this object or its
      * descendents - the {@link JsonEvent} will reference which object the event
-     * relates to, and the {@link #path} method can be used to construct the path
+     * relates to, and the {@link #find} method can be used to construct the path
      * to that object if of interest.
      * @param listener listener to add, which may not be null
      * @return this object
