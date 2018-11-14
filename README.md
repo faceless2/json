@@ -103,4 +103,4 @@ json = Json.parse("{\"a\":{\"b\":{\"c\":[10,20,30,40]}}}");
 json.eval("$..c[2]").intValue(); // 30
 ```
 
-This code is written by the team at http://bfo.com. If you like it, come and see what else we do.
+This code is written by the team at [bfo.com](https://bfo.com). If you like it, come and see what else we do.
