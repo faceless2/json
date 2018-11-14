@@ -74,11 +74,12 @@ json.put("e[\"a\"]", true); // will convert e to a map
 System.out.println(json.get("e")); // {"0":false,"a":true}
 
 // Serialization
-json = Json.read("{a: 1}");  // Fails, a is not quoted
-json = Json.read(new StringReader("{a: 1}"), new JsonReadOptions().setAllowUnquotedKey(true)); // OK
-json.write(System.out, new JsonWriteOptions().setPretty(true));
+json = Json.read("{b:1, a: 2}");  // Fails, keys is not quoted
+json = Json.read(new StringReader("{b: 1, a: 2}"), new JsonReadOptions().setAllowUnquotedKey(true)); // OK
+json.write(System.out, new JsonWriteOptions().setPretty(true).setSorted(true)); // pretty print and sort keys
 // {
-//   "a": 1
+//   "a": 2,
+//   "b": 1,
 // }
 
 // Events
@@ -97,6 +98,10 @@ json.put("a.b", true);  // "Added a.b"
 json.get("a.b").put("c", true);  // "Added a.b.c"
 json.get("a.b").put("c", false);  // "Changed a.b.c" from true to false
 json.remove("a.b"); // "Removed a.b"
+
+// JsonPath
+json = Json.parse("{\"a\":{\"b\":{\"c\":[10,20,30,40]}}}");
+json.eval("$..c[2]").intValue(); // 30
 ```
 
 ## Build instructions
