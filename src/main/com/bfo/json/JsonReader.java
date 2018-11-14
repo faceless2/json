@@ -50,7 +50,7 @@ class JsonReader {
         Object o = readToken(reader, null, false, options);
         int c;
         if ((c=stripBlanks(reader, options))!=-1) {
-            throw new IllegalArgumentException("Unexpected trailing characters: c="+c);
+            throw new IllegalArgumentException("Unexpected trailing character '"+((char)c)+"'");
         }
         return o;
     }
@@ -75,7 +75,7 @@ class JsonReader {
                     Json child = (Json)o;
                     int size = list.size();
                     list._listValue().add(child);
-                    Json.notify(list, Integer.valueOf(size), null, child);
+                    Json.notify(list, Integer.valueOf(size), null, child);      // To set parent
                 } else {
                     throw new IllegalArgumentException("Unexpected response "+o);
                 }
@@ -109,7 +109,7 @@ class JsonReader {
                     key = Normalizer.normalize((String)key, Normalizer.Form.NFC);
                 }
                 map._mapValue().put((String)key, child);
-                Json.notify(map, key, null, child);
+                Json.notify(map, key, null, child);     // To set parent
                 if ((o = readEnd(reader, options)) == ENDMAP) {
                     break;
                 } else if (o != COMMA) {
@@ -117,106 +117,153 @@ class JsonReader {
                 }
             }
             out = map;
-        } else if ((c>='0' && c<='9') || c=='-') {
-            StringBuilder sb = new StringBuilder(32);
-            boolean flt = false;
-            boolean valid = true;
+        } else if ((c <= '9' && c >= '0') || c == '-') {
+            long v = 0;
+            StringBuilder sb = null;
+            boolean real = false;
+            short exp = 0;
 
-            if (c == '-') {
-                sb.append('-');
-                c = reader.read();
-                if (c < '0' || c > '9') {
-                    valid = false;
-                }
-            }
-            sb.append((char)c);
-            if (valid && c != '0') {
+            // Wringing the pips out of this one.
+            // Optimized for most common case, where we're parsing an integer or long
+            if (c == '0') {                             // "0"
                 reader.mark(1);
-                while ((c=reader.read()) >= '0' && c <= '9') {
-                    sb.append((char)c);
+                c = reader.read();
+            } else if (c == '-') {
+                c = reader.read();
+                if (c == '0') {                         // "-0"
                     reader.mark(1);
+                    c = reader.read();
+                } else if (c <= '9' && c >= '0') {      // "-3"
+                    reader.mark(1);
+                    v = '0' - c;
+                    while ((c = reader.read()) <= '9' && c >= '0') {
+                        reader.mark(1);
+                        long q = v * 10 - (c - '0');
+                        if (q >= 0) {   // long overflow
+                            sb = new StringBuilder();
+                            sb.append(v);
+                            sb.append((char)c);
+                            while ((c = reader.read()) <= '9' && c >= '0') {
+                                reader.mark(1);
+                                sb.append((char)c);
+                            }
+                            break;
+                        } else {
+                            v = q;
+                        }
+                    }
+                } else {
+                    reader.reset();
+                    throw new IllegalArgumentException("Invalid token \"-\" at "+reader);
                 }
-            } else {
+            } else if (c <= '9' && c >= '0') {          // "3"
                 reader.mark(1);
-                c = reader.read();
+                v = c - '0';
+                while ((c = reader.read()) <= '9' && c >= '0') {
+                    reader.mark(1);
+                    long q = v * 10 + (c - '0');
+                    if (q < 0) {   // long overflow
+                        sb = new StringBuilder();
+                        sb.append(v);
+                        sb.append((char)c);
+                        while ((c = reader.read()) <= '9' && c >= '0') {
+                            reader.mark(1);
+                            sb.append((char)c);
+                        }
+                        break;
+                    } else {
+                        v = q;
+                    }
+                }
             }
-            if (valid && c == '.') {
-                flt = true;
+            if (c == '.') {
+                real = true;
+                if (sb == null) {
+                    sb = new StringBuilder();
+                    sb.append(v);
+                }
                 sb.append((char)c);
+                reader.mark(1);
                 c = reader.read();
                 if (c >= '0' && c <= '9') {
                     sb.append((char)c);
                     reader.mark(1);
-                    while ((c=reader.read()) >= '0' && c<='9') {
+                    while ((c = reader.read()) <= '9' && c >= '0') {
                         reader.mark(1);
                         sb.append((char)c);
                     }
                 } else {
-                    valid = false;
+                    reader.reset();
+                    throw new IllegalArgumentException("Invalid number \""+sb+"\" at "+reader);
                 }
             }
-            if (valid && (c=='e' || c=='E')) {
-                flt = true;
-                sb.append((char)c);
+            if (c == 'e' || c == 'E') {
+                exp = 1;
+                if (sb == null) {
+                    sb = new StringBuilder();
+                    sb.append(v);
+                }
+                sb.append('E');
                 reader.mark(1);
-                if ((c=reader.read())=='+' || c=='-' || (c>='0' && c<='9')) {
+                c = reader.read();
+                if (c == '+') {
+                    reader.mark(1);
+                    c = reader.read();
+                } else if (c == '-') {
+                    sb.append((char)c);
+                    reader.mark(1);
+                    real = true;
+                    c = reader.read();
+                }
+                if (c >= '0' && c <= '9') {
                     reader.mark(1);
                     sb.append((char)c);
-                    while ((c=reader.read()) >='0' && c<='9') {
+                    while ((c = reader.read()) <= '9' && c >= '0') {
                         reader.mark(1);
                         sb.append((char)c);
+                        exp++;
                     }
+                } else {
+                    throw new IllegalArgumentException("Invalid number \""+sb+"\" at "+reader);
                 }
             }
-            if (!valid) {
-                throw new IllegalArgumentException("Invalid number \""+sb+"\" at "+reader);
-            } else if (flt) {
-                String s = sb.toString();
-                try {
-                    Double d = Double.valueOf(s);
-                    if (!options.isBigDecimal() || s.length() < 9 || d.toString().equals(s)) {
-                        out = new Json(new INumber(d, options.storeOptions()));
-                    } else {
-                        BigDecimal bd = new BigDecimal(s);
-                        double d2 = bd.doubleValue();
-                        if (bd.equals(new BigDecimal(d2))) {
-                            out = new Json(new INumber(d, options.storeOptions()));
-                        } else {
-                            out = new Json(new INumber(bd, options.storeOptions()));
-                        }
-                    }
-                } catch (Exception e2) {
-                    if (options.isBigDecimal()) {
-                        try {
-                            BigDecimal bd = new BigDecimal(s);
-                            out = new Json(new INumber(bd, options.storeOptions()));
-                            e2 = null;
-                        } catch (Exception e3) {}
-                    }
-                    if (e2 != null) {
-                        throw new IllegalArgumentException("Invalid number \""+sb+"\" at "+reader, e2);
-                    }
+            if (sb == null) {
+                int iv = (int)v;
+                if (v == iv) {
+                    out = new Json(new INumber(Integer.valueOf(iv), options.storeOptions()));
+                } else {
+                    out = new Json(new INumber(Long.valueOf(v), options.storeOptions()));
                 }
             } else {
                 String s = sb.toString();
                 try {
-                    if (s.length() < 10) {
-                        out = new Json(new INumber(Integer.valueOf(s), options.storeOptions()));
-                    } else if (s.length() < 19) {
-                        long l = Long.parseLong(s);
-                        int i = (int)l;
-                        if (l == i) {
-                            out = new Json(new INumber(Integer.valueOf(i), options.storeOptions()));
+                    if (real) {
+                        Double d = null;
+                        try {
+                            if (exp < 2) {
+                                d = Double.valueOf(s);
+                                if (d.isInfinite()) {
+                                    d = null;
+                                } else if (!options.isBigDecimal() && !d.toString().equals(s)) {
+                                    d = null;
+                                }
+                            }
+                        } catch (NumberFormatException e) { }
+                        if (d == null) {
+                            BigDecimal bd = new BigDecimal(s);
+                            double d2 = bd.doubleValue();
+                            if (Double.isFinite(d2) && bd.equals(new BigDecimal(d2))) {
+                                out = new Json(new INumber(d, options.storeOptions()));
+                            } else {
+                                out = new Json(new INumber(bd, options.storeOptions()));
+                            }
                         } else {
-                            out = new Json(new INumber(Long.valueOf(l), options.storeOptions()));
+                            out = new Json(new INumber(d, options.storeOptions()));
                         }
+                    } else if (exp != 0) {
+                        out = new Json(new INumber(new BigDecimal(s).toBigInteger(), options.storeOptions()));
                     } else {
-                        BigInteger b = new BigInteger(s);
-                        if (b.equals(BigInteger.valueOf(b.longValue()))) {
-                            out = new Json(new INumber(Long.valueOf(b.longValue()), options.storeOptions()));
-                        } else {
-                            out = new Json(new INumber(b, options.storeOptions()));
-                        }
+                        out = new Json(new INumber(new BigInteger(s), options.storeOptions()));
                     }
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Invalid number \""+s+"\" at "+reader, e);
@@ -230,7 +277,7 @@ class JsonReader {
                     IString.parseString((char)c, reader, sb);
                     out = sb.toString();
                 } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException(e.getMessage()+" at line "+reader);
+                    throw new IllegalArgumentException(e.getMessage()+" at "+reader);
                 }
             }
             if (!iskey) {
@@ -274,7 +321,7 @@ class JsonReader {
             reader.reset();
             out = sb.toString();
         } else {
-            throw new IllegalArgumentException("Unexpected token "+((char)c)+" at "+reader);
+            throw new IllegalArgumentException("Unexpected token '"+((char)c)+"' at "+reader);
         }
 //        System.out.println("-> read(1) "+out);
         return out;

@@ -182,10 +182,19 @@ public class Json {
     }
 
     /**
+     * <p>
      * Read a Json object from the specified InputStream. If the
      * stream begins with a valid byte-order mark, that will be used
      * determine the encoding (which must be UTF-8 or UTF-16),
-     * otherwise the stream will be parsed as UTF-8
+     * otherwise the stream will be sniffed for UTF-16, and otherwise
+     * parsed as UTF-8.
+     * </p><p>
+     * If you are sure the InputStream is in UTF-8 and has no
+     * byte-order mark, as recommended in RFC8259, then you're better
+     * off calling {@link read(Reader,JsonReadOptions) read(new InputStreamReader(in, "UTF-8"), options)}
+     * as this will remove the possibility of guessing an incorrect encoding
+     * </p>
+     * 
      * @param in the InputStream
      * @param options the options to use for reading, or null to use the default
      * @return the Json object
@@ -198,7 +207,9 @@ public class Json {
         }
         in.mark(3);
         int v = in.read();
-        if (v == 0xEF) {
+        if (v < 0) {
+            throw new EOFException("Empty file");
+        } else if (v == 0xEF) {
             if ((v = in.read()) == 0xBB) {
                 if ((v = in.read()) == 0xBF) {
                     return read(new InputStreamReader(in, "UTF-8"), options);
@@ -220,9 +231,19 @@ public class Json {
             } else {
                 throw new IOException("Invalid Json (begins with 0xFF 0x"+Integer.toHexString(v));
             }
-        } else if (v < 0) {
-            throw new EOFException("Empty file");
+        } else if (v == 0) {
+            if ((v = in.read()) >= 0x20) { // Sniff: probably UTF-16BE
+                in.reset();
+                return read(new InputStreamReader(in, "UTF-16BE"), options);
+            } else {
+                throw new IOException("Invalid Json (begins with 0x0 0x"+Integer.toHexString(v));
+            }
         } else {
+            int v2;
+            if ((v2 = in.read()) == 0x0) { // Sniff: probably UTF-16LE
+                in.reset();
+                return read(new InputStreamReader(in, "UTF-16LE"), options);
+            }
             in.reset();
             return read(new InputStreamReader(in, "UTF-8"), options);
         }
