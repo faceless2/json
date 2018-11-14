@@ -58,6 +58,7 @@ class Speed {
 
                     } catch (Exception e) {
                         System.out.println("* "+s+": FAIL "+e);
+                        e.printStackTrace();
                     } finally {
                         if (in != null) try { in.close(); } catch (Exception e) {}
                     }
