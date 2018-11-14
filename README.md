@@ -48,7 +48,6 @@ json.write(System.out, null); // The same as above, but doesn't serialize to a S
 System.out.println(json.get("b.c[1]").stringValue()); // "3"
 System.out.println(json.get("b.c[1]").intValue()); // 3
 
-
 // Types
 System.out.println(json.get("a").type()); // "string"
 System.out.println(json.type()); // "map"
