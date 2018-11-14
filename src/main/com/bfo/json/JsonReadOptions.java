@@ -3,16 +3,19 @@ import java.util.*;
 
 /**
  * <p>
- * This class determines how the JSON read with {@link Json#read} is handled.
+ * This class controls the details of the {@link Json#read Json.read()} call.
  * The various flags set on this class can control the read process, and in
- * some cases (eg {@link #setStrictTypes}) control how the objects that are
- * read behave. <b>All flags default to false.</b>
+ * some cases (e.g. {@link #setStrictTypes}) determines how the objects behave
+ * after they are read.
  * </p><p>
  * The class uses a "fluent" style to enable setting multiple options at once, eg.
  * </p>
  * <pre>
  *  json.read(out, new JsonReadOptions().setAllowUnquotedKey(true).setAllowComments(true));
  * </pre>
+ * <p>
+ * All flags default to false.
+ * </p>
  */
 public class JsonReadOptions {
 

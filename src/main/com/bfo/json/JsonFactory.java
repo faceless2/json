@@ -9,7 +9,7 @@ import java.util.*;
  * {@link Date} objects to specially formatted Json strings.
  * </p>
  *
- * <pre class="brush:java">
+ * <pre style="background:#eee; border-color: #aaa; font-size: 0.8em">
  * JsonFactory factory = new JsonFactory() {
  *     public Json toJson(Object o) {
  *         if (o instanceof Date) {

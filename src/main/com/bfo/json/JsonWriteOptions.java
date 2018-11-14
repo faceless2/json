@@ -5,14 +5,16 @@ import java.text.*;
 
 /**
  * <p>
- * This class determines how the JSON written with {@link Json#write} is formatted.
- * All boolean options are false by default.
+ * This class determines how the Json written with {@link Json#write Json.write()} is formatted.
  * </p><p>
  * The class uses a "fluent" style to enable setting multiple options at once, eg.
  * </p>
  * <pre>
  *  json.write(out, new JsonWriteOptions().setPretty(true).setSorted(true));
  * </pre>
+ * <p>
+ * All boolean options are false by default.
+ * </p>
  */
 public class JsonWriteOptions {
 

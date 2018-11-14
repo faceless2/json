@@ -2,6 +2,7 @@ package com.bfo.json;
 
 /**
  * An interface that can be implemented to monitor changes to the Json object tree.
+ * See {@link JsonEvent} for an example of use
  */
 public interface JsonListener {
     

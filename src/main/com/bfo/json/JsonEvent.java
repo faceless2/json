@@ -1,6 +1,7 @@
 package com.bfo.json;
 
 /**
+ * <p>
  * An event object which notifies a {@link JsonListener} of changes to a Json object.
  * Events are fired on Json object for any changes to it or its descendants, so its
  * possible to use this to audit changes to the object. Here's an example.
