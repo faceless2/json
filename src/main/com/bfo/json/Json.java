@@ -191,7 +191,7 @@ public class Json {
      * </p><p>
      * If you are sure the InputStream is in UTF-8 and has no
      * byte-order mark, as recommended in RFC8259, then you're better
-     * off calling {@link read(Reader,JsonReadOptions) read(new InputStreamReader(in, "UTF-8"), options)}
+     * off calling {@link #read(Reader,JsonReadOptions) read(new InputStreamReader(in, "UTF-8"), options)}
      * as this will remove the possibility of guessing an incorrect encoding
      * </p>
      * 
