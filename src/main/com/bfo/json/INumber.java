@@ -51,13 +51,13 @@ class INumber extends Core {
             if ((n.isNaN() || n.isInfinite()) && !state.options.isAllowNaN()) {
                 throw new IllegalArgumentException("Infinite or NaN");
             }
-            new Formatter(tsb, Locale.ENGLISH).format(state.options.floatFormat(), n);
+            new Formatter(tsb, Locale.ENGLISH).format(state.options.getFloatFormat(), n);
         } else if (value instanceof Double) {
             Double n = (Double)value;
             if ((n.isNaN() || n.isInfinite()) && !state.options.isAllowNaN()) {
                 throw new IllegalArgumentException("Infinite or NaN");
             }
-            new Formatter(tsb, Locale.ENGLISH).format(state.options.doubleFormat(), n);
+            new Formatter(tsb, Locale.ENGLISH).format(state.options.getDoubleFormat(), n);
         } else {
             sb.append(value.toString());
             return;
@@ -67,10 +67,9 @@ class INumber extends Core {
             l--;
         }
         if (tsb.charAt(l) == '.') {
-            l--;
-            sb.append(tsb, 0, l + 1);
+            sb.append(tsb, 0, l);
         } else {
-            sb.append(value.toString());
+            sb.append(tsb);
         }
         return;
     }

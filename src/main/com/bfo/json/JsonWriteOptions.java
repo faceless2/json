@@ -128,7 +128,7 @@ public class JsonWriteOptions {
      * Return the float format as set by {@link #setFloatFormat}
      * @return the format
      */
-    public String floatFormat() {
+    public String getFloatFormat() {
         return floatformat;
     }
 
@@ -136,7 +136,7 @@ public class JsonWriteOptions {
      * Return the float format as set by {@link #setDoubleFormat}
      * @return the format
      */
-    public String doubleFormat() {
+    public String getDoubleFormat() {
         return doubleformat;
     }
 
