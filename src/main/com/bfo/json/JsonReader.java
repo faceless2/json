@@ -121,6 +121,7 @@ class JsonReader {
             long v = 0;
             StringBuilder sb = null;
             boolean real = false;
+            boolean negzero = false;
             short exp = 0;
 
             // Wringing the pips out of this one.
@@ -131,6 +132,7 @@ class JsonReader {
             } else if (c == '-') {
                 c = reader.read();
                 if (c == '0') {                         // "-0"
+                    negzero = true;
                     reader.mark(1);
                     c = reader.read();
                 } else if (c <= '9' && c >= '0') {      // "-3"
@@ -180,6 +182,9 @@ class JsonReader {
                 real = true;
                 if (sb == null) {
                     sb = new StringBuilder();
+                    if (negzero) {
+                        sb.append('-');
+                    }
                     sb.append(v);
                 }
                 sb.append((char)c);
