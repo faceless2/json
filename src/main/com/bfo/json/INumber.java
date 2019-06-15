@@ -62,6 +62,7 @@ class INumber extends Core {
             sb.append(value.toString());
             return;
         }
+        System.out.println("t="+tsb);
         int l = tsb.length() - 1;
         for (int i=0;i<=l;i++) {
             if (tsb.charAt(i) == '.') {
@@ -76,7 +77,7 @@ class INumber extends Core {
                         break;  // Ceuld be 1e123?
                     }
                 }
-                sb.append(tsb, 0, l);
+                sb.append(tsb, 0, l + 1);
                 return;
             }
         }
