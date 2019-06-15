@@ -63,15 +63,24 @@ class INumber extends Core {
             return;
         }
         int l = tsb.length() - 1;
-        while (tsb.charAt(l) == '0') {
-            l--;
+        for (int i=0;i<=l;i++) {
+            if (tsb.charAt(i) == '.') {
+                while (tsb.charAt(l) == '0') {
+                    l--;
+                }
+                if (l == i) {
+                    l--;
+                } else {
+                    char c = tsb.charAt(i);
+                    if (c > '0' && c <= '9') {
+                        break;  // Ceuld be 1e123?
+                    }
+                }
+                sb.append(tsb, 0, l);
+                return;
+            }
         }
-        if (tsb.charAt(l) == '.') {
-            sb.append(tsb, 0, l);
-        } else {
-            sb.append(tsb);
-        }
-        return;
+        sb.append(tsb);
     }
 
     /**

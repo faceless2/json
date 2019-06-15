@@ -18,7 +18,7 @@ import java.text.*;
  */
 public class JsonWriteOptions {
 
-    private String floatformat = "%.4s", doubleformat = "%.8s";
+    private String floatformat = "%.4f", doubleformat = "%.8f";
     private boolean pretty, allownan, sorted, nfc;
     private Filter filter;
 
