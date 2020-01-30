@@ -186,7 +186,7 @@ class IString extends Core {
         boolean testsimple = true;
         for (int i = 0; i < len; i++) {
             char c = value.charAt(i);
-            if (c >= 0x30 && c < 0x80) {        // Optimize for most common case
+            if (c >= 0x30 && c < 0x80 && c != 0x5c) {        // Optimize for most common case
                 sb.append(c);
             } else {
                 switch (c) {
