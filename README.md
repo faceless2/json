@@ -35,7 +35,8 @@ The BFO Json Parser is yet another Java Json parser, with the follow emphasis:
 
 * When reading Json numbers, they will be mapping to ints, longs, BigIntegers and double as appropriate. If BigDecimal support is required, this can be turned on in JsonReadOptions
 
-* Things are read from Readers and written to Appendable. You can read from an InputStream too, in which case it will look for a BOM at the start of the stream
+* Things are read from Readers and written to Appendable. You can read from an InputStream too, in which case it will look for a BOM at the start of the stream.
+Errors encountered during reading are reported with context, line and column numbers
 
 ## Examples
 ```java
@@ -72,6 +73,8 @@ json.put("e[0]", false);
 System.out.println(json.get("e")); // [false] - e is a list
 json.put("e[\"a\"]", true); // this will convert e to a map
 System.out.println(json.get("e")); // {"0":false,"a":true}
+json.setValue(new Json("string")); // copy value from specified object
+System.out.println(json.value()); // "string"
 
 // Serialization
 json = Json.read("{b:1, a: 2}");  // Fails, keys is not quoted
