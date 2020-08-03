@@ -264,6 +264,9 @@ public class Json {
         if (!in.markSupported()) {
             in = new BufferedReader(in);
         }
+        if (!(in instanceof CharSequenceReader) && !options.isContextFree()) {
+            in = new ContextReader(in);
+        }
         return (Json)JsonReader.read(in, options);
     }
 

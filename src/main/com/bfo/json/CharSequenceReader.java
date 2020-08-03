@@ -8,22 +8,38 @@ import java.nio.CharBuffer;
  */
 class CharSequenceReader extends Reader {
 
-    private static final int CONTEXT = 8;
+    private static final int CONTEXT = 32;
+    private static final int CONTEXTAFTER = 0;
     private final CharSequence buf;
     private final int length;
     private int off, mark;
+    private int line, col, markline, markcol;
 
     CharSequenceReader(CharSequence s) {
         this.buf = s;
         this.length = buf.length();
+        this.line = 1;
     }
 
     public int read() {
-        return off == length ? -1 : buf.charAt(off++);
+        if (off == length) {
+            return -1;
+        } else {
+            char c = buf.charAt(off++);
+            if (c == 10) {
+                line++;
+                col = 0;
+            } else {
+                col++;
+            }
+            return c;
+        }
     }
 
     public void mark(int limit) {
         this.mark = off;
+        this.markline = line;
+        this.markcol = col;
     }
 
     public int tell() {
@@ -59,26 +75,20 @@ class CharSequenceReader extends Reader {
             ((CharBuffer)buf).get(obuf, ooff, len);
             off += len;
         } else {
+            int j = ooff;
             while (len-- > 0) {
-                obuf[ooff++] = buf.charAt(off++);
+                obuf[j++] = buf.charAt(off++);
             }
         }
-        return len;
-    }
-
-    public int read(char[] obuf) {
-        return read(obuf, 0, obuf.length);
-    }
-
-    public int read(CharBuffer cb) {
-        if (off == length) {
-            return -1;
+        for (int i=0;i<len;i++) {
+            char c = obuf[ooff + i];
+            if (c == 10) {
+                line++;
+                col = 0;
+            } else {
+                col++;
+            }
         }
-        int len = cb.remaining();
-        if (off + len > length) {
-            len = length - off;
-        }
-        cb.append(buf, off, len);
         return len;
     }
 
@@ -88,13 +98,23 @@ class CharSequenceReader extends Reader {
 
     public void reset() {
         off = mark;
+        line = markline;
+        col = markcol;
     }
 
     public long skip(long len) {
         if (len > length - off) {
             len = length - off;
         }
-        off += len;
+        for (int i=0;i<len;i++) {
+            char c = buf.charAt(off++);
+            if (c == 10) {
+                line++;
+                col = 0;
+            } else {
+                col++;
+            }
+        }
         return len;
     }
 
@@ -104,13 +124,28 @@ class CharSequenceReader extends Reader {
         if (off > CONTEXT) {
             sb.append("...");
         }
-        for (int i=Math.max(0, off - CONTEXT);i<Math.min(length, off + CONTEXT);i++) {
-            sb.append(buf.charAt(i));
+        for (int i=Math.max(0, off - CONTEXT + CONTEXTAFTER);i<Math.min(length, off + CONTEXTAFTER);i++) {
+            char c = buf.charAt(i);
+            if (c == '"') {
+                sb.append("\\\"");
+            } else if (c == 10) {
+                sb.append("\\n");
+            } else if (c == 13) {
+                sb.append("\\r");
+            } else if (c == 9) {
+                sb.append("\\t");
+            } else {
+                sb.append(c);
+            }
         }
         if (off + CONTEXT < length) {
             sb.append("...");
         }
-        sb.append("\"");
+        sb.append("\" (line ");
+        sb.append(line);
+        sb.append(" col ");
+        sb.append(col);
+        sb.append(')');
         return sb.toString();
     }
 

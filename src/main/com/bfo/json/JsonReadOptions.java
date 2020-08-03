@@ -24,6 +24,7 @@ public class JsonReadOptions {
     private boolean trailingComma;
     private boolean comments;
     private boolean bigDecimal;
+    private boolean nocontext;
     private byte storeOptions;
     static final byte FLAG_STRICT = 1;
     static final byte FLAG_LOOSEEMPTY = 2;
@@ -83,6 +84,24 @@ public class JsonReadOptions {
      */
     public boolean isAllowComments() {
         return comments;
+    }
+
+    /**
+     * Whether to turn off tracking of the line, column and context of the reader when
+     * reading from a file, which is used when reporting errors. This is on by default,
+     * but slows down reading by about 1.5%
+     */
+    public JsonReadOptions setContextFree(boolean nocontext) {
+        this.nocontext = nocontext;
+        return this;
+    }
+
+    /**
+     * Return the value of the "nocontext" flag as set by {@link #setContextFree}
+     * @return the flag
+     */
+    public boolean isContextFree() {
+        return nocontext;
     }
 
     /**
