@@ -90,6 +90,8 @@ public class JsonReadOptions {
      * Whether to turn off tracking of the line, column and context of the reader when
      * reading from a file, which is used when reporting errors. This is on by default,
      * but slows down reading by about 1.5%
+     * @param nocontext the flag
+     * @return this
      */
     public JsonReadOptions setContextFree(boolean nocontext) {
         this.nocontext = nocontext;
