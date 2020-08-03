@@ -1200,6 +1200,22 @@ public class Json {
     }
 
     /**
+     * Copy the internal value from the specified Json object to this object.
+     * This can be useful to update the value of a Json object in a structure, without
+     * having to modify the structure. For example:
+     * <pre>
+     * Json a = new Json(999);
+     * Json b = new Json("string");
+     * a.setValue(b);
+     * System.out.println(a); // "string"
+     * </pre>
+     * @param json the json object that is the source of the intended value of this object
+     */
+    public void setValue(Json json) {
+        setCore(json.core);
+    }
+
+    /**
      * Return the value of this node as a String. This method will always
      * succeed. It will return null if this object represents null, but it
      * otherwise identical to {@link #toString}
