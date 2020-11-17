@@ -257,8 +257,8 @@ class JsonReader {
                         if (d == null) {
                             BigDecimal bd = new BigDecimal(s);
                             double d2 = bd.doubleValue();
-                            if (Double.isFinite(d2) && bd.equals(new BigDecimal(d2))) {
-                                out = new Json(new INumber(d, options.storeOptions()));
+                            if (d2 == d2 && !Double.isInfinite(d2) && bd.equals(new BigDecimal(d2))) {
+                                out = new Json(new INumber(d2, options.storeOptions()));
                             } else {
                                 out = new Json(new INumber(bd, options.storeOptions()));
                             }

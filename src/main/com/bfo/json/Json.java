@@ -239,8 +239,7 @@ public class Json {
                 throw new IOException("Invalid Json (begins with 0x0 0x"+Integer.toHexString(v));
             }
         } else {
-            int v2;
-            if ((v2 = in.read()) == 0x0) { // Sniff: probably UTF-16LE
+            if (in.read() == 0x0) { // Sniff: probably UTF-16LE
                 in.reset();
                 return read(new InputStreamReader(in, "UTF-16LE"), options);
             }
