@@ -67,7 +67,7 @@ class IMap extends Core {
                         sb.append(state.prefix);
                     }
                 }
-                IString.write(key, sb);
+                IString.write(key, 0, sb);
                 sb.append(':');
                 value.getCore().write(sb, state);
             }

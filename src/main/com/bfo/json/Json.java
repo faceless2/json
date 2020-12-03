@@ -453,7 +453,7 @@ public class Json {
                 } else {
                     sb.append("[");
                     try {
-                        IString.write(pk, sb);
+                        IString.write(pk, 0, sb);
                     } catch (IOException e) {
                         throw new RuntimeException(e);      // Can't happen.
                     }

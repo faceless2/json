@@ -21,6 +21,7 @@ public class JsonWriteOptions {
     private String floatformat = "%.4f", doubleformat = "%.8f";
     private boolean pretty, allownan, sorted, nfc;
     private Filter filter;
+    private int maxArraySize = 0, maxStringLength = 0;
 
     /**
      * The String format to use when formatting a float.
@@ -90,6 +91,30 @@ public class JsonWriteOptions {
     }
 
     /**
+     * Set the maximum number of items to print in an array. Additional entries will
+     * be replaced with an ellipsis; the result will not be valid Json, but is useful
+     * for use in toString()
+     * @param size the maximum number of items to print, or 0 for no limit (the default)
+     * @return this
+     */
+    public JsonWriteOptions setMaxArraySize(int size) {
+        this.maxArraySize = size;
+        return this;
+    }
+
+    /**
+     * Set the maximum length of a string. Additional characters will be replaced with
+     * an ellipsis
+     * @param size the maximum length of a string to print, or 0 for no limit (the default)
+     * @return this
+     */
+    public JsonWriteOptions setMaxStringLength(int size) {
+        this.maxStringLength = size;
+        return this;
+    }
+
+
+    /**
      * Return the "nfc" flag as set by {@link #setNFC}
      * @return the flag
      */
@@ -154,6 +179,22 @@ public class JsonWriteOptions {
      */
     public boolean isSorted() {
         return sorted;
+    }
+
+    /**
+     * Return the "maxArraySize" field as set by {@link #setMaxArraySize}
+     * @return the value
+     */
+    public int getMaxArraySize() {
+        return maxArraySize;
+    }
+
+    /**
+     * Return the "maxStringLength" field as set by {@link #setMaxStringLength}
+     * @return the value
+     */
+    public int getMaxStringLength() {
+        return maxStringLength;
     }
 
     /**

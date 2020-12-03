@@ -66,8 +66,13 @@ class IList extends Core {
             state.prefix.append("  ");
 //            sb.append(state.prefix);
         }
+        int len = state.options.getMaxArraySize();
+        int ll = list.size();
+        if (len == 0 || len > ll) {
+            len = ll;
+        }
         boolean first = true;
-        for (int i=0;i<list.size();i++) {
+        for (int i=0;i<len;i++) {
             if (i > 0) {
                 sb.append(',');
             }
@@ -83,6 +88,9 @@ class IList extends Core {
                 INull.INSTANCE.write(sb, state);
             }
             state.filter.exit(key, ochild);
+        }
+        if (ll > len) {
+            sb.append(",...");
         }
         if (state.prefix != null) {
             state.prefix.setLength(state.prefix.length() - 2);

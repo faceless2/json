@@ -56,7 +56,7 @@ class IString extends Core {
             try {
                 StringBuilder sb = new StringBuilder();
                 sb.append("Cannot convert ");
-                write(value, sb);
+                write(value, 0, sb);
                 sb.append(" to int");
                 throw new ClassCastException(sb.toString());
             } catch (IOException e2) {
@@ -75,7 +75,7 @@ class IString extends Core {
             try {
                 StringBuilder sb = new StringBuilder();
                 sb.append("Cannot convert ");
-                write(value, sb);
+                write(value, 0, sb);
                 sb.append(" to long");
                 throw new ClassCastException(sb.toString());
             } catch (IOException e2) {
@@ -155,7 +155,7 @@ class IString extends Core {
         try {
             StringBuilder sb = new StringBuilder();
             sb.append("Cannot convert ");
-            write(value, sb);
+            write(value, 0, sb);
             sb.append(" to number");
             throw new ClassCastException(sb.toString());
         } catch (IOException e2) {
@@ -164,27 +164,36 @@ class IString extends Core {
     }
 
     @Override void write(Appendable sb, SerializerState state) throws IOException {
+        int maxLength = state.options.getMaxStringLength();
         if (state.options.isNFC()) {
             String v = Normalizer.normalize(value, Normalizer.Form.NFC);
-            if (write(v, sb) && v.equals(value)) {
+            if (write(v, maxLength, sb) && v.equals(value)) {
                 flags |= FLAG_SIMPLE;
             }
         } else {
             if ((flags & FLAG_SIMPLE) != 0) {
                 sb.append('"');
-                sb.append(value);
+                if (maxLength == 0 || value.length() < maxLength) {
+                    sb.append(value);
+                } else {
+                    sb.append(value, 0, maxLength);
+                    sb.append("...");
+                }
                 sb.append('"');
-            } else if (write(value, sb)) {
+            } else if (write(value, maxLength, sb)) {
                 flags |= FLAG_SIMPLE;
             }
         }
     }
 
-    static boolean write(String value, Appendable sb) throws IOException {
+    static boolean write(String value, int maxLength, Appendable sb) throws IOException {
         sb.append('"');
         int len = value.length();
+        if (maxLength == 0 || maxLength > len) {
+            maxLength = len;
+        }
         boolean testsimple = true;
-        for (int i = 0; i < len; i++) {
+        for (int i = 0; i < maxLength; i++) {
             char c = value.charAt(i);
             if (c >= 0x30 && c < 0x80 && c != 0x5c) {        // Optimize for most common case
                 sb.append(c);
@@ -233,6 +242,9 @@ class IString extends Core {
                     }
                 }
             }
+        }
+        if (maxLength != len) {
+            sb.append("...");
         }
         sb.append('"');
         return testsimple;
