@@ -272,7 +272,7 @@ public class Json {
     /**
      * Add a {@link JsonListener} to this class, if it has not already been added.
      * The listener will received events for any changes to this object or its
-     * descendents - the {@link JsonEvent} will reference which object the event
+     * descendants - the {@link JsonEvent} will reference which object the event
      * relates to, and the {@link #find} method can be used to construct the path
      * to that object if of interest.
      * @param listener listener to add, which may not be null
@@ -646,7 +646,7 @@ public class Json {
     }
 
     /**
-     * Return true if this object has a non-null descendent at the specified path.
+     * Return true if this object has a non-null descendant at the specified path.
      * @param path the path
      * @return true if this object is a list or map, it has the specified descendant and the descendant is not null
      */
@@ -688,7 +688,7 @@ public class Json {
      */
     public boolean has(int path) {
         if (isList()) {
-            Json j = ((IList)core).remove(path);
+            Json j = ((IList)core).get(path);
             return j != null && !j.isNull();
         } else if (isMap()) {
             Json j = ((IMap)core).get(Integer.toString(path));
@@ -778,6 +778,116 @@ public class Json {
         } else {
             return true;
         }
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "string".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isString()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a string
+     */
+    public boolean isString(String path) {
+        Json j = get(path);
+        return j != null && j.isString();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "string".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isString()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a string
+     */
+    public boolean isString(int path) {
+        Json j = get(path);
+        return j != null && j.isString();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "number".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isNumber()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a number
+     */
+    public boolean isNumber(String path) {
+        Json j = get(path);
+        return j != null && j.isNumber();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "number".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isNumber()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a number
+     */
+    public boolean isNumber(int path) {
+        Json j = get(path);
+        return j != null && j.isNumber();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "boolean".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isBoolean()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a boolean
+     */
+    public boolean isBoolean(String path) {
+        Json j = get(path);
+        return j != null && j.isBoolean();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "boolean".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isBoolean()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a boolean
+     */
+    public boolean isBoolean(int path) {
+        Json j = get(path);
+        return j != null && j.isBoolean();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "list".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isList()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a list
+     */
+    public boolean isList(String path) {
+        Json j = get(path);
+        return j != null && j.isList();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "list".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isList()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a list
+     */
+    public boolean isList(int path) {
+        Json j = get(path);
+        return j != null && j.isList();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "map".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isMap()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a map
+     */
+    public boolean isMap(String path) {
+        Json j = get(path);
+        return j != null && j.isMap();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "map".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isMap()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a map
+     */
+    public boolean isMap(int path) {
+        Json j = get(path);
+        return j != null && j.isMap();
     }
 
     /**
