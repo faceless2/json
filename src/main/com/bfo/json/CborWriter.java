@@ -9,7 +9,7 @@ import java.util.*;
 import java.text.*;
 
 class CborWriter {
-    
+
     static void write(Json j, OutputStream out, JsonWriteOptions options) throws IOException {
         if (j.getTag() >= 0) {
             writeNum(6, j.getTag(), out);
@@ -86,7 +86,7 @@ class CborWriter {
                         out.write(b);
                     }
                 }
-            } 
+            }
         } else if (o instanceof IBuffer) {
             ByteBuffer b = o.bufferValue();
             writeNum(2, b.limit(), out);

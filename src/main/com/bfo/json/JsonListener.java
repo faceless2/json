@@ -5,7 +5,7 @@ package com.bfo.json;
  * See {@link JsonEvent} for an example of use
  */
 public interface JsonListener {
-    
+
     /**
      * Called when a JsonEvent was fired on the object the listener was added to
      * or one of its descendants.

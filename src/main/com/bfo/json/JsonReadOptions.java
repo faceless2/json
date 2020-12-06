@@ -1,4 +1,4 @@
-package com.bfo.json; 
+package com.bfo.json;
 
 import java.util.*;
 import java.nio.charset.*;

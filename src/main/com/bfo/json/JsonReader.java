@@ -319,7 +319,7 @@ class JsonReader {
             sb.append((char)c);
             reader.mark(1);
             while ((c=reader.read()) >= 0 && ((c>='a' && c<='z') || (c>='A' && c<='Z') || (c>='0' && c<='9') || c=='_' || c=='-' || c=='.')) {
-                
+
                 reader.mark(1);
                 sb.append((char)c);
             }

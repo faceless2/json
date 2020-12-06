@@ -104,7 +104,7 @@ class INumber extends Core {
         3  = fraction09         fraction09 | e | eof
         4  = integer19          integer09 | decimalpoint | e | eof
         5  = integer09          integer09 | decimalpoint | e | eof
-        6  = e                  exp09 | expsign 
+        6  = e                  exp09 | expsign
         7  = exp09              exp09 | eof
         8  = expsign            exp09
         9  = x                  hexdigit

@@ -151,7 +151,7 @@ public class Test2 {
         try { q.put("d", json.get("a.b")); assert false : json.toString(); } catch (IllegalArgumentException e) {}        // Add parent to child
         try { q.put("d", json.get("a")); assert false : json.toString(); } catch (IllegalArgumentException e) {}        // Add grandparent to child
         try { q.put("d", json); assert false : json.toString(); } catch (IllegalArgumentException e) {}        // Add great-grandparent to child
-        
+
 
         System.out.println("----- END STRUCTURE TESTS -----");
 
@@ -184,7 +184,7 @@ public class Test2 {
         sb.setLength(0);
         json = Json.read("{\"a\":{\"b\":[0,null,2]}}");
         json.addListener(new JsonListener() {
-            public void jsonEvent(Json root, JsonEvent event) { 
+            public void jsonEvent(Json root, JsonEvent event) {
                 if (event.after == null) {
                     sb.append("REMOVE "+root.find(event.before)+"="+event.before+"\n");
                 } else if (event.before == null) {

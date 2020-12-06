@@ -24,7 +24,7 @@ class CborReader {
         Json j;
         long tell;
         switch (v>>5) {
-            case 0: 
+            case 0:
                 return new Json(new INumber(readNumber(v, in, false), options));
             case 1:
                 n = readNumber(v, in, false);

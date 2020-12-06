@@ -37,7 +37,7 @@ public class JsonWriteOptions {
 
     /**
      * The String format to use when formatting a double.
-     * The default is "%.16g". 
+     * The default is "%.16g".
      * Note that superfluous trailing zeros will trimmed from any formatted value.
      * @param format the format, which will be passed to {@link DecimalFormat}
      * @return this

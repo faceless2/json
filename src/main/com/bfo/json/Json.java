@@ -50,8 +50,8 @@ import java.nio.charset.*;
  *   they will be serialized as null - this matches the behavior of all web-browsrs.
  *  </li>
  *  <li>
- *   CBOR supports tags on JSON value, which can be accessed with the {@link #setTag setTag()} and 
- *   {@link #getTag getTag()} methods. Tags can be set on any object, but will be ignored when serializing to 
+ *   CBOR supports tags on JSON value, which can be accessed with the {@link #setTag setTag()} and
+ *   {@link #getTag getTag()} methods. Tags can be set on any object, but will be ignored when serializing to
  *   JSON. CBOR supports positive value tags of any value, but these are limited to 63 bits by this API.
  *   If values higher than that are encountered when reading, {@link #readCbor readCbor()} method will throw
  *   an IOException.
@@ -202,7 +202,7 @@ public class Json {
      * Set the default JsonFactory for this object and its descendants.
      * Any objects passed into {@link put put()} will be converted using
      * this factory. The default is null
-     * 
+     *
      * @param factory the factory
      * @since 2
      */
@@ -262,7 +262,7 @@ public class Json {
      * off calling {@link #read(Reader,JsonReadOptions) read(new InputStreamReader(in, "UTF-8"), options)}
      * as this will remove the possibility of guessing an incorrect encoding
      * </p>
-     * 
+     *
      * @param in the InputStream
      * @param options the options to use for reading, or null to use the default
      * @return the Json object
@@ -632,7 +632,7 @@ public class Json {
         // which is not great as the keys we're being given have been supplied
         // in the Java code, they're not encoded. Actually forcing someone to
         // escape all their quotes etc. is a pain.
-        // 
+        //
         // That means we allow """ to mean a solitary quote:no escaping, whatever
         // is between begin/end quotes is verbatim.
         return path.substring(1, path.length() - 1);
@@ -1141,7 +1141,7 @@ public class Json {
                         up();
                         if (hasAcross()) {
                             return hasNext();
-                        } 
+                        }
                     }
                 }
 //                System.out.print("->false]");
@@ -1638,7 +1638,7 @@ public class Json {
      * no reference to this package. The returned value is as follows
      * <ul>
      * <li>If this object {@link #isNull is null}, return null</li>
-     * <li>If factory is not null and {@link JsonFactory#fromJson fromJson()} returns a non-null value, return that value</li> 
+     * <li>If factory is not null and {@link JsonFactory#fromJson fromJson()} returns a non-null value, return that value</li>
      * <li>If this value is a string, buffer, number or boolean, return the value from {@link #value()}</li>
      * <li>If this value is a list or map, populate the map values with the output of this method and return as a Map&lt;String,Object&gt; or List&lt;Object&gt;</li>
      * </ul>
@@ -1716,7 +1716,7 @@ public class Json {
     // jsonpath
 
     /**
-     * Evaluate the "JSON path" expression at this node, and return the 
+     * Evaluate the "JSON path" expression at this node, and return the
      * single object it finds, or null if none were found.
      * If more than one object is found, only the first is returned
      * This method requires JsonPath to be in the classpath.
@@ -1733,7 +1733,7 @@ public class Json {
     }
 
     /**
-     * Evaluate the "JSON path" expression at this node, and return the 
+     * Evaluate the "JSON path" expression at this node, and return the
      * set of objects it finds, or null if none were found.
      * This method requires JsonPath to be in the classpath.
      * @param path the JSON path expression

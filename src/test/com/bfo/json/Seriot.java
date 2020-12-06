@@ -13,7 +13,7 @@ class Seriot {
     public static void main(String[] args) throws Exception {
         URI uri = Seriot.class.getResource("resources").toURI();
 
-        // Step 1: test test_parsing 
+        // Step 1: test test_parsing
         System.out.println("----- BEGIN SERIOT PARSE TESTS -----");
         FileSystem fs = FileSystems.newFileSystem(uri, Collections.<String,Object>emptyMap());
         for (Iterator<Path> i = Files.walk(fs.getPath("com/bfo/json/resources/test_parsing"), 1).iterator();i.hasNext();) {
@@ -49,7 +49,7 @@ class Seriot {
         }
         System.out.println("----- END SERIOT PARSE TESTS -----");
 
-        // Step 2: transform tests from test_parsing 
+        // Step 2: transform tests from test_parsing
         System.out.println("----- BEGIN SERIOT TRANSFORM TESTS -----");
         for (Iterator<Path> i = Files.walk(fs.getPath("com/bfo/json/resources/test_transform"), 1).iterator();i.hasNext();) {
             Path path = i.next();
