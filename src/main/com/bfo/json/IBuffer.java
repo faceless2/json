@@ -8,7 +8,6 @@ import java.util.*;
 class IBuffer extends Core {
 
     private final ByteBuffer value;
-    private byte flags; // not final, we may set FLAG_SIMPLE
 
     IBuffer(ByteBuffer value) {
         this.value = value;

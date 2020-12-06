@@ -1,5 +1,7 @@
 package com.bfo.json; 
+
 import java.util.*;
+import java.nio.charset.*;
 
 /**
  * <p>
@@ -24,10 +26,14 @@ public class JsonReadOptions {
     private boolean trailingComma;
     private boolean comments;
     private boolean bigDecimal;
+    private boolean cborFailOnUnknownTypes;
     private boolean nocontext;
     private byte storeOptions;
+    private CodingErrorAction codingErrorAction = CodingErrorAction.REPLACE;
+
     static final byte FLAG_STRICT = 1;
     static final byte FLAG_LOOSEEMPTY = 2;
+    static final byte FLAG_CBOR = 4;
 
     /**
      * Whether to allow unquotedKey keys in the JSON input. This
@@ -195,6 +201,49 @@ public class JsonReadOptions {
 
     byte storeOptions() {
         return storeOptions;
+    }
+
+    /**
+     * When reading CBOR, if a String is encountered where the UTF-8 encoding
+     * is incorrect, the specified action will be performed.
+     * The default is {@link CodingErrorAction#REPLACE}
+     * @param action the action
+     * @since 2
+     */
+    public void setCborStringCodingErrorAction(CodingErrorAction action) {
+        this.codingErrorAction = action;
+    }
+
+    /**
+     * Return the CodingErrorAction set by {@link #setCborStringCodingErrorAction}
+     * is incorrect, the specified action will be performed.
+     * The default is {@link CodingErrorAction#REPLACE}
+     * @return the action
+     * @since 2
+     */
+    public CodingErrorAction getCborStringCodingErrorAction() {
+        return codingErrorAction;
+    }
+
+    /**
+     * When reading a CBOR stream that contains undefined, but technically valid types,
+     * by default these will be collapsed to null with a tag set on them to indicate the
+     * original type. Setting this flag will, instead, cause the stream to fail.
+     * @param flag the flag
+     * @since 2
+     */
+    public void setCborFailOnUnknownTypes(boolean flag) {
+        cborFailOnUnknownTypes = flag;
+    }
+
+    /**
+     * Return the value of the "cborFailOnUnknownTypes" flag, as set by
+     * {@link setCborFailOnUnknownTypes}
+     * @since 2
+     * @return the flag
+     */
+    public boolean isCborFailOnUnknownTypes() {
+        return cborFailOnUnknownTypes;
     }
 
 }

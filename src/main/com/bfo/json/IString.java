@@ -1,5 +1,6 @@
 package com.bfo.json;
 
+import java.nio.ByteBuffer;
 import java.io.*;
 import java.text.*;
 
@@ -7,11 +8,11 @@ class IString extends Core {
 
     private static final byte FLAG_SIMPLE = 64; // If true we can write this string without escaping
     private final String value;
-    private byte flags; // not final, we may set FLAG_SIMPLE
+    byte flags; // not final, we may set FLAG_SIMPLE
 
-    IString(String value, byte flags) {
+    IString(String value, JsonReadOptions options) {
         this.value = value;
-        this.flags = flags;
+        this.flags = options == null ? 0 : options.storeOptions();
     }
 
     @Override Object value() {
@@ -24,6 +25,83 @@ class IString extends Core {
 
     @Override String stringValue() {
         return value;
+    }
+
+    private static final int BASE64[] = new int[256];
+    static {
+        String s = new String(IBuffer.BASE64);
+        for (int i=0;i<256;i++) {
+            BASE64[i] = s.indexOf(Character.toString((char)i));
+        }
+    }
+
+    @Override ByteBuffer bufferValue() {
+        int ilen = value.length();
+        int olen = ilen / 4 * 3;
+        if ((ilen & 3) == 1) {
+            throw new ClassCastException("Base64 failed, length invalid");
+        } else if ((ilen & 3) == 2) {
+            olen++;
+        } else if ((ilen & 3) == 3) {
+            olen += 2;
+        }
+        ByteBuffer buf = ByteBuffer.allocate(olen);
+        for (int i=0;i<ilen;) {
+            int c = value.charAt(i);
+            if (c > 255) {
+                throw new ClassCastException("Base64 failed at " + i);
+            }
+            c = BASE64[c];
+            if (c < 0) {
+                throw new ClassCastException("Base64 failed at " + i);
+            }
+            int a = c << 18;
+            if (i == ilen) {
+                throw new ClassCastException("Base64 EOF at " + i);
+            }
+            c = value.charAt(i);
+            if (c > 255) {
+                throw new ClassCastException("Base64 failed at " + i);
+            }
+            c = BASE64[c];
+            if (c < 0) {
+                throw new ClassCastException("Base64 failed at " + i);
+            }
+            a |= c << 12;
+            if (i == ilen) {
+                buf.put((byte)(a >> 16));
+                break;
+            } else {
+                c = value.charAt(i);
+                if (c > 255) {
+                    throw new ClassCastException("Base64 failed at " + i);
+                }
+                c = BASE64[c];
+                if (c < 0) {
+                    throw new ClassCastException("Base64 failed at " + i);
+                }
+                a |= c << 6;
+                if (i == ilen) {
+                    buf.put((byte)(a >> 16));
+                    buf.put((byte)(a >> 8));
+                    break;
+                } else {
+                    c = value.charAt(i);
+                    if (c > 255) {
+                        throw new ClassCastException("Base64 failed at " + i);
+                    }
+                    c = BASE64[c];
+                    if (c < 0) {
+                        throw new ClassCastException("Base64 failed at " + i);
+                    }
+                    a |= c;
+                    buf.put((byte)(a >> 16));
+                    buf.put((byte)(a >> 8));
+                    buf.put((byte)a);
+                }
+            }
+        }
+        return buf;
     }
 
     private boolean flagTest(String type) {

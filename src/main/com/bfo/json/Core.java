@@ -1,5 +1,6 @@
 package com.bfo.json;
 
+import java.nio.*;
 import java.util.*;
 import java.io.*;
 
@@ -8,6 +9,10 @@ abstract class Core {
     abstract Object value();
 
     abstract String type();
+
+    ByteBuffer bufferValue() {
+        throw new ClassCastException("Value is a "+type());
+    }
 
     String stringValue() {
         Object o = value();

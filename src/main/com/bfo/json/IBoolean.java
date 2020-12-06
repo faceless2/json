@@ -1,5 +1,6 @@
 package com.bfo.json;
 
+import java.nio.ByteBuffer;
 import java.io.*;
 
 class IBoolean extends Core {
@@ -7,9 +8,9 @@ class IBoolean extends Core {
     private final boolean value;
     private final byte flags;
 
-    IBoolean(boolean value, byte flags) {
+    IBoolean(boolean value, JsonReadOptions options) {
         this.value = value;
-        this.flags = flags;
+        this.flags = options == null ? 0 : options.storeOptions();
     }
 
     @Override Object value() {

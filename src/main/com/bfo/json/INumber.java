@@ -8,21 +8,9 @@ class INumber extends Core {
     private final Number value;
     private final byte flags;
 
-    INumber(Number value, byte flags) {
+    INumber(Number value, JsonReadOptions options) {
         this.value = value;
-        this.flags = flags;
-        if (value instanceof Float) {
-            Float n = (Float)value;
-            if ((n.isNaN() || n.isInfinite())) {
-                throw new IllegalArgumentException("Infinite or NaN");
-
-            }
-        } else if (value instanceof Double) {
-            Double n = (Double)value;
-            if ((n.isNaN() || n.isInfinite())) {
-                throw new IllegalArgumentException("Infinite or NaN");
-            }
-        }
+        this.flags = options == null ? 0 : options.storeOptions();
     }
 
     @Override Object value() {
@@ -35,7 +23,7 @@ class INumber extends Core {
 
     @Override boolean booleanValue() {
         if ((flags & JsonReadOptions.FLAG_STRICT) != 0) {
-            throw new ClassCastException("Cannot convert number "+value+" to boolean in strict mode");
+            throw new ClassCastException("Cannot convert number " + value + " to boolean in strict mode");
         }
         return value.intValue() != 0;
     }
@@ -48,35 +36,56 @@ class INumber extends Core {
         StringBuilder tsb = new StringBuilder();
         if (value instanceof Float) {
             Float n = (Float)value;
-            if ((n.isNaN() || n.isInfinite()) && !state.options.isAllowNaN()) {
-                throw new IllegalArgumentException("Infinite or NaN");
+            if (n.isNaN() || n.isInfinite()) {
+                if (state.options.isAllowNaN()) {
+                    sb.append("null");
+                    return;
+                } else {
+                    throw new IllegalArgumentException("Infinite or NaN");
+                }
+            } else {
+                new Formatter(tsb, Locale.ENGLISH).format(state.options.getFloatFormat(), n);
             }
-            new Formatter(tsb, Locale.ENGLISH).format(state.options.getFloatFormat(), n);
         } else if (value instanceof Double) {
             Double n = (Double)value;
-            if ((n.isNaN() || n.isInfinite()) && !state.options.isAllowNaN()) {
-                throw new IllegalArgumentException("Infinite or NaN");
+            if (n.isNaN() || n.isInfinite()) {
+                if (state.options.isAllowNaN()) {
+                    sb.append("null");
+                    return;
+                } else {
+                    throw new IllegalArgumentException("Infinite or NaN");
+                }
+            } else {
+                new Formatter(tsb, Locale.ENGLISH).format(state.options.getDoubleFormat(), n);
             }
-            new Formatter(tsb, Locale.ENGLISH).format(state.options.getDoubleFormat(), n);
         } else {
             sb.append(value.toString());
             return;
         }
-        int l = tsb.length() - 1;
-        for (int i=0;i<=l;i++) {
+
+        // Trim superfluous zeros after decimal point
+        int l = tsb.length();
+        for (int i=Math.max(0, l-6);i<l;i++) {
+            char c = tsb.charAt(i);
+            if (c == 'e' || c == 'E') {
+                l = i;
+                break;
+            }
+        }
+        for (int i=0;i<l;i++) {
             if (tsb.charAt(i) == '.') {
-                while (tsb.charAt(l) == '0') {
-                    l--;
+                int j = l - 1;
+                while (tsb.charAt(j) == '0') {
+                    j--;
                 }
-                if (l == i) {
-                    l--;
-                } else {
-                    char c = tsb.charAt(i);
-                    if (c > '0' && c <= '9') {
-                        break;  // Ceuld be 1e123?
-                    }
+                if (j == i) {
+                    j--;
                 }
-                sb.append(tsb, 0, l + 1);
+//                System.out.println("FLOAT was "+tsb+"  now "+tsb.substring(0, j + 1) + tsb.substring(l, tsb.length()));
+                sb.append(tsb, 0, j + 1);
+                if (l != tsb.length()) {
+                    sb.append(tsb, l, tsb.length());
+                }
                 return;
             }
         }

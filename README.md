@@ -1,6 +1,6 @@
-# BFO JSON Parser
+# BFO JSON/CBOR Parser
 
-The BFO Json Parser is yet another Java Json parser, with the follow emphasis:
+The BFO JSON/CBOR Parser is yet another Java JSON parser, with the follow emphasis:
 
 ### simple
 * the API is essentially a single class, with a few helper classes that are all optional. Items are added with `put`, retrieved with `get`, read with `read` and written with `write`. Collections are used for maps and lists, and you can use the whole API with no more than about 5 or 6 methods. Which means although the API is [fully documented](https://faceless2.github.io/json/docs/index.html), you can probably get away without reading any of it.
@@ -9,12 +9,14 @@ The BFO Json Parser is yet another Java Json parser, with the follow emphasis:
 * A typical laptop in 2018 would be able to read Json at about 7MB/s and write at about 9MB/s. There are plenty of Java Json APIs claiming to be the fastest; benchmarking is not something I care to spend much time on, but informally it is testing faster than anything else I could find.
 
 ### correct
-* the API has been tested against the Json sample data made available by Nicolas Seriot at http://seriot.ch/parsing_json.php, and has been authored with reference to [RFC8259](https://tools.ietf.org/html/rfc8259)
+* the API has been tested against the Json sample data made available by Nicolas Seriot at http://seriot.ch/parsing_json.php, and has been authored with reference to [RFC8259](https://tools.ietf.org/html/rfc8259).
+CBOR support is newer, but has again been tested against [RFC7049](https://tools.ietf.org/html/rfc7049).
 
 ### self-contained
 * the API has no external requirements. Although it compiles against the JsonPath implementation https://github.com/json-path/JsonPath, provided the "eval" methods are not used there is no need for those classes to be available at runtime. To build it, type "ant" (and if you'd prefer the Maven experience, type "ant" then go and do something else for two hours).
 
 ## Features
+* JSON and CBOR serialization are both available from the same object
 * JsonPath integration (optional)
 * Listeners and Events to monitor changes to the structure
 * Flexible typing; if you request the int value of a string it will try to convert it to an int. If you put a value with a String key on a list, it will convert to a map.
@@ -35,8 +37,19 @@ The BFO Json Parser is yet another Java Json parser, with the follow emphasis:
 
 * When reading Json numbers, they will be mapping to ints, longs, BigIntegers and double as appropriate. If BigDecimal support is required, this can be turned on in JsonReadOptions
 
-* Things are read from Readers and written to Appendable. You can read from an InputStream too, in which case it will look for a BOM at the start of the stream.
-Errors encountered during reading are reported with context, line and column numbers
+* Json is read from Readers and written to Appendable.
+  You can read from an InputStream too, in which case it will look for a BOM at the start of the stream.
+  CBOR is read from an InputStream and written to an OutputStream.
+  Errors encountered during reading are reported with context, line and column numbers (for JSON) or byte offset (for CBOR)
+
+* CBOR serialization offers three complexities that are not supported in this API:
+duplicate keys in maps, "special" types that are not defined, and non-string keys in Maps.
+Duplicate keys encountered during reading throw an IOException,
+non-string keys will be converted to strings, and speciail types (which should really only
+be encountered while testing) are converted to a tagged null object. Tags are limited
+to 63 bits, and tags applipd to Map keys are ignored.
+
+
 
 ## Examples
 ```java
@@ -84,6 +97,20 @@ json.write(System.out, new JsonWriteOptions().setPretty(true).setSorted(true)); 
 //   "a": 2,
 //   "b": 1,
 // }
+
+// CBOR
+json.put("buffer", ByteBuffer.wrap(new byte[] { ... }));   // add a ByteBuffer
+System.out.println(json.get("buffer").type());      // "buffer"
+System.out.println(json.get("buffer").stringValue());  // Base64 encoded value of buffer
+json.setTag(20);        // Set a CBOR tag on a value
+json.writeCbor(new OutputStream(...), null);    // serialize the same JSON object to CBOR
+json = Json.readCbor(new InputStream(...), null);   // read CBOR from an Inputream
+System.out.println(json.get("buffer").getTag());        // "20"
+System.out.println(json.get("b").getTag());        // "-1", which means no tag
+json.put("nan", Double.NaN);
+json.writeCbor(new OutputStream(...), null);    // infinity is fine in CBOR
+json.write(new StringWriter(), null);    // throws IOException - infinity not allowed in Json
+json.write(new StringWriter(), new JsonWRiteOptions().setAllowNaN(true));  // infinity serializes as null
 
 // Events
 json.addListener(new JsonListener() {

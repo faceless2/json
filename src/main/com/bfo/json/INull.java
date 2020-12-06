@@ -1,6 +1,7 @@
 package com.bfo.json;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 
 class INull extends Core {
 
@@ -43,6 +44,10 @@ class INull extends Core {
 
     @Override double doubleValue() {
         throw new ClassCastException("Value is null");
+    }
+
+    @Override ByteBuffer bufferValue() {
+        throw null;
     }
 
     @Override void write(Appendable sb, SerializerState state) throws IOException {

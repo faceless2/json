@@ -1,51 +1,19 @@
 package com.bfo.json;
 
-import java.lang.reflect.Array;
 import java.io.*;
 import java.util.*;
-import java.text.*;
 import java.math.*;
 import java.io.*;
 import java.nio.*;
 import java.nio.charset.*;
 
-/**
- * Class to read/write objects as JSON.
- * Can be overridden to support custom serialization. For writing this should involve
- * overriding the {@link #getCustomWrite} method like so:
- * <pre class="code">
- * public Object getCustomWrite(Object o) {
- *     if (o instanceof Widget) {
- *         Map m = new HashMap();
- *         m.put("type", "widget");
- *         m.put("name", widget.getName());
- *         return m;
- *     } else {
- *         return super.getCustomWrite(o);
- *     }
- * }
- * </pre>
- * and for reading the {@link #getCustomRead} methods:
- * <pre class="code">
- * public Object getCustomRead(Map m) {
- *     if ("widget".equals(m.get("type"))) {
- *         return Widget.getByName((String)m.get("name"));
- *     } else {
- *         return super.getCustomRead();
- .model2*     }
- * }
- * </pre>
- *
- * This class is thread safe and can be used in multiple threads simultaneously (presuming
- * the "lax" and "pretty" values are not being continually modified)
- */
 class CborReader {
 
     private static final Number INDEFINITE = Float.intBitsToFloat(0x12345678);       // As good as any
     private static final Json BREAK = new Json(new INumber(INDEFINITE, null));
 
     /**
-     * Parse a JSON serialized object from the Reader and return the Object it represents
+     * Read a CBOR serialized object
      */
     static Json read(CountingInputStream in, JsonReadOptions options) throws IOException {
         int v = in.read();
@@ -71,13 +39,18 @@ class CborReader {
             case 2:
                 return new Json(new IBuffer(ByteBuffer.wrap(readBuffer(v, in))));
             case 3:
-                 return new Json(new IString(new String(readBuffer(v, in), StandardCharsets.UTF_8), options));
+                 CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+                 decoder.onMalformedInput(options == null ? CodingErrorAction.REPLACE : options.getCborStringCodingErrorAction());
+                 return new Json(new IString(decoder.decode(ByteBuffer.wrap(readBuffer(v, in))).toString(), options));
             case 4:
                 n = readNumber(v, in, true);
                 j = new Json(new IList());
                 if (n == INDEFINITE) {
                     Json j2;
                     while ((j2 = read(in, options)) != BREAK) {
+                        if (j2 == null) {
+                            throw new EOFException();
+                        }
                         j._listValue().add(j2);
                     }
                 } else {
@@ -87,6 +60,8 @@ class CborReader {
                         Json j2 = read(in, options);
                         if (j2 == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
+                        } else if (j2 == null) {
+                            throw new EOFException();
                         }
                         j._listValue().add(j2);
                     }
@@ -98,6 +73,9 @@ class CborReader {
                 if (n == INDEFINITE) {
                     Json key;
                     while ((key = read(in, options)) != BREAK) {
+                        if (key == null) {
+                            throw new EOFException();
+                        }
                         if (!key.isString()) {
                             // TODO warning?
                         }
@@ -105,6 +83,8 @@ class CborReader {
                         Json val = read(in, options);
                         if (val == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
+                        } else if (val == null) {
+                            throw new EOFException();
                         }
                         Object o = j._mapValue().put(key.stringValue(), val);
                         if (o != null) {
@@ -116,7 +96,9 @@ class CborReader {
                     for (int i=0;i<l;i++) {
                         tell = in.tell();
                         Json key = read(in, options);
-                        if (key == BREAK) {
+                        if (key == null) {
+                            throw new EOFException();
+                        } else if (key == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
                         }
                         if (!key.isString()) {
@@ -125,6 +107,8 @@ class CborReader {
                         Json val = read(in, options);
                         if (val == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
+                        } else if (val == null) {
+                            throw new EOFException();
                         }
                         Object o = j._mapValue().put(key.stringValue(), val);
                         if (o != null) {
@@ -134,8 +118,17 @@ class CborReader {
                 }
                 return j;
             case 6:
+                tell = in.tell();
                 n = readNumber(v, in, false);
+                if (n instanceof BigInteger && ((BigInteger)n).bitLength() > 63) {
+                    throw new IOException("Tag "+n+" with "+((BigInteger)n).bitLength()+" bits is unsupported at "+tell);
+                }
                 j = read(in, options);
+                if (j == null) {
+                    throw new EOFException();
+                } else if (j == BREAK) {
+                    throw new IOException("Unexpected break at " + tell);
+                }
                 if ((n.intValue() == 2 || n.intValue() == 3) && j.isBuffer()) {
                     int tag = n.intValue();
                     ByteBuffer b = j.getCore().bufferValue();
@@ -159,7 +152,9 @@ class CborReader {
                     case 22:
                         return new Json(INull.INSTANCE);
                     case 23:
-                        return new Json(INull.UNDEF);
+                        j = new Json(INull.INSTANCE);
+                        j.setTag(v);
+                        return j;
                     case 25:
                         v = readNumber(v, in, false).intValue();
                         int s = (v & 0x8000) >> 15;
@@ -183,6 +178,12 @@ class CborReader {
                         return new Json(new INumber(n, options));
                     case 31:
                         return BREAK;
+                    case 24:
+                        v = in.read();
+                        if (v < 0) {
+                            throw new EOFException();
+                        }
+                        // fallthrough
                     default:
                         if (options.isCborFailOnUnknownTypes()) {
                             throw new IOException("Undefined special type " + v + " at "+tell);

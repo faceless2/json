@@ -3,8 +3,10 @@ package com.bfo.json;
 import java.io.*;
 import java.nio.*;
 import java.nio.channels.*;
+import java.nio.charset.*;
 import java.math.*;
 import java.util.*;
+import java.text.*;
 
 class CborWriter {
     
@@ -15,6 +17,9 @@ class CborWriter {
         Core o = j.getCore();
         if (o instanceof INumber) {
             Number n = o.numberValue();
+            if (n instanceof BigDecimal) {      // No BigDecimal in CBOR
+                n = Double.valueOf(n.doubleValue());
+            }
             if (n instanceof Integer) {
                 int i = n.intValue();
                 if (i < 0) {
@@ -88,9 +93,7 @@ class CborWriter {
             b.position(0);
             Channels.newChannel(out).write(b);
         } else if (o instanceof IString) {
-            byte[] b = o.stringValue().getBytes("UTF-8");
-            writeNum(3, b.length, out);
-            out.write(b);
+            writeString(o.stringValue(), out, options);
         } else if (o instanceof IList) {
             List<Json> l = o.listValue();
             writeNum(4, l.size(), out);
@@ -98,12 +101,13 @@ class CborWriter {
                 write(j2, out, options);
             }
         } else if (o instanceof IMap) {
-            Map<String,Json> m = o.mapValue();
-            writeNum(5, m.size(), out);
-            for (Map.Entry<String,Json> e : o.mapValue().entrySet()) {
-                byte[] b = e.getKey().getBytes("UTF-8");
-                writeNum(3, b.length, out);
-                out.write(b);
+            Map<String,Json> map = o.mapValue();
+            writeNum(5, map.size(), out);
+            if (options != null && options.isSorted()) {
+                map = new TreeMap<String,Json>(map);
+            }
+            for (Map.Entry<String,Json> e : map.entrySet()) {
+                writeString(e.getKey(), out, options);
                 write(e.getValue(), out, options);
             }
         } else if (o instanceof IBoolean) {
@@ -114,8 +118,6 @@ class CborWriter {
             }
         } else if (o == INull.INSTANCE) {
             out.write(0xf6);
-        } else if (o == INull.UNDEF) {
-            out.write(0xf7);
         } else {
             throw new IOException("Unknown object "+o);
         }
@@ -148,5 +150,29 @@ class CborWriter {
             out.write((int)(i>>8));
             out.write((int)i);
         }
+    }
+
+    private static void writeString(String s, OutputStream out, JsonWriteOptions options) throws IOException {
+        int len = 0;
+        if (options != null && options.isNFC()) {
+            s = Normalizer.normalize(s, Normalizer.Form.NFC);
+        }
+        for (int i=0;i<s.length();i++) {
+            char c = s.charAt(i);
+            if (c < 0x7f) {
+                len++;
+            } else if (c < 0x800) {
+                len += 2;
+            } else if (c >= 0xd800 && c <= 0xdbff) {
+                i++;
+                len += 4;
+            } else if (c < 0x10000) {
+                len += 3;
+            }
+        }
+        writeNum(3, len, out);
+        OutputStreamWriter w = new OutputStreamWriter(out, StandardCharsets.UTF_8);
+        w.write(s);
+        w.flush();
     }
 }

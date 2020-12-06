@@ -9,5 +9,7 @@ public class Test {
         System.out.flush();
         Test2.main(args);
         System.out.flush();
+        TestCbor.main(args);
+        System.out.flush();
     }
 }

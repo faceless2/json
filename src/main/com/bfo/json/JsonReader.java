@@ -235,9 +235,9 @@ class JsonReader {
             if (sb == null) {
                 int iv = (int)v;
                 if (v == iv) {
-                    out = new Json(new INumber(Integer.valueOf(iv), options.storeOptions()));
+                    out = new Json(new INumber(Integer.valueOf(iv), options));
                 } else {
-                    out = new Json(new INumber(Long.valueOf(v), options.storeOptions()));
+                    out = new Json(new INumber(Long.valueOf(v), options));
                 }
             } else {
                 String s = sb.toString();
@@ -258,17 +258,17 @@ class JsonReader {
                             BigDecimal bd = new BigDecimal(s);
                             double d2 = bd.doubleValue();
                             if (d2 == d2 && !Double.isInfinite(d2) && bd.equals(new BigDecimal(d2))) {
-                                out = new Json(new INumber(d2, options.storeOptions()));
+                                out = new Json(new INumber(d2, options));
                             } else {
-                                out = new Json(new INumber(bd, options.storeOptions()));
+                                out = new Json(new INumber(bd, options));
                             }
                         } else {
-                            out = new Json(new INumber(d, options.storeOptions()));
+                            out = new Json(new INumber(d, options));
                         }
                     } else if (exp != 0) {
-                        out = new Json(new INumber(new BigDecimal(s).toBigInteger(), options.storeOptions()));
+                        out = new Json(new INumber(new BigDecimal(s).toBigInteger(), options));
                     } else {
-                        out = new Json(new INumber(new BigInteger(s), options.storeOptions()));
+                        out = new Json(new INumber(new BigInteger(s), options));
                     }
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Invalid number \""+s+"\" at "+reader, e);
@@ -289,7 +289,7 @@ class JsonReader {
                 if (options.isNFC()) {
                     out = Normalizer.normalize((String)out, Normalizer.Form.NFC);
                 }
-                out = new Json(new IString((String)out, options.storeOptions()));
+                out = new Json(new IString((String)out, options));
             }
         } else if ((c=='t' || c=='f' || c=='n') && !iskey) {
             StringBuilder sb = new StringBuilder();
@@ -302,9 +302,9 @@ class JsonReader {
             reader.reset();
             String q = sb.toString();
             if (q.equals("true")) {
-                out = new Json(new IBoolean(true, options.storeOptions()));
+                out = new Json(new IBoolean(true, options));
             } else if (q.equals("false")) {
-                out = new Json(new IBoolean(false, options.storeOptions()));
+                out = new Json(new IBoolean(false, options));
             } else if (q.equals("null")) {
                 out = new Json(null);
             } else {

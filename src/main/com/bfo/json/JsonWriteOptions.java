@@ -18,14 +18,15 @@ import java.text.*;
  */
 public class JsonWriteOptions {
 
-    private String floatformat = "%.4f", doubleformat = "%.8f";
+    private String floatformat = "%.8g", doubleformat = "%.16g";
     private boolean pretty, allownan, sorted, nfc;
     private Filter filter;
     private int maxArraySize = 0, maxStringLength = 0;
 
     /**
      * The String format to use when formatting a float.
-     * The default is "%.4s"
+     * The default is "%.8g"
+     * Note that superfluous trailing zeros will trimmed from any formatted value.
      * @param format the format, which will be passed to {@link DecimalFormat}
      * @return this
      */
@@ -36,7 +37,8 @@ public class JsonWriteOptions {
 
     /**
      * The String format to use when formatting a double.
-     * The default is "%.8s"
+     * The default is "%.16g". 
+     * Note that superfluous trailing zeros will trimmed from any formatted value.
      * @param format the format, which will be passed to {@link DecimalFormat}
      * @return this
      */
@@ -48,6 +50,9 @@ public class JsonWriteOptions {
     /**
      * Whether to allow NaN and Infinite values in the output.
      * Both NaN and infinite values are disallowed in RFC8259.
+     * With this flag set, Infinite or NaN values are serialized
+     * as null, which matches web-browser behaviour. With this flag not set,
+     * an IOException is thrown during serialization
      * @param nan the flag
      * @return this
      */
@@ -69,7 +74,8 @@ public class JsonWriteOptions {
 
     /**
      * Whether to sort the keys in each map alphabetically
-     * when writing.
+     * when writing. This is recommended, but not required
+     * for CBOR serialization
      * @param sorted the flag
      * @return this
      */

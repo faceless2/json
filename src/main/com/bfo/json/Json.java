@@ -6,8 +6,9 @@ import java.nio.*;
 import java.nio.charset.*;
 
 /**
- * Json implementation that tries to be simple, complete, fast and follow the principle of least surprise.
- * This class represents every type of Json object; the type may vary, if for instance you call {@link #put}
+ * JSON (and now CBOR) implementation that tries to be simple, complete, fast and follow the principle ofi
+ * least surprise.
+ * This class represents every type of JSON object; the type may vary, if for instance you call {@link #put}
  * on this object. The various {@link #isNumber isNNN} methods can be used to determine the current type,
  * or you can just call {@link #stringValue}, {@link #intValue} etc to attempt to retrieve a typed value.
  *
@@ -26,13 +27,49 @@ import java.nio.charset.*;
  * </p>
  *
  * <h2>Serialization</h2>
+ * <p>
  * Object are read from the {@link #read} methods and written with the {@link #write} method. The process
  * can be controlled by specifying {@link JsonReadOptions} or {@link JsonWriteOptions} as appropriate, although
- * the default will read/write as defined in <a href="https://tools.ietf.org/html/rfc8259">RFC8259</a>. In
- * all cases the Stream is not closed at the end of the read or write.
+ * the default will read/write as defined in <a href="https://tools.ietf.org/html/rfc8259">RFC8259</a> or
+ * <a href="https://tools.ietf.org/html/rfc7049">RFC7049</a> as appropriate.
+ * In all cases the Stream is not closed at the end of the read or write.
+ * </p><p>
+ * Since version 2, objects can also be serialized as CBOR, as defined in
+ * <a href="https://tools.ietf.org/html/rfc7049">RFC7049</a>. There are some differences between the JSON and CBOR
+ * object models which are significant, and to combine the two into one interface, some minor limitations to the
+ * datamodels are in place.
+ * </p>
+ * <ol>
+ *  <li>
+ *   Unlike JSON, CBOR suppors binary data, which we read as a {@link ByteBuffer} - these can be identified
+ *   with the {@link #isBuffer isBuffer()} method. When serializing a ByteBuffer to JSON, it will be Base-64 encoded
+ *   with no padding, as recommended in RFC7049
+ *  </li>
+ *  <li>
+ *   JSON does not support NaN or infinite floating point values. When serializing these values to JSON,
+ *   they will be serialized as null - this matches the behavior of all web-browsrs.
+ *  </li>
+ *  <li>
+ *   CBOR supports tags on JSON value, which can be accessed with the {@link #setTag setTag()} and 
+ *   {@link #getTag getTag()} methods. Tags can be set on any object, but will be ignored when serializing to 
+ *   JSON. CBOR supports positive value tags of any value, but these are limited to 63 bits by this API.
+ *   If values higher than that are encountered when reading, {@link #readCbor readCbor()} method will throw
+ *   an IOException.
+ *  </li>
+ *  <li>
+ *   CBOR supports keys in Maps that are not Strings. If these are encountered with this API when reading,
+ *   they will be converted to Strings. CBOR also supports duplicate keys in Maps - this is not allowed in this
+ *   API, and the {@link #readCbor readCbor()} method will throw an IOException if found.
+ *  </li>
+ *  <li>
+ *   CBOR suppors the "undef" value, and also allows for a number of undefined special types to be used without
+ *   error. These will be loaded as null values, with a Tag set that identifies the type. There is no such
+ *   conversion when writing; these values will be written as a tagged null, no the original special type.
+ *  </li>
+ * </ol>
  *
  * <h2>Events</h2>
- * Listeners can be attached to a Json object, and will received {@link JsonEvent JsonEvents} when changes are
+ * Listeners can be attached to a JSON object, and will received {@link JsonEvent JsonEvents} when changes are
  * made to this item <b>or its descendants</b>. See the {@link JsonEvent} API docs for an example of how to
  * use this to record changes to an object.
  *
@@ -75,6 +112,8 @@ public class Json {
     private Json parent;
     private Object parentkey;
     private List<JsonListener> listeners;
+    private JsonFactory factory;
+    private long tag = -1;
 
     /**
      * <p>
@@ -118,11 +157,15 @@ public class Json {
             }
             if (core == null) {
                 if (object instanceof CharSequence) {
-                    core = new IString(object.toString(), (byte)0);
+                    core = new IString(object.toString(), null);
+                } else if (object instanceof byte[]) {
+                    core = new IBuffer(ByteBuffer.wrap((byte[])object));
+                } else if (object instanceof ByteBuffer) {
+                    core = new IBuffer((ByteBuffer)object);
                 } else if (object instanceof Boolean) {
-                    core = new IBoolean(((Boolean)object).booleanValue(), (byte)0);
+                    core = new IBoolean(((Boolean)object).booleanValue(), null);
                 } else if (object instanceof Number) {
-                    core = new INumber((Number)object, (byte)0);
+                    core = new INumber((Number)object, null);
                 } else if (object instanceof Map) {
                     core = new IMap();
                     Map map = (Map)object;
@@ -153,6 +196,31 @@ public class Json {
 
     private void setCore(Core core) {
         this.core = core;
+    }
+
+    /**
+     * Set the default JsonFactory for this object and its descendants.
+     * Any objects passed into {@link put put()} will be converted using
+     * this factory. The default is null
+     * 
+     * @param factory the factory
+     * @since 2
+     */
+    public void setFactory(JsonFactory factory) {
+        this.factory = factory;
+        for (Iterator<Map.Entry<String,Json>> i = leafIterator();i.hasNext();) {
+            Map.Entry<String,Json> e = i.next();
+            e.getValue().factory = factory;
+        }
+    }
+
+    /**
+     * Return the default JsonFactory, as set by {@link #setFactory}
+     * @since 2
+     * @return the Factory set by {@link #setFactory}
+     */
+    public JsonFactory getFactory() {
+        return factory;
     }
 
     /**
@@ -270,6 +338,38 @@ public class Json {
     }
 
     /**
+     * Read a CBOR formatted object from the specified InputStream.
+     * @param in the InputStream
+     * @param options the options to use for reading, or null to use the default
+     * @return the Json object
+     * @throws IOException if an I/O exception was encountered during reading or the stream does not meet the CBOR format
+     * @since 2
+     */
+    public static Json readCbor(InputStream in, JsonReadOptions options) throws IOException {
+        if (options == null) {
+            options = DEFAULTREADOPTIONS;
+        }
+        if (!in.markSupported()) {
+            // We don't need mark, but buffering is a good idea
+            in = new BufferedInputStream(in);
+        }
+        return (Json)CborReader.read(new CountingInputStream(in), options);
+    }
+
+    /**
+     * Write the Json object in the CBOR format to the specified output
+     * @param out the output
+     * @param options the JsonWriteOptions to use when writing, or null to use the default
+     * @return the "out" parameter
+     * @throws IOException if an IOException is thrown while writing
+     * @since 2
+     */
+    public OutputStream writeCbor(OutputStream out, JsonWriteOptions options) throws IOException {
+        CborWriter.write(this, out, options);
+        return out;
+    }
+
+    /**
      * Add a {@link JsonListener} to this class, if it has not already been added.
      * The listener will received events for any changes to this object or its
      * descendants - the {@link JsonEvent} will reference which object the event
@@ -353,12 +453,14 @@ public class Json {
         Json json;
         if (isMap()) {
             json = new Json(new IMap());
+            json.setFactory(getFactory());
             Map<String,Json> om = json._mapValue();
             for (Map.Entry<String,Json> e : _mapValue().entrySet()) {
                 om.put(e.getKey(), e.getValue().duplicate());
             }
         } else if (isList()) {
             json = new Json(new IList());
+            json.setFactory(getFactory());
             List<Json> il = _listValue();
             List<Json> ol = json._listValue();
             for (int i=0;i<il.size();i++) {
@@ -475,6 +577,7 @@ public class Json {
      * If the path specifies a compound key than any intermediate descendants
      * are created as required. If the path specifies an existing object then
      * the old object (which may be a subtree) is removed and returned.
+     * The object will be converted with the factory set by {@link #setFactory setFactory()}, if any.
      * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
      * @param value the value to insert, which must not be null, this or an ancestor of this
      * @return the object that was previously found at that path, which may be null
@@ -497,7 +600,7 @@ public class Json {
                 t = t.parent;
             }
         } else {
-            object = new Json(value);
+            object = new Json(value, getFactory());
         }
         boolean convert = true;
         if (core instanceof IList) {
@@ -538,6 +641,7 @@ public class Json {
     /**
      * Put the specified value into this object with the specified path.
      * Intended for use on arrays, this will also work with Maps that contain a key with this value.
+     * The object will be converted with the factory set by {@link #setFactory setFactory()}, if any.
      * @param path the key - if a non-negative integer and this item is a list, the item will be inserted into the list at that point
      * @param value the value to insert, which must not be null, this or an ancestor of this
      * @return the object that was previously found at that path, which may be null
@@ -753,7 +857,7 @@ public class Json {
     }
 
     /**
-     * Return the size of this object, or zero if this object is a number, string, boolean or null.
+     * Return the size of this object, or zero if this object is a number, string, buffer, boolean or null.
      * @return the size of the object
      */
     public int size() {
@@ -767,7 +871,30 @@ public class Json {
     }
 
     /**
-     * Return true if this node is a number, string, boolean, null or an empty map or list.
+     * Return the tag for this item. Tags are only used with the CBOR serialization.
+     * Although CBOR alows positive tag values of any size, this implementation limits
+     * them to 63 bits.
+     * If no tag is set (the default) this method returns -1.
+     * @since 2
+     * @return the tag, or -1 if none is set.
+     */
+    public long getTag() {
+        return tag;
+    }
+
+    /**
+     * Set the tag for this item. Tags are only used with the CBOR serialization, so they
+     * will be ignored when writing to Json. Although CBOR allows positive value tags of
+     * any size, this implementation limits them to 63 bits.
+     * @param tag the tag, or a negative number to remove the tag.
+     * @since 2
+     */
+    public void setTag(long tag) {
+        this.tag = tag < 0 ? -1 : tag;
+    }
+
+    /**
+     * Return true if this node is a number, string, buffer, boolean, null or an empty map or list.
      * @return true if the node is a leaf node.
      */
     public boolean isEmpty() {
@@ -778,6 +905,28 @@ public class Json {
         } else {
             return true;
         }
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "buffer".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isBuffer()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a string
+     */
+    public boolean isBuffer(String path) {
+        Json j = get(path);
+        return j != null && j.isBuffer();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "buffer".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isBuffer()</code>
+     * @param path the path
+     * @return true if the descendant exists and is a buffer
+     */
+    public boolean isBuffer(int path) {
+        Json j = get(path);
+        return j != null && j.isBuffer();
     }
 
     /**
@@ -1243,7 +1392,7 @@ public class Json {
     }
 
     /**
-     * Return the type of this node, which may be "number", "string", "boolean", "list", "map" or "null"
+     * Return the type of this node, which may be "number", "string", "boolean", "list", "map", "buffer" or "null"
      * @return the object type
      */
     public String type() {
@@ -1259,7 +1408,7 @@ public class Json {
     }
 
     /**
-     * Return true if this node is a number
+     * Return true if this node is a "number"
      * @return true if the object is a number
      */
     public boolean isNumber() {
@@ -1267,7 +1416,7 @@ public class Json {
     }
 
     /**
-     * Return true if this node is a boolean
+     * Return true if this node is a "boolean"
      * @return true if the object is a boolean
      */
     public boolean isBoolean() {
@@ -1275,7 +1424,7 @@ public class Json {
     }
 
     /**
-     * Return true if this node is a string
+     * Return true if this node is a "string"
      * @return true if the object is a string
      */
     public boolean isString() {
@@ -1283,7 +1432,15 @@ public class Json {
     }
 
     /**
-     * Return true if this node is a map
+     * Return true if this node is a "buffer"
+     * @return true if the object is a buffer
+     */
+    public boolean isBuffer() {
+        return core instanceof IBuffer;
+    }
+
+    /**
+     * Return true if this node is a "map"
      * @return true if the object is a map
      */
     public boolean isMap() {
@@ -1291,7 +1448,7 @@ public class Json {
     }
 
     /**
-     * Return true if this node is a list
+     * Return true if this node is a "list"
      * @return true if the object is a list
      */
     public boolean isList() {
@@ -1301,7 +1458,7 @@ public class Json {
     /**
      * Return the value of this Json as a plain Java object,
      * which may be a {@link String}, {@link Boolean}, {@link Number},
-     * {@link List}, {@link Map} or null.
+     * {@link List}, {@link Map}, {@link ByteBuffer} or null.
      * @return the object value
      */
     public Object value() {
@@ -1332,6 +1489,23 @@ public class Json {
      */
     public String stringValue() {
         return core.stringValue();
+    }
+
+    /**
+     * Return the value of this node as a ByteBuffer. ByteBuffers only exist
+     * natively in the CBOR serialization.
+     * <ul>
+     * <li>A string will be decoded using Base64 (no padding) and, if valid
+     * returned as a ByteBuffer. If invalid, a ClassCastException will be thrown</li>
+     * <li>null will return null</li>
+     * </ul>
+     * @see JsonReadOptions
+     * @throws ClassCastException if none of these conditions are met
+     * @return the buffer value of this object
+     * @since 2
+     */
+    public ByteBuffer bufferValue() {
+        return core.bufferValue();
     }
 
     /**
@@ -1465,7 +1639,7 @@ public class Json {
      * <ul>
      * <li>If this object {@link #isNull is null}, return null</li>
      * <li>If factory is not null and {@link JsonFactory#fromJson fromJson()} returns a non-null value, return that value</li> 
-     * <li>If this value is a string, number or boolean, return the value from {@link #value()}</li>
+     * <li>If this value is a string, buffer, number or boolean, return the value from {@link #value()}</li>
      * <li>If this value is a list or map, populate the map values with the output of this method and return as a Map&lt;String,Object&gt; or List&lt;Object&gt;</li>
      * </ul>
      * @param factory the factory for conversion, which may be null
@@ -1518,8 +1692,21 @@ public class Json {
      * to calling <code>return {@link #write write}(new StringBuilder(), null).toString()</code>
      */
     public String toString() {
+        JsonWriteOptions j = new JsonWriteOptions().setAllowNaN(true);
         try {
-            return write(new StringBuilder(), null).toString();
+            StringBuilder sb = new StringBuilder();
+            /*
+            if (getTag() >= 0) {
+                sb.append(getTag() + "(");
+            }
+            */
+            write(sb, j);
+            /*
+            if (getTag() >= 0) {
+                sb.append(")");
+            }
+            */
+            return sb.toString();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
