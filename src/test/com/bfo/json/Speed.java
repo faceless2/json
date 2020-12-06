@@ -13,7 +13,7 @@ class Speed {
     public static void main(String[] args) throws Exception {
         System.out.println("----- BEGIN SPEED TESTS -----");
         BufferedReader r = null;
-        final int PASS = 20;
+        final int PASS = 500;   // Really needs to be big to remove any doubt on the numbers
         try {
             r = new BufferedReader(new InputStreamReader(Speed.class.getResourceAsStream("resources/speedlist.txt"), "UTF-8"));
             String s;
@@ -69,7 +69,7 @@ class Speed {
                         l1 = System.currentTimeMillis();
                         for (int i=0;i<PASS;i++) {
                             ByteArrayInputStream bin = new ByteArrayInputStream(buf);
-                            json.readCbor(bin, null);
+                            json = Json.readCbor(bin, null);
                         }
                         time = (System.currentTimeMillis() - l1) / PASS;
                         System.out.println("* "+s+": read CBOR: "+time+"ms, "+(buf.length * 1000 / 1024 / time)+"Kb/s");

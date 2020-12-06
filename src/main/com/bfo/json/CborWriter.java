@@ -171,8 +171,27 @@ class CborWriter {
             }
         }
         writeNum(3, len, out);
-        OutputStreamWriter w = new OutputStreamWriter(out, StandardCharsets.UTF_8);
-        w.write(s);
-        w.flush();
+        // Measurably faster than OutputStreamWriter, as we have to init it each time.
+        for (int i=0;i<s.length();i++) {
+            int c = s.charAt(i);
+            if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length()) {
+                c = ((c-0xd7c0)<<10) | (s.charAt(++i)&0x3ff);
+            }
+            if (c < 0x80) {
+                out.write(c);
+            } else if (c < 0x800) {
+                out.write((c >> 6) | 0300);
+                out.write((c & 077) | 0200);
+            } else if (c < 0x10000) {
+                out.write((c >> 12) | 0340);
+                out.write(((c >> 6) & 077) | 0200);
+                out.write((c & 077) | 0200);
+            } else {
+                out.write((c >> 18) | 0360);
+                out.write(((c >> 12) & 077) | 0200);
+                out.write(((c >> 6) & 077) | 0200);
+                out.write((c & 077) | 0200);
+            }
+        }
     }
 }

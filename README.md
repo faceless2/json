@@ -6,7 +6,8 @@ The BFO JSON/CBOR Parser is yet another Java JSON parser, with the follow emphas
 * the API is essentially a single class, with a few helper classes that are all optional. Items are added with `put`, retrieved with `get`, read with `read` and written with `write`. Collections are used for maps and lists, and you can use the whole API with no more than about 5 or 6 methods. Which means although the API is [fully documented](https://faceless2.github.io/json/docs/index.html), you can probably get away without reading any of it.
 
 ### fast
-* A 2015 Macbook will read Json at about 30MB/s and write at about 21MB/s. It can read CBOR at about 40MB/s and write at 9MB/s.
+* A 2015 Macbook will read Json at about 70MB/s from text (51MB/s from binary, as it has to convert to UTF-8),
+and write at about 196MB/s. It can read CBOR at about 44MB/s and write at 131MB/s.
 There are plenty of Java Json APIs claiming to be the fastest; benchmarking is not something I care to spend much time on,
 but informally it is testing faster than anything else I could find.
 Intermediate buffers are avoided wherever possible.
