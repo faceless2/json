@@ -13,6 +13,7 @@ class Speed {
     public static void main(String[] args) throws Exception {
         System.out.println("----- BEGIN SPEED TESTS -----");
         BufferedReader r = null;
+        final int PASS = 20;
         try {
             r = new BufferedReader(new InputStreamReader(Speed.class.getResourceAsStream("resources/speedlist.txt"), "UTF-8"));
             String s;
@@ -34,27 +35,46 @@ class Speed {
 
                         long l1 = System.currentTimeMillis();
                         Json json = null;
-                        for (int i=0;i<10;i++) {
+                        for (int i=0;i<PASS;i++) {
                             json = Json.read(new ByteArrayInputStream(buf), null);
                         }
-                        long time = (System.currentTimeMillis() - l1) / 3;
-                        System.out.println("* "+s+": read from binary: "+time+"ms, "+(buf.length * 1000 / time)+"b/s");
+                        long time = (System.currentTimeMillis() - l1) / PASS;
+                        System.out.println("* "+s+": read from binary: "+time+"ms, "+(buf.length * 1000 / 1024 / time)+"Kb/s");
 
                         l1 = System.currentTimeMillis();
-                        for (int i=0;i<10;i++) {
+                        for (int i=0;i<PASS;i++) {
                             json = Json.read(string);
                         }
-                        time = (System.currentTimeMillis() - l1) / 3;
-                        System.out.println("* "+s+": read from text: "+time+"ms, "+(string.length() * 1000 / time)+"c/s");
+                        time = (System.currentTimeMillis() - l1) / PASS;
+                        System.out.println("* "+s+": read from text: "+time+"ms, "+(string.length() * 1000 / 1024 / time)+"Kc/s");
 
                         l1 = System.currentTimeMillis();
                         StringBuilder sb = new StringBuilder(string.length());
-                        for (int i=0;i<10;i++) {
+                        for (int i=0;i<PASS;i++) {
                             sb.setLength(0);
                             json.write(sb, null);
                         }
-                        time = (System.currentTimeMillis() - l1) / 3;
-                        System.out.println("* "+s+": write: "+time+"ms, "+(sb.length() * 1000 / time)+"c/s");
+                        time = (System.currentTimeMillis() - l1) / PASS;
+                        System.out.println("* "+s+": write: "+time+"ms, "+(sb.length() * 1000 / 1024 / time)+"Kc/s");
+
+                        l1 = System.currentTimeMillis();
+                        for (int i=0;i<PASS;i++) {
+                            out.reset();
+                            json.writeCbor(out, null);
+                        }
+                        time = (System.currentTimeMillis() - l1) / PASS;
+                        System.out.println("* "+s+": write CBOR: "+time+"ms, "+(out.size() * 1000 / 1024 / time)+"Kb/s");
+
+                        buf = out.toByteArray();
+                        l1 = System.currentTimeMillis();
+                        for (int i=0;i<PASS;i++) {
+                            ByteArrayInputStream bin = new ByteArrayInputStream(buf);
+                            json.readCbor(bin, null);
+                        }
+                        time = (System.currentTimeMillis() - l1) / PASS;
+                        System.out.println("* "+s+": read CBOR: "+time+"ms, "+(buf.length * 1000 / 1024 / time)+"Kb/s");
+
+
 
                     } catch (Exception e) {
                         System.out.println("* "+s+": FAIL "+e);
