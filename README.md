@@ -7,6 +7,7 @@ The BFO JSON/CBOR Parser is yet another Java JSON parser, with the follow emphas
 
 ### fast
 * A typical laptop in 2018 would be able to read Json at about 7MB/s and write at about 9MB/s. There are plenty of Java Json APIs claiming to be the fastest; benchmarking is not something I care to spend much time on, but informally it is testing faster than anything else I could find.
+Intermediate buffers are avoided wherever possible.
 
 ### correct
 * the API has been tested against the Json sample data made available by Nicolas Seriot at http://seriot.ch/parsing_json.php, and has been authored with reference to [RFC8259](https://tools.ietf.org/html/rfc8259).
@@ -24,7 +25,7 @@ CBOR support is newer, but has again been tested against [RFC7049](https://tools
 * Option of mapping Json to more complex Java objects is possible, but not included with the code. By default data is retrieved as  Maps, Lists and primitive types only
 
 ## Building and Documentation
-* Prebuilt binary available at https://faceless2.github.io/json/dist/bfojson-1.jar
+* Prebuilt binary available at https://faceless2.github.io/json/dist/bfojson-2.jar
 * The API docs will always be available at https://faceless2.github.io/json/docs/index.html
 * Or download with `git clone http://github.com/faceless2/json`. Type `ant`. Jar is in `dist`, docs are in `docs`
  
@@ -47,7 +48,11 @@ duplicate keys in maps, "special" types that are not defined, and non-string key
 Duplicate keys encountered during reading throw an IOException,
 non-string keys will be converted to strings, and speciail types (which should really only
 be encountered while testing) are converted to a tagged null object. Tags are limited
-to 63 bits, and tags applipd to Map keys are ignored.
+to 63 bits, and tags applied to Map keys are ignored.
+
+* CBOR serialization will convert tag types 2 and 3 on a "buffer" to BigInteger, as described in RFC7049
+But other tags used to distinguish Dates, non-UTF8 strings, URLs etc. are not applied.
+A <code>JsonFactory</code> can easily be written to cover as many of these are needed.
 
 
 
@@ -110,7 +115,7 @@ System.out.println(json.get("b").getTag());        // "-1", which means no tag
 json.put("nan", Double.NaN);
 json.writeCbor(new OutputStream(...), null);    // infinity is fine in CBOR
 json.write(new StringWriter(), null);    // throws IOException - infinity not allowed in Json
-json.write(new StringWriter(), new JsonWRiteOptions().setAllowNaN(true));  // infinity serializes as null
+json.write(new StringWriter(), new JsonWriteOptions().setAllowNaN(true));  // infinity serializes as null
 
 // Events
 json.addListener(new JsonListener() {
