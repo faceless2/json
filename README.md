@@ -3,7 +3,7 @@
 The BFO JSON/CBOR Parser is yet another Java JSON parser, with the follow emphasis:
 
 ### simple
-* the API is essentially a single class, with a few helper classes that are all optional. Items are added with `put`, retrieved with `get`, read with `read` and written with `write`. Collections are used for maps and lists, and you can use the whole API with no more than about 5 or 6 methods. Which means although the API is [fully documented](https://faceless2.github.io/json/docs/index.html), you can probably get away without reading any of it.
+* the API is essentially a single class, with a few helper classes that are all optional. Items are added with `put`, retrieved with `get`, read with `read` and written with `write`. Collections are used for maps and lists, and you can use the whole API with no more than about 5 or 6 methods. Which means although the API is [fully documented](https://faceless2.github.io/json/docs/), you can probably get away without reading any of it.
 
 ### fast
 * A 2015 Macbook will read Json at about 70MB/s from text (51MB/s from binary, as it has to convert to UTF-8),
@@ -14,7 +14,8 @@ Intermediate buffers are avoided wherever possible.
 
 ### correct
 * the API has been tested against the Json sample data made available by Nicolas Seriot at http://seriot.ch/parsing_json.php, and has been authored with reference to [RFC8259](https://tools.ietf.org/html/rfc8259).
-CBOR support is newer, but has again been tested against [RFC7049](https://tools.ietf.org/html/rfc7049).
+CBOR support is newer, but has again been tested against [RFC7049](https://tools.ietf.org/html/rfc7049) and fuzzed input, to make sure errors
+are handled properly.
 
 ### self-contained
 * the API has no external requirements. Although it compiles against the JsonPath implementation https://github.com/json-path/JsonPath, provided the "eval" methods are not used there is no need for those classes to be available at runtime. To build it, type "ant" (and if you'd prefer the Maven experience, type "ant" then go and do something else for two hours).
@@ -25,12 +26,13 @@ CBOR support is newer, but has again been tested against [RFC7049](https://tools
 * Listeners and Events to monitor changes to the structure
 * Flexible typing; if you request the int value of a string it will try to convert it to an int. If you put a value with a String key on a list, it will convert to a map.
 * Numbers read as ints, longs, doubles, BigIntegers, or BigDecimals, with the smallest type chosen first.
+* CBOR binary strings are stored as ByteBuffers, but will be converted to Base64 strings when serialized as Json.
 * Option of mapping Json to more complex Java objects is possible, but not included with the code. By default data is retrieved as  Maps, Lists and primitive types only
 
 ## Building and Documentation
-* Prebuilt binary available at https://faceless2.github.io/json/dist/bfojson-2.jar
-* The API docs will always be available at https://faceless2.github.io/json/docs/index.html
-* Or download with `git clone http://github.com/faceless2/json`. Type `ant`. Jar is in `dist`, docs are in `docs`
+* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-2.jar](https://faceless2.github.io/json/dist/bfojson-2.jar)
+* The API docs will always be available at [https://faceless2.github.io/json/docs/](https://faceless2.github.io/json/docs/)
+* Or download with `git clone http://github.com/faceless2/json.git`. Type `ant`. Jar is in `dist`, docs are in `docs`
  
 ## Design Decisions
 * Mapping JavaScript objects to a Java object can be done by use of a JsonFactory, however this is done after the object is read. Most of the complexity of other Java Json APIs comes from the mapping process between Json and Java objects; if you want to go down this route you have a trivially simple interface to implement, but you're on your own.
