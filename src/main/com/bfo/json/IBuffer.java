@@ -35,7 +35,12 @@ class IBuffer extends Core {
 
     @Override void write(Appendable sb, SerializerState state) throws IOException {
         sb.append('"');
-        write(sb);
+        int len = state.options == null ? 0 : state.options.getMaxStringLength();
+        if (len == 0) {
+            write(sb);
+        } else {
+            sb.append("(" + value.limit() + " bytes)");
+        }
         sb.append('"');
     }
 

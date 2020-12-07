@@ -360,6 +360,49 @@ public class Json {
     }
 
     /**
+     * Read a CBOR formatted object from the specified ByteBuffer.
+     * @param in the ByteBuffer
+     * @param options the options to use for reading, or null to use the default
+     * @return the Json object
+     * @throws IOException if an I/O exception was encountered during reading or the stream does not meet the CBOR format
+     * @since 2
+     */
+    public static Json readCbor(final ByteBuffer in, JsonReadOptions options) throws IOException {
+        return readCbor(new InputStream() {
+            public int read() {
+                return in.hasRemaining() ? in.get() & 0xFF : -1;
+            }
+            public int read(byte[] buf, int off, int len) {
+                int r = in.remaining();
+                if (r == 0) {
+                    return -1;
+                } else if (r < len) {
+                    len = r;
+                }
+                in.get(buf, off, len);
+                return len;
+            }
+            public int available() {
+                return in.remaining();
+            }
+            public boolean markSupported() {
+                return true;
+            }
+            public void mark() {
+                in.mark();
+            }
+            public void reset() {
+                in.reset();
+            }
+            public long skip(long skip) {
+                int r = Math.min(in.remaining(), (int)skip);
+                in.position(in.position() + r);
+                return r;
+            }
+        }, options);
+    }
+
+    /**
      * Write the Json object in the CBOR format to the specified output
      * @param out the output
      * @param options the JsonWriteOptions to use when writing, or null to use the default
