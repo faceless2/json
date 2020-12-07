@@ -119,8 +119,11 @@ public class Json {
      * <p>
      * Create a new Json object that represents the specified object. The
      * object should be a {@link CharSequence}, {@link Boolean}, {@link Number},
-     * {@link Map} or {@link Collection}; if a Map or Collection, the values
-     * must also meet this criteria.
+     * {@link ByteBuffer}, <code>byte[]</code>,
+     * {@link Map} or {@link Collection}; if a Map or Collection, the collection is
+     * copied rather than referenced, and the values must also meet this criteria.
+     * A ByteBuffer (or byte[]) is not a native Json type, but is used for CBOR.
+     * The buffer is <i>not</i> copied.
      * </p><p>
      * An alternative method for creating a Json object representing an empty
      * map or list is to call {@link #read Json.read("{}")} or {@link #read Json.read("[]")}
