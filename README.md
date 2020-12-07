@@ -7,7 +7,7 @@ The BFO JSON/CBOR Parser is yet another Java JSON parser, with the follow emphas
 
 ### fast
 * A 2015 Macbook will read Json at about 70MB/s from text (51MB/s from binary, as it has to convert to UTF-8),
-and write at about 196MB/s. It can read CBOR at about 44MB/s and write at 131MB/s.
+and write at about 196MB/s. It can read CBOR at about 130MB/s and write at 196MB/s.
 There are plenty of Java Json APIs claiming to be the fastest; benchmarking is not something I care to spend much time on,
 but informally it is testing faster than anything else I could find.
 Intermediate buffers are avoided wherever possible.
