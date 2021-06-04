@@ -39,9 +39,9 @@ class MsgpackReader {
             case 0xc1:
                 throw new IOException("Unexpected type 0xC1");
             case 0xc2:
-                return new Json(new IBoolean(true, options));
-            case 0xc3:
                 return new Json(new IBoolean(false, options));
+            case 0xc3:
+                return new Json(new IBoolean(true, options));
             case 0xc4: // bin8;
                 v = in.read();
                 if (v < 0) {
@@ -114,10 +114,10 @@ class MsgpackReader {
                 if (v < 0) {
                     throw new EOFException();
                 }
-                return new Json(new INumber((byte)v, options));
+                return new Json(new INumber(Integer.valueOf((byte)v), options));
             case 0xd1: // int16
                 v = (in.read() << 8) | in.read();
-                return new Json(new INumber((short)v, options));
+                return new Json(new INumber(Integer.valueOf((short)v), options));
             case 0xd2: // int32
                 v = readInt(in);
                 return new Json(new INumber(v, options));
