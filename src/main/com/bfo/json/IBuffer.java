@@ -33,6 +33,10 @@ class IBuffer extends Core {
         return value;
     }
 
+    @Override public boolean equals(Object o) {
+        return o instanceof IBuffer && ((IBuffer)o).value.position(0).equals(value.position(0));
+    }
+
     @Override void write(Appendable sb, SerializerState state) throws IOException {
         sb.append('"');
         int len = state.options == null ? 0 : state.options.getMaxStringLength();

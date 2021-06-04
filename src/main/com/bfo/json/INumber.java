@@ -2,6 +2,7 @@ package com.bfo.json;
 
 import java.io.*;
 import java.util.*;
+import java.math.*;
 
 class INumber extends Core {
 
@@ -30,6 +31,20 @@ class INumber extends Core {
 
     @Override Number numberValue() {
         return value;
+    }
+
+    @Override public boolean equals(Object o) {
+        if (o instanceof INumber) {
+            Number n = ((INumber)o).value;
+            if (n.getClass() == value.getClass()) {
+                return n.equals(value);
+            }
+            // Ensure we only care about the numeric value, not the storage type
+            BigDecimal b1 = n instanceof BigDecimal ? (BigDecimal)n : n instanceof Float || n instanceof Double ? BigDecimal.valueOf(n.doubleValue()) : n instanceof BigInteger ? new BigDecimal((BigInteger)n) : BigDecimal.valueOf(n.longValue());
+            BigDecimal b2 = value instanceof BigDecimal ? (BigDecimal)value : value instanceof Float || value instanceof Double ? BigDecimal.valueOf(value.doubleValue()) : value instanceof BigInteger ? new BigDecimal((BigInteger)value) : BigDecimal.valueOf(value.longValue());
+            return b1.compareTo(b2) == 0;
+        }
+        return false;
     }
 
     @Override void write(Appendable sb, SerializerState state) throws IOException {
