@@ -3,7 +3,6 @@ package com.bfo.json;
 import java.io.*;
 import java.util.*;
 import java.math.*;
-import java.io.*;
 import java.nio.*;
 import java.nio.charset.*;
 
