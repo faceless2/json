@@ -34,7 +34,7 @@ public class TestMsgpack {
                             break;
                         }
                     }
-                    assert match : "WFAIL: "+type+" "+target+" "+dump(p);
+                    assert match : "WFAIL: "+type+" "+target+" "+dump(p)+" "+j2;
                 } else {
 //                    System.out.println("SKIP: "+type);
                 }

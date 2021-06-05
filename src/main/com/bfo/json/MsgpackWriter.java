@@ -123,32 +123,58 @@ class MsgpackWriter {
             ByteBuffer b = o.bufferValue();
             b.position(0);
             int s = b.limit();
-            if (s <= 255) {
-                if (tag >= 0) {
+            if (tag >= 0) {
+                if (s == 1) {
                     out.write(0xd4);
                     out.write(tag);
+                    Channels.newChannel(out).write(b);
+                } else if (s == 2) {
+                    out.write(0xd5);
+                    out.write(tag);
+                    Channels.newChannel(out).write(b);
+                } else if (s == 4) {
+                    out.write(0xd6);
+                    out.write(tag);
+                    Channels.newChannel(out).write(b);
+                } else if (s == 8) {
+                    out.write(0xd7);
+                    out.write(tag);
+                    Channels.newChannel(out).write(b);
+                } else if (s == 16) {
+                    out.write(0xd8);
+                    out.write(tag);
+                    Channels.newChannel(out).write(b);
+                } else if (s <= 255) {
+                    out.write(0xc7);
+                    out.write(s);
+                    out.write(tag);
+                    Channels.newChannel(out).write(b);
+                } else if (s <= 65535) {
+                    out.write(0xc8);
+                    out.write(s>>8);
+                    out.write(s);
+                    out.write(tag);
+                    Channels.newChannel(out).write(b);
                 } else {
-                    out.write(0xc4);
+                    out.write(0xc9);
+                    out.write(s>>24);
+                    out.write(s>>16);
+                    out.write(s>>8);
+                    out.write(s);
+                    out.write(tag);
+                    Channels.newChannel(out).write(b);
                 }
+            } else if (s <= 255) {
+                out.write(0xc4);
                 out.write(s);
                 Channels.newChannel(out).write(b);
             } else if (s <= 65535) {
-                if (tag >= 0) {
-                    out.write(0xd5);
-                    out.write(tag);
-                } else {
-                    out.write(0xc5);
-                }
+                out.write(0xc5);
                 out.write(s >> 8);
                 out.write(s);
                 Channels.newChannel(out).write(b);
             } else {
-                if (tag >= 0) {
-                    out.write(0xd6);
-                    out.write(tag);
-                } else {
-                    out.write(0xc6);
-                }
+                out.write(0xc6);
                 out.write(s >> 24);
                 out.write(s >> 16);
                 out.write(s >> 8);
