@@ -10,6 +10,7 @@ import java.nio.file.*;
  * Tests from http://seriot.ch/parsing_json.php
  */
 class Speed {
+    static String string;
     public static void main(String[] args) throws Exception {
         System.out.println("----- BEGIN SPEED TESTS -----");
         BufferedReader r = null;
@@ -31,7 +32,7 @@ class Speed {
                         }
                         out.close();
                         byte[] buf = out.toByteArray();
-                        String string = new String(buf, "UTF-8");
+                        string = new String(buf, "UTF-8");
 
                         long l1 = System.currentTimeMillis();
                         Json json = null;
@@ -74,6 +75,22 @@ class Speed {
                         time = (System.currentTimeMillis() - l1) / PASS;
                         System.out.println("* "+s+": read CBOR: "+time+"ms, "+(buf.length * 1000 / 1024 / time)+"Kb/s");
 
+                        l1 = System.currentTimeMillis();
+                        for (int i=0;i<PASS;i++) {
+                            out.reset();
+                            json.writeMsgpack(out, null);
+                        }
+                        time = (System.currentTimeMillis() - l1) / PASS;
+                        System.out.println("* "+s+": write Msgpack: "+time+"ms, "+(out.size() * 1000 / 1024 / time)+"Kb/s");
+
+                        buf = out.toByteArray();
+                        l1 = System.currentTimeMillis();
+                        for (int i=0;i<PASS;i++) {
+                            ByteArrayInputStream bin = new ByteArrayInputStream(buf);
+                            json = Json.readMsgpack(bin, null);
+                        }
+                        time = (System.currentTimeMillis() - l1) / PASS;
+                        System.out.println("* "+s+": read Msgpack: "+time+"ms, "+(buf.length * 1000 / 1024 / time)+"Kb/s");
 
 
                     } catch (Exception e) {

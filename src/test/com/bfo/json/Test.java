@@ -11,5 +11,7 @@ public class Test {
         System.out.flush();
         TestCbor.main(args);
         System.out.flush();
+        TestMsgpack.main(args);
+        System.out.flush();
     }
 }

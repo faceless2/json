@@ -396,7 +396,7 @@ public class Json {
      * @param options the options to use for reading, or null to use the default
      * @return the Json object
      * @throws IOException if an I/O exception was encountered during reading or the stream does not meet the CBOR format
-     * @since 2
+     * @since 3
      */
     public static Json readMsgpack(final ByteBuffer in, JsonReadOptions options) throws IOException {
         return readCbor(new ByteBufferInputStream(in), options);
@@ -412,6 +412,19 @@ public class Json {
      */
     public OutputStream writeCbor(OutputStream out, JsonWriteOptions options) throws IOException {
         CborWriter.write(this, out, options);
+        return out;
+    }
+
+    /**
+     * Write the Json object in the Msgpack format to the specified output
+     * @param out the output
+     * @param options the JsonWriteOptions to use when writing, or null to use the default
+     * @return the "out" parameter
+     * @throws IOException if an IOException is thrown while writing
+     * @since 3
+     */
+    public OutputStream writeMsgpack(OutputStream out, JsonWriteOptions options) throws IOException {
+        MsgpackWriter.write(this, out, options);
         return out;
     }
 
