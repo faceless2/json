@@ -6,7 +6,7 @@ import java.nio.*;
 import java.nio.charset.*;
 
 /**
- * JSON (and now CBOR) implementation that tries to be simple, complete, fast and follow the principle ofi
+ * JSON (and now CBOR/Msgpack) implementation that tries to be simple, complete, fast and follow the principle ofi
  * least surprise.
  * This class represents every type of JSON object; the type may vary, if for instance you call {@link #put}
  * on this object. The various {@link #isNumber isNNN} methods can be used to determine the current type,
@@ -34,14 +34,16 @@ import java.nio.charset.*;
  * <a href="https://tools.ietf.org/html/rfc7049">RFC7049</a> as appropriate.
  * In all cases the Stream is not closed at the end of the read or write.
  * </p><p>
- * Since version 2, objects can also be serialized as CBOR, as defined in
- * <a href="https://tools.ietf.org/html/rfc7049">RFC7049</a>. There are some differences between the JSON and CBOR
+ * Since version 2, objects can also be serialized as CBOR (and since version 3, Msgpack), as defined in
+ * <a href="https://tools.ietf.org/html/rfc7049">RFC7049</a> and
+ * <a href="https://github.com/msgpack/msgpack/blob/master/spec.md">the Msgpack spec</a>.
+ * There are some differences between the JSON and CBOR/Msgpack
  * object models which are significant, and to combine the two into one interface, some minor limitations to the
  * datamodels are in place.
  * </p>
  * <ol>
  *  <li>
- *   Unlike JSON, CBOR suppors binary data, which we read as a {@link ByteBuffer} - these can be identified
+ *   Unlike JSON, CBOR/Msgpack suppors binary data, which we read as a {@link ByteBuffer} - these can be identified
  *   with the {@link #isBuffer isBuffer()} method. When serializing a ByteBuffer to JSON, it will be Base-64 encoded
  *   with no padding, as recommended in RFC7049
  *  </li>
@@ -57,9 +59,16 @@ import java.nio.charset.*;
  *   an IOException.
  *  </li>
  *  <li>
- *   CBOR supports keys in Maps that are not Strings. If these are encountered with this API when reading,
- *   they will be converted to Strings. CBOR also supports duplicate keys in Maps - this is not allowed in this
- *   API, and the {@link #readCbor readCbor()} method will throw an IOException if found.
+ *   Msgpack supports "ext" types, which are treated as ByteBuffer objects with the extention type set
+ *   retrievable by calling {@link #getTag getTag()} - the tag is a number from 0..255. Msgpack does not
+ *   support integer values greater than 64-bit; attempting to write these will throw an IOException.
+ *  </li>
+ *  <li>
+ *   CBOR/Msgpack support keys in Maps that are not Strings. If these are encountered with this API when reading,
+ *   they will be converted to Strings by default, or (if {@link JsonReadOptions#setFailOnNonStringKeys} is set)
+ *   throw an IOExcepiton. CBOR/Msgpack also supports duplicate keys in Maps - this is not allowed in this
+ *   API, and the {@link #readCbor readCbor()} and {@link #readMsgpack readMsgpack()} methods will throw an
+ *   IOException if found.
  *  </li>
  *  <li>
  *   CBOR suppors the "undef" value, and also allows for a number of undefined special types to be used without
