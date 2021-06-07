@@ -335,6 +335,11 @@
 <dd>
 <div class="block">Return true if this node is a number, string, buffer, boolean, null or an empty map or list.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/bfo/json/JsonReadOptions.html#isFailOnNonStringKeys--">isFailOnNonStringKeys()</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
+<dd>
+<div class="block">Return the value of the "failOnNonStringKeys" flag, as set by
+ <code>#setFailOnNOnStringKeys</code></div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/bfo/json/Json.html#isList-java.lang.String-">isList(String)</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Return true if the specified descendant of this object is of type "list".</div>
@@ -583,6 +588,14 @@
 <dd>
 <div class="block">Read a CBOR formatted object from the specified ByteBuffer.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="com/bfo/json/Json.html#readMsgpack-java.io.InputStream-com.bfo.json.JsonReadOptions-">readMsgpack(InputStream, JsonReadOptions)</a></span> - Static method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
+<dd>
+<div class="block">Read a Msgpack formatted object from the specified InputStream.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/bfo/json/Json.html#readMsgpack-java.nio.ByteBuffer-com.bfo.json.JsonReadOptions-">readMsgpack(ByteBuffer, JsonReadOptions)</a></span> - Static method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
+<dd>
+<div class="block">Read a Msgpack formatted object from the specified ByteBuffer.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="com/bfo/json/Json.html#remove-java.lang.String-">remove(String)</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Remove the item at the specified path from this object or one of its descendants.</div>
@@ -638,7 +651,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="com/bfo/json/JsonReadOptions.html#setCborStringCodingErrorAction-java.nio.charset.CodingErrorAction-">setCborStringCodingErrorAction(CodingErrorAction)</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
 <dd>
-<div class="block">When reading CBOR, if a String is encountered where the UTF-8 encoding
+<div class="block">When reading CBOR/Msgpack, if a String is encountered where the UTF-8 encoding
  is incorrect, the specified action will be performed.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/bfo/json/JsonReadOptions.html#setContextFree-boolean-">setContextFree(boolean)</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
@@ -653,6 +666,11 @@
 <dt><span class="memberNameLink"><a href="com/bfo/json/Json.html#setFactory-com.bfo.json.JsonFactory-">setFactory(JsonFactory)</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Set the default JsonFactory for this object and its descendants.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/bfo/json/JsonReadOptions.html#setFailOnNonStringKeys-boolean-">setFailOnNonStringKeys(boolean)</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
+<dd>
+<div class="block">When reading CBOR/Msgpack and a map key is encountered that is not a String,
+ fail rather than converting it silently to a String.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="com/bfo/json/JsonWriteOptions.html#setFilter-com.bfo.json.JsonWriteOptions.Filter-">setFilter(JsonWriteOptions.Filter)</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></dt>
 <dd>
@@ -776,6 +794,10 @@
 <dt><span class="memberNameLink"><a href="com/bfo/json/Json.html#writeCbor-java.io.OutputStream-com.bfo.json.JsonWriteOptions-">writeCbor(OutputStream, JsonWriteOptions)</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Write the Json object in the CBOR format to the specified output</div>
+</dd>
+<dt><span class="memberNameLink"><a href="com/bfo/json/Json.html#writeMsgpack-java.io.OutputStream-com.bfo.json.JsonWriteOptions-">writeMsgpack(OutputStream, JsonWriteOptions)</a></span> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
+<dd>
+<div class="block">Write the Json object in the Msgpack format to the specified output</div>
 </dd>
 </dl>
 <a href="#I:A">A</a>&nbsp;<a href="#I:B">B</a>&nbsp;<a href="#I:C">C</a>&nbsp;<a href="#I:D">D</a>&nbsp;<a href="#I:E">E</a>&nbsp;<a href="#I:F">F</a>&nbsp;<a href="#I:G">G</a>&nbsp;<a href="#I:H">H</a>&nbsp;<a href="#I:I">I</a>&nbsp;<a href="#I:J">J</a>&nbsp;<a href="#I:L">L</a>&nbsp;<a href="#I:M">M</a>&nbsp;<a href="#I:N">N</a>&nbsp;<a href="#I:O">O</a>&nbsp;<a href="#I:P">P</a>&nbsp;<a href="#I:R">R</a>&nbsp;<a href="#I:S">S</a>&nbsp;<a href="#I:T">T</a>&nbsp;<a href="#I:U">U</a>&nbsp;<a href="#I:V">V</a>&nbsp;<a href="#I:W">W</a>&nbsp;</div>
