@@ -114,6 +114,21 @@
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code><a href="../../../../com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></code></td>
+<td class="colLast"><span class="typeNameLabel">JsonReadOptions.</span><code><span class="memberNameLink"><a href="../../../../com/bfo/json/JsonReadOptions.html#setCborFailOnUnknownTypes-boolean-">setCborFailOnUnknownTypes</a></span>(boolean&nbsp;flag)</code>
+<div class="block">When reading a CBOR stream that contains undefined, but technically valid types,
+ by default these will be collapsed to null with a tag set on them to indicate the
+ original type.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code><a href="../../../../com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></code></td>
+<td class="colLast"><span class="typeNameLabel">JsonReadOptions.</span><code><span class="memberNameLink"><a href="../../../../com/bfo/json/JsonReadOptions.html#setCborStringCodingErrorAction-java.nio.charset.CodingErrorAction-">setCborStringCodingErrorAction</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/nio/charset/CodingErrorAction.html?is-external=true" title="class or interface in java.nio.charset">CodingErrorAction</a>&nbsp;action)</code>
+<div class="block">When reading CBOR/Msgpack, if a String is encountered where the UTF-8 encoding
+ is incorrect, the specified action will be performed.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></code></td>
 <td class="colLast"><span class="typeNameLabel">JsonReadOptions.</span><code><span class="memberNameLink"><a href="../../../../com/bfo/json/JsonReadOptions.html#setContextFree-boolean-">setContextFree</a></span>(boolean&nbsp;nocontext)</code>
 <div class="block">Whether to turn off tracking of the line, column and context of the reader when
  reading from a file, which is used when reporting errors.</div>
@@ -121,19 +136,26 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code><a href="../../../../com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></code></td>
+<td class="colLast"><span class="typeNameLabel">JsonReadOptions.</span><code><span class="memberNameLink"><a href="../../../../com/bfo/json/JsonReadOptions.html#setFailOnNonStringKeys-boolean-">setFailOnNonStringKeys</a></span>(boolean&nbsp;flag)</code>
+<div class="block">When reading CBOR/Msgpack and a map key is encountered that is not a String,
+ fail rather than converting it silently to a String.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><code><a href="../../../../com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></code></td>
 <td class="colLast"><span class="typeNameLabel">JsonReadOptions.</span><code><span class="memberNameLink"><a href="../../../../com/bfo/json/JsonReadOptions.html#setLooseEmptyStrings-boolean-">setLooseEmptyStrings</a></span>(boolean&nbsp;looseEmptyStrings)</code>
 <div class="block">When the <a href="../../../../com/bfo/json/JsonReadOptions.html#setStrictTypes-boolean-"><code>strictTypes</code></a> flag is not set, this flag will determine
  whether empty strings evaluate to zero when treated as a number and false when treated
  as a boolean.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code><a href="../../../../com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></code></td>
 <td class="colLast"><span class="typeNameLabel">JsonReadOptions.</span><code><span class="memberNameLink"><a href="../../../../com/bfo/json/JsonReadOptions.html#setNFC-boolean-">setNFC</a></span>(boolean&nbsp;nfc)</code>
 <div class="block">Set whether to normalize all Strings (including map keys) to Unicode <a href="https://docs.oracle.com/javase/8/docs/api/java/text/Normalizer.Form.html?is-external=true#NFC" title="class or interface in java.text"><code>normal form C</code></a></div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../../../../com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></code></td>
 <td class="colLast"><span class="typeNameLabel">JsonReadOptions.</span><code><span class="memberNameLink"><a href="../../../../com/bfo/json/JsonReadOptions.html#setStrictTypes-boolean-">setStrictTypes</a></span>(boolean&nbsp;strictTypes)</code>
 <div class="block">Determines whether objects read by the JsonReader will be loosely typed.</div>
