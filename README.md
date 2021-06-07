@@ -32,7 +32,7 @@ and fuzzed input, to make sure errors are handled properly.
 * Option of mapping Json to more complex Java objects is possible, but not included with the code. By default data is retrieved as  Maps, Lists and primitive types only
 
 ## Building and Documentation
-* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-2.jar](https://faceless2.github.io/json/dist/bfojson-2.jar)
+* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-3.jar](https://faceless2.github.io/json/dist/bfojson-3.jar)
 * The API docs will always be available at [https://faceless2.github.io/json/docs/](https://faceless2.github.io/json/docs/)
 * Or download with `git clone http://github.com/faceless2/json.git`. Type `ant`. Jar is in `dist`, docs are in `docs`
  
