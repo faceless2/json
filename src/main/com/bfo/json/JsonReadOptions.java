@@ -209,6 +209,7 @@ public class JsonReadOptions {
      * is incorrect, the specified action will be performed.
      * The default is {@link CodingErrorAction#REPLACE}
      * @param action the action
+     * @return this
      * @since 2
      */
     public JsonReadOptions setCborStringCodingErrorAction(CodingErrorAction action) {
@@ -232,6 +233,7 @@ public class JsonReadOptions {
      * by default these will be collapsed to null with a tag set on them to indicate the
      * original type. Setting this flag will, instead, cause the stream to fail.
      * @param flag the flag
+     * @return this
      * @since 2
      */
     public JsonReadOptions setCborFailOnUnknownTypes(boolean flag) {
@@ -254,6 +256,7 @@ public class JsonReadOptions {
      * fail rather than converting it silently to a String. This API (and Json) only
      * allow map keys to be strings.
      * @param flag the flag
+     * @return this
      * @since 3
      */
     public JsonReadOptions setFailOnNonStringKeys(boolean flag) {
