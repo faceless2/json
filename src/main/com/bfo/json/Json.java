@@ -59,7 +59,7 @@ import java.nio.charset.*;
  *   an IOException.
  *  </li>
  *  <li>
- *   Msgpack supports "ext" types, which are treated as ByteBuffer objects with the extention type set
+ *   Msgpack supports "ext" types, which are treated as ByteBuffer objects with the extension type set
  *   retrievable by calling {@link #getTag getTag()} - the tag is a number from 0..255. Msgpack does not
  *   support integer values greater than 64-bit; attempting to write these will throw an IOException.
  *  </li>

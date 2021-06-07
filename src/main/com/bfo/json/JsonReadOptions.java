@@ -211,8 +211,9 @@ public class JsonReadOptions {
      * @param action the action
      * @since 2
      */
-    public void setCborStringCodingErrorAction(CodingErrorAction action) {
+    public JsonReadOptions setCborStringCodingErrorAction(CodingErrorAction action) {
         this.codingErrorAction = action;
+        return this;
     }
 
     /**
@@ -233,8 +234,9 @@ public class JsonReadOptions {
      * @param flag the flag
      * @since 2
      */
-    public void setCborFailOnUnknownTypes(boolean flag) {
+    public JsonReadOptions setCborFailOnUnknownTypes(boolean flag) {
         cborFailOnUnknownTypes = flag;
+        return this;
     }
 
     /**
@@ -254,8 +256,9 @@ public class JsonReadOptions {
      * @param flag the flag
      * @since 3
      */
-    public void setFailOnNonStringKeys(boolean flag) {
+    public JsonReadOptions setFailOnNonStringKeys(boolean flag) {
         failOnNonStringKeys = flag;
+        return this;
     }
 
     /**
