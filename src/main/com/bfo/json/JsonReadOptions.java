@@ -251,6 +251,7 @@ public class JsonReadOptions {
      * When reading CBOR/Msgpack and a map key is encountered that is not a String,
      * fail rather than converting it silently to a String. This API (and Json) only
      * allow map keys to be strings.
+     * @param flag the flag
      * @since 3
      */
     public void setFailOnNonStringKeys(boolean flag) {
@@ -259,8 +260,9 @@ public class JsonReadOptions {
 
     /**
      * Return the value of the "failOnNonStringKeys" flag, as set by
-     * {@link #setFailOnNOnStringKeys}
+     * {@link #setFailOnNonStringKeys}
      * @since 3
+     * @return the flag
      */
     public boolean isFailOnNonStringKeys() {
         return failOnNonStringKeys;
