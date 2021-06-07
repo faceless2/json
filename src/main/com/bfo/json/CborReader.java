@@ -71,12 +71,13 @@ class CborReader {
                 j = new Json(new IMap());
                 if (n == INDEFINITE) {
                     Json key;
+                    tell = in.tell();
                     while ((key = read(in, options)) != BREAK) {
                         if (key == null) {
                             throw new EOFException();
                         }
-                        if (!key.isString()) {
-                            // TODO warning?
+                        if (!key.isString() && options.isFailOnNonStringKeys()) {
+                            throw new IOException("Map key \"" + key + "\" is " + key.type() + " rather than string at " + tell);
                         }
                         tell = in.tell();
                         Json val = read(in, options);
@@ -89,6 +90,7 @@ class CborReader {
                         if (o != null) {
                             throw new IOException("Duplicate key \"" + key + "\" at " + tell);
                         }
+                        tell = in.tell();
                     }
                 } else {
                     int l = n.intValue();
@@ -100,8 +102,8 @@ class CborReader {
                         } else if (key == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
                         }
-                        if (!key.isString()) {
-                            // TODO warning?
+                        if (!key.isString() && options.isFailOnNonStringKeys()) {
+                            throw new IOException("Map key \"" + key + "\" is " + key.type() + " rather than string at " + tell);
                         }
                         Json val = read(in, options);
                         if (val == BREAK) {

@@ -205,14 +205,14 @@ class MsgpackReader {
             Json key = read(in, options);
             if (key == null) {
                 throw new EOFException();
-            } else if (!key.isString()) {
-                // TODO warning?
+            } else if (!key.isString() && options.isFailOnNonStringKeys()) {
+                throw new IOException("Map key \"" + key + "\" is " + key.type() + " rather than string at " + tell);
             }
             Json val = read(in, options);
             if (val == null) {
                 throw new EOFException();
             }
-            Object o = j._mapValue().put(key.stringValue(), val);
+            Object o = j._mapValue().put(key.getCore() == INull.INSTANCE ? "null" : key.stringValue(), val);
             if (o != null) {
                 throw new IOException("Duplicate key \"" + key + "\" at " + tell);
             }

@@ -1,32 +1,34 @@
 # BFO JSON/CBOR Parser
 
-The BFO JSON/CBOR Parser is yet another Java JSON parser, with the follow emphasis:
+The BFO JSON/CBOR/Msgpack Parser is yet another Java JSON parser, with the follow emphasis:
 
 ### simple
 * the API is essentially a single class, with a few helper classes that are all optional. Items are added with `put`, retrieved with `get`, read with `read` and written with `write`. Collections are used for maps and lists, and you can use the whole API with no more than about 5 or 6 methods. Which means although the API is [fully documented](https://faceless2.github.io/json/docs/), you can probably get away without reading any of it.
 
 ### fast
 * A 2015 Macbook will read Json at about 70MB/s from text (51MB/s from binary, as it has to convert to UTF-8),
-and write at about 196MB/s. It can read CBOR at about 130MB/s and write at 196MB/s.
+and write at about 196MB/s. It can read CBOR/Msgpack at about 130MB/s and write at 196MB/s.
 There are plenty of Java Json APIs claiming to be the fastest; benchmarking is not something I care to spend much time on,
 but informally it is testing faster than anything else I could find.
 Intermediate buffers are avoided wherever possible.
 
 ### correct
-* the API has been tested against the Json sample data made available by Nicolas Seriot at http://seriot.ch/parsing_json.php, and has been authored with reference to [RFC8259](https://tools.ietf.org/html/rfc8259).
-CBOR support is newer, but has again been tested against [RFC7049](https://tools.ietf.org/html/rfc7049) and fuzzed input, to make sure errors
-are handled properly.
+* the API has been tested against the Json sample data made available by Nicolas Seriot at
+http://seriot.ch/parsing_json.php,
+and has been authored with reference to [RFC8259](https://tools.ietf.org/html/rfc8259).
+CBOR support is newer, but has again been tested against [RFC7049](https://tools.ietf.org/html/rfc7049)
+and fuzzed input, to make sure errors are handled properly.
 
 ### self-contained
 * the API has no external requirements. Although it compiles against the JsonPath implementation https://github.com/json-path/JsonPath, provided the "eval" methods are not used there is no need for those classes to be available at runtime. To build it, type "ant" (and if you'd prefer the Maven experience, type "ant" then go and do something else for two hours).
 
 ## Features
-* JSON and CBOR serialization are both available from the same object
+* JSON, CBOR and Msgpack serialization are both available from the same object
 * JsonPath integration (optional)
 * Listeners and Events to monitor changes to the structure
 * Flexible typing; if you request the int value of a string it will try to convert it to an int. If you put a value with a String key on a list, it will convert to a map.
 * Numbers read as ints, longs, doubles, BigIntegers, or BigDecimals, with the smallest type chosen first.
-* CBOR binary strings are stored as ByteBuffers, but will be converted to Base64 strings when serialized as Json.
+* CBOR/Msgpack binary strings are stored as ByteBuffers, but will be converted to Base64 strings when serialized as Json.
 * Option of mapping Json to more complex Java objects is possible, but not included with the code. By default data is retrieved as  Maps, Lists and primitive types only
 
 ## Building and Documentation
@@ -45,13 +47,14 @@ are handled properly.
 
 * Json is read from Readers and written to Appendable.
   You can read from an InputStream too, in which case it will look for a BOM at the start of the stream.
-  CBOR is read from an InputStream and written to an OutputStream.
-  Errors encountered during reading are reported with context, line and column numbers (for JSON) or byte offset (for CBOR)
+  CBOR/Msgpack are read from an InputStream and written to an OutputStream.
+  Errors encountered during reading are reported with context, line and column numbers (for JSON) or byte offset (for CBOR/Msgpack)
 
 * CBOR serialization offers three complexities that are not supported in this API:
 duplicate keys in maps, "special" types that are not defined, and non-string keys in Maps.
 Duplicate keys encountered during reading throw an IOException,
-non-string keys will be converted to strings, and speciail types (which should really only
+non-string keys will be converted to strings (by default) or throw an IOException if set in the options,
+and special types (which should really only
 be encountered while testing) are converted to a tagged null object. Tags are limited
 to 63 bits, and tags applied to Map keys are ignored.
 
@@ -59,6 +62,10 @@ to 63 bits, and tags applied to Map keys are ignored.
 But other tags used to distinguish Dates, non-UTF8 strings, URLs etc. are not applied.
 A <code>JsonFactory</code> can easily be written to cover as many of these are needed.
 
+* Msgpack serialization is similar to CBOR, but a bit simpler. "extension types" are stored as
+Buffers, with the extension type stored as a tag from 0..255. Like CBOR, duplicate keys encountered
+during read will throw an IOException and non-string keys will be converted to strings (by default)
+or throw an IOException.
 
 
 ## Examples
@@ -108,7 +115,7 @@ json.write(System.out, new JsonWriteOptions().setPretty(true).setSorted(true)); 
 //   "b": 1,
 // }
 
-// CBOR
+// CBOR / Msgpack
 json.put("buffer", ByteBuffer.wrap(new byte[] { ... }));   // add a ByteBuffer
 System.out.println(json.get("buffer").type());      // "buffer"
 System.out.println(json.get("buffer").stringValue());  // Base64 encoded value of buffer
@@ -121,6 +128,8 @@ json.put("nan", Double.NaN);
 json.writeCbor(new OutputStream(...), null);    // infinity is fine in CBOR
 json.write(new StringWriter(), null);    // throws IOException - infinity not allowed in Json
 json.write(new StringWriter(), new JsonWriteOptions().setAllowNaN(true));  // infinity serializes as null
+json.writeMsgpack(new OutputStream(...), null);    // Msgpack instead of CBOR
+
 
 // Events
 json.addListener(new JsonListener() {

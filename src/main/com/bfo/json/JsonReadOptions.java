@@ -27,6 +27,7 @@ public class JsonReadOptions {
     private boolean comments;
     private boolean bigDecimal;
     private boolean cborFailOnUnknownTypes;
+    private boolean failOnNonStringKeys;
     private boolean nocontext;
     private byte storeOptions;
     private CodingErrorAction codingErrorAction = CodingErrorAction.REPLACE;
@@ -204,7 +205,7 @@ public class JsonReadOptions {
     }
 
     /**
-     * When reading CBOR, if a String is encountered where the UTF-8 encoding
+     * When reading CBOR/Msgpack, if a String is encountered where the UTF-8 encoding
      * is incorrect, the specified action will be performed.
      * The default is {@link CodingErrorAction#REPLACE}
      * @param action the action
@@ -244,6 +245,25 @@ public class JsonReadOptions {
      */
     public boolean isCborFailOnUnknownTypes() {
         return cborFailOnUnknownTypes;
+    }
+
+    /**
+     * When reading CBOR/Msgpack and a map key is encountered that is not a String,
+     * fail rather than converting it silently to a String. This API (and Json) only
+     * allow map keys to be strings.
+     * @since 3
+     */
+    public void setFailOnNonStringKeys(boolean flag) {
+        failOnNonStringKeys = flag;
+    }
+
+    /**
+     * Return the value of the "failOnNonStringKeys" flag, as set by
+     * {@link #setFailOnNOnStringKeys}
+     * @since 3
+     */
+    public boolean isFailOnNonStringKeys() {
+        return failOnNonStringKeys;
     }
 
 }
