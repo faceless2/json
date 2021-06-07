@@ -4,11 +4,12 @@ import java.util.*;
 import java.text.*;
 import java.math.*;
 import java.io.*;
+import java.net.*;
 
 public class TestMsgpack {
     public static void main(String[] args) throws Exception {
         System.out.println("----- BEGIN MSGPACK TESTS -----");
-        Json all = Json.read(TestMsgpack.class.getResourceAsStream("resources/msgpack-test-suite.json"), null);
+        Json all = Json.read(new URL("https://raw.githubusercontent.com/kawanet/msgpack-test-suite/master/dist/msgpack-test-suite.json").openConnection().getInputStream(), null);
         for (Map.Entry<String,Json> e : all.mapValue().entrySet()) {
             Json j = e.getValue();
             for (int i=0;i<j.size();i++) {
@@ -43,7 +44,8 @@ public class TestMsgpack {
         System.out.println("----- END MSGPACK TESTS -----");
 
         System.out.println("----- BEGIN MSGPACK ROUNDTRIP -----");
-        Json json = Json.read(args.length == 0 ? TestMsgpack.class.getResourceAsStream("resources/twitter.json") : new FileInputStream(args[0]), null);
+        String s = "https://raw.githubusercontent.com/lemire/Code-used-on-Daniel-Lemire-s-blog/master/2018/05/02/twitter.json";
+        Json json = Json.read(args.length == 0 ? new URL(s).openConnection().getInputStream() : new FileInputStream(args[0]), null);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         json.writeMsgpack(out, null);
         out.close();

@@ -5,13 +5,13 @@ public class Test {
         System.setErr(System.out);
         Seriot.main(args);
         System.out.flush();
-        Speed.main(args);
-        System.out.flush();
         Test2.main(args);
         System.out.flush();
         TestCbor.main(args);
         System.out.flush();
         TestMsgpack.main(args);
+        System.out.flush();
+        Speed.main(args);
         System.out.flush();
     }
 }
