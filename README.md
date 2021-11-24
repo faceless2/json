@@ -24,6 +24,7 @@ and fuzzed input, to make sure errors are handled properly.
 
 ## Features
 * JSON, CBOR and Msgpack serialization are both available from the same object
+* Java Web Token support class for reading/writing/signing/verifying.
 * JsonPath integration (optional)
 * Listeners and Events to monitor changes to the structure
 * Flexible typing; if you request the int value of a string it will try to convert it to an int. If you put a value with a String key on a list, it will convert to a map.
