@@ -170,6 +170,8 @@ byte[] prikey = ...
 jwt.getHeader().put("x5u", ...);     // Add custom content to header
 jwt.sign(prikey, "ES256");           // Sign using a asymmetric key
 assert jwt.verify(pubkey, "ES256");  // Verify using corresponding key
+PublicKey pubkeyobj = ...
+assert jwt.verify(pubkeyobj, "ES256", null); // or use a java.security.Key
 
 jwt.getPayload().clear();            // Modify the payload
 assert !jwt.verify(pubkey, "ES256"); // Signature is no longer valid
