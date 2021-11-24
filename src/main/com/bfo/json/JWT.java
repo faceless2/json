@@ -257,6 +257,7 @@ public class JWT {
 
     /**
      * Return the algorithm name.
+     * @return the algorithm name
      */
     public String getAlgorithm() {
         return header.isString("alg") ? header.get("alg").stringValue() : null;
@@ -265,6 +266,7 @@ public class JWT {
     /**
      * Return the payload object. The {@link #sign} method should be
      * called after any modifications to the returned object to update the signature.
+     * @return the payload object
      */
     public Json getPayload() {
         return payload;
@@ -273,6 +275,7 @@ public class JWT {
     /**
      * Return the header object. The {@link #sign} method should be
      * called after any modifications to the returned object to update the signature.
+     * @return the header object
      */
     public Json getHeader() {
         return header;
@@ -281,6 +284,7 @@ public class JWT {
     /**
      * Return the signature object. Any modifications to the returned object will
      * invalidate the signature.
+     * @return the signature bytes, which will be zero-length if the algorithm is "none"
      */
     public byte[] getSignature() {
         return signature;
