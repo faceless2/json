@@ -153,4 +153,26 @@ json = Json.parse("{\"a\":{\"b\":{\"c\":[10,20,30,40]}}}");
 json.eval("$..c[2]").intValue(); // 30
 ```
 
+In addition the JWT class adds basic support for [Java Web Tokens](https://jwt.io).
+With only a handful of methods it is trivial to use, but supports all JWT signing methods.
+Encryption with JWE is not supported
+
+```java
+JWT jwt = new JWT(Json.parse("{\"iss\":\"foo\"}"));
+byte[] key = ...
+jwt.sign(key, "HS256");           // Sign using a symmetric key
+jwt = new JWT(jwt.toString());    // Encode then decode
+assert jwt.verify(key, null);     // Verify using the same symmetric key
+
+byte[] pubkey = ...
+byte[] prikey = ...
+jwt.getHeader().put("x5u", ...);     // Add custom content to header
+jwt.sign(prikey, "ES256");           // Sign using a asymmetric key
+assert jwt.verify(pubkey, "ES256");  // Verify using corresponding key
+
+jwt.getPayload().clear();            // Modify the payload
+assert !jwt.verify(pubkey, "ES256"); // Signature is no longer valid
+```
+
+
 This code is written by the team at [bfo.com](https://bfo.com). If you like it, come and see what else we do.
