@@ -126,7 +126,7 @@ public class JWT {
 
     /**
      * Verify the JWT.
-     * @param key the key. A {@link SecretKey}, {@link PublicKey}, or null if the algorithm is "none". Missing keys or keys of the wrong type will cause this method to return false.
+     * @param key the key. A {@link SecretKey}, {@link PublicKey}, or null if the algorithm is "none". Missing keys or keys of the wrong type will cause this method to return false; specifically, if the algorithm is "none" the key <i>must</i> be null.
      * @param alg the algorithm name. If <code>null</code> it will default to {@link #getAlgorithm}.
      * @return true if the JWT is verified, false if it failed to verify.
      * @throws RuntimeException wrapping a GeneralSecurityException if there are cryptographic problems when verifying.
@@ -143,7 +143,7 @@ public class JWT {
             byte[] data = ((base64encode(header.toString()) + "." + base64encode(payload.toString())).getBytes(StandardCharsets.UTF_8));
             try {
                 if (alg.equals("none")) {
-                    return signature.length == 0;
+                    return key == null && signature.length == 0;
                 } else if (alg.startsWith("HS")) {
                     // Symmetric
                     alg = toJavaAlgorithm(alg);
