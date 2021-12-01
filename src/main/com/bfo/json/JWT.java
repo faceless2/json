@@ -33,6 +33,7 @@ import javax.crypto.spec.SecretKeySpec;
  * System.out.println(jwt.getPayload());
  * System.out.println(jwt.getAlgorithm());
  * </pre>
+ * @since 4
  */
 public class JWT {
 
@@ -89,6 +90,7 @@ public class JWT {
 
     /**
      * Return the Provider set by {@link #setProvider}
+     * @return the provider
      */
     public Provider getProvider() {
         return provider;
