@@ -1114,6 +1114,8 @@ public class Json {
         return j != null && j.isMap();
     }
 
+
+
     /**
      * Return an Iterator that will descend through every leaf node under this
      * object in a depth-first traveral. The returned keys are relative to this node's path
@@ -1567,6 +1569,26 @@ public class Json {
     }
 
     /**
+     * If the specified descendant of this object exists call
+     * the {@link #stringValue} method on it, otherwise return null
+     * @since 4
+     */
+    public String stringValue(String key) {
+        Json j = get(key);
+        return j == null ? null : j.stringValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #stringValue} method on it, otherwise return null
+     * @since 4
+     */
+    public String stringValue(int key) {
+        Json j = get(key);
+        return j == null ? null : j.stringValue();
+    }
+
+    /**
      * Return the value of this node as a ByteBuffer. ByteBuffers only exist
      * natively in the CBOR serialization.
      * <ul>
@@ -1581,6 +1603,26 @@ public class Json {
      */
     public ByteBuffer bufferValue() {
         return core.bufferValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #bufferValue} method on it, otherwise return null
+     * @since 4
+     */
+    public ByteBuffer bufferValue(String key) {
+        Json j = get(key);
+        return j == null ? null : j.bufferValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #bufferValue} method on it, otherwise return null
+     * @since 4
+     */
+    public ByteBuffer bufferValue(int key) {
+        Json j = get(key);
+        return j == null ? null : j.bufferValue();
     }
 
     /**
@@ -1601,6 +1643,26 @@ public class Json {
     }
 
     /**
+     * If the specified descendant of this object exists call
+     * the {@link #intValue} method on it, otherwise return null
+     * @since 4
+     */
+    public Number numberValue(String key) {
+        Json j = get(key);
+        return j == null ? null : j.numberValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #numberValue} method on it, otherwise return null
+     * @since 4
+     */
+    public Number numberValue(int key) {
+        Json j = get(key);
+        return j == null ? null : j.numberValue();
+    }
+
+    /**
      * Return the value of this node as an integer.
      * <ul>
      * <li>A number will be converted to int</li>
@@ -1614,6 +1676,26 @@ public class Json {
      */
     public int intValue() {
         return core.intValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #intValue} method on it, otherwise return 0
+     * @since 4
+     */
+    public int intValue(String key) {
+        Json j = get(key);
+        return j == null ? 0 : j.intValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #intValue} method on it, otherwise return 0
+     * @since 4
+     */
+    public int intValue(int key) {
+        Json j = get(key);
+        return j == null ? null : j.intValue();
     }
 
     /**
@@ -1633,6 +1715,26 @@ public class Json {
     }
 
     /**
+     * If the specified descendant of this object exists call
+     * the {@link #longValue} method on it, otherwise return 0
+     * @since 4
+     */
+    public long longValue(String key) {
+        Json j = get(key);
+        return j == null ? 0 : j.intValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #longValue} method on it, otherwise return 0
+     * @since 4
+     */
+    public long longValue(int key) {
+        Json j = get(key);
+        return j == null ? null : j.intValue();
+    }
+
+    /**
      * Return the value of this node as an float.
      * <ul>
      * <li>A number will be converted to float</li>
@@ -1646,6 +1748,26 @@ public class Json {
      */
     public float floatValue() {
         return core.floatValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #floatValue} method on it, otherwise return 0
+     * @since 4
+     */
+    public float floatValue(String key) {
+        Json j = get(key);
+        return j == null ? 0 : j.floatValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #floatValue} method on it, otherwise return 0
+     * @since 4
+     */
+    public float floatValue(int key) {
+        Json j = get(key);
+        return j == null ? null : j.floatValue();
     }
 
     /**
@@ -1665,6 +1787,26 @@ public class Json {
     }
 
     /**
+     * If the specified descendant of this object exists call
+     * the {@link #doubleValue} method on it, otherwise return 0
+     * @since 4
+     */
+    public double doubleValue(String key) {
+        Json j = get(key);
+        return j == null ? 0 : j.doubleValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #doubleValue} method on it, otherwise return 0
+     * @since 4
+     */
+    public double doubleValue(int key) {
+        Json j = get(key);
+        return j == null ? null : j.doubleValue();
+    }
+
+    /**
      * Return the value of this node as a boolean.
      * <ul>
      * <li>A boolean will return its value</li>
@@ -1681,12 +1823,52 @@ public class Json {
     }
 
     /**
+     * If the specified descendant of this object exists call
+     * the {@link #booleanValue} method on it, otherwise return false
+     * @since 4
+     */
+    public boolean booleanValue(String key) {
+        Json j = get(key);
+        return j == null ? false : j.booleanValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #booleanValue} method on it, otherwise return false
+     * @since 4
+     */
+    public boolean booleanValue(int key) {
+        Json j = get(key);
+        return j == null ? false : j.booleanValue();
+    }
+
+    /**
      * Return the value of this node as a map. The returned Map is read-only
      * @throws ClassCastException if the node is not a map.
      * @return the read-only map value of this object
      */
     public Map<String,Json> mapValue() {
         return Collections.unmodifiableMap(_mapValue());
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #mapValue} method on it, otherwise return null
+     * @since 4
+     */
+    public Map<String,Json> mapValue(String key) {
+        Json j = get(key);
+        return j == null ? null : j.mapValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #mapValue} method on it, otherwise return null
+     * @since 4
+     */
+    public Map mapValue(int key) {
+        Json j = get(key);
+        return j == null ? null : j.mapValue();
     }
 
     Map<String,Json> _mapValue() {
@@ -1700,6 +1882,26 @@ public class Json {
      */
     public List<Json> listValue() {
         return Collections.unmodifiableList(_listValue());
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #listValue} method on it, otherwise return null
+     * @since 4
+     */
+    public List<Json> listValue(String key) {
+        Json j = get(key);
+        return j == null ? null : j.listValue();
+    }
+
+    /**
+     * If the specified descendant of this object exists call
+     * the {@link #listValue} method on it, otherwise return null
+     * @since 4
+     */
+    public List<Json> listValue(int key) {
+        Json j = get(key);
+        return j == null ? null : j.listValue();
     }
 
     List<Json> _listValue() {
