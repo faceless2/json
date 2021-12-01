@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -119,16 +119,16 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
  JWT jwt = new JWT(Json.parse("{....}"));
  jwt.sign(key, "HS256");           // Sign using a symmetric key
  jwt = new JWT(jwt.toString());    // Encode then decode
- assert jwt.verify(key, null);    // Verify using the same symmetric key
+ assert jwt.verify(key, null);     // Verify using the same symmetric key
 
  byte[] pubkey = ...
  byte[] prikey = ...
  jwt.getHeader().put("x5u", ...);       // Add custom content to header
  jwt.sign(prikey, "ES256");             // Sign using a asymmetric key
- assert jwt.verify(pubkey, "ES256");   // Verify using corresponding key
+ assert jwt.verify(pubkey, "ES256");    // Verify using corresponding key
 
  jwt.getPayload().clear();              // Modify the payload
- assert !jwt.verify(pubkey, "ES256");  // Signature is no longer valid
+ assert !jwt.verify(pubkey, "ES256");   // Signature is no longer valid
 
  System.out.println(jwt.getPayload());
  System.out.println(jwt.getAlgorithm());
@@ -199,44 +199,54 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 </td>
 </tr>
 <tr id="i3" class="rowColor">
+<td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/security/Provider.html?is-external=true" title="class or interface in java.security">Provider</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#getProvider--">getProvider</a></span>()</code>
+<div class="block">Return the Provider set by <a href="../../../com/bfo/json/JWT.html#setProvider-java.security.Provider-"><code>setProvider(java.security.Provider)</code></a></div>
+</td>
+</tr>
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>byte[]</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#getSignature--">getSignature</a></span>()</code>
 <div class="block">Return the signature object.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#setProvider-java.security.Provider-">setProvider</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/Provider.html?is-external=true" title="class or interface in java.security">Provider</a>&nbsp;provider)</code>
+<div class="block">Set the Provider to be used for any cryptographic operations</div>
+</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#sign-byte:A-java.lang.String-">sign</a></span>(byte[]&nbsp;key,
     <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg)</code>
 <div class="block">Sign the JWT.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#sign-java.security.PrivateKey-java.lang.String-java.security.Provider-">sign</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/PrivateKey.html?is-external=true" title="class or interface in java.security">PrivateKey</a>&nbsp;key,
-    <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg,
-    <a href="https://docs.oracle.com/javase/8/docs/api/java/security/Provider.html?is-external=true" title="class or interface in java.security">Provider</a>&nbsp;provider)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#sign-java.security.Key-java.lang.String-">sign</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/Key.html?is-external=true" title="class or interface in java.security">Key</a>&nbsp;key,
+    <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg)</code>
 <div class="block">Sign the JWT.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#toString--">toString</a></span>()</code>
 <div class="block">Return the encoded JWT</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#verify-byte:A-java.lang.String-">verify</a></span>(byte[]&nbsp;key,
       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg)</code>
 <div class="block">Verify the JWT.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#verify-java.security.PublicKey-java.lang.String-java.security.Provider-">verify</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/PublicKey.html?is-external=true" title="class or interface in java.security">PublicKey</a>&nbsp;key,
-      <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg,
-      <a href="https://docs.oracle.com/javase/8/docs/api/java/security/Provider.html?is-external=true" title="class or interface in java.security">Provider</a>&nbsp;provider)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../com/bfo/json/JWT.html#verify-java.security.Key-java.lang.String-">verify</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/Key.html?is-external=true" title="class or interface in java.security">Key</a>&nbsp;key,
+      <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg)</code>
 <div class="block">Verify the JWT.</div>
 </td>
 </tr>
@@ -310,6 +320,30 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <!--   -->
 </a>
 <h3>Method Detail</h3>
+<a name="setProvider-java.security.Provider-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setProvider</h4>
+<pre>public&nbsp;void&nbsp;setProvider(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/Provider.html?is-external=true" title="class or interface in java.security">Provider</a>&nbsp;provider)</pre>
+<div class="block">Set the Provider to be used for any cryptographic operations</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>provider</code> - the crypto Provider to use, or null to use the default</dd>
+</dl>
+</li>
+</ul>
+<a name="getProvider--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getProvider</h4>
+<pre>public&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/security/Provider.html?is-external=true" title="class or interface in java.security">Provider</a>&nbsp;getProvider()</pre>
+<div class="block">Return the Provider set by <a href="../../../com/bfo/json/JWT.html#setProvider-java.security.Provider-"><code>setProvider(java.security.Provider)</code></a></div>
+</li>
+</ul>
 <a name="toString--">
 <!--   -->
 </a>
@@ -335,32 +369,30 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <div class="block">Verify the JWT.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>key</code> - the key. Either an HMAC key or a DER or PEM encoded public key for signature types. Required unless the algorithm is "none".</dd>
+<dd><code>key</code> - the key. A raw HMAC key, or DER/PEM encoded public key. Missing keys or keys of the wrong type will cause this method to return false.</dd>
 <dd><code>alg</code> - the algorithm name. If <code>null</code> it will default to <a href="../../../com/bfo/json/JWT.html#getAlgorithm--"><code>getAlgorithm()</code></a>.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>true if the JWT is verified, false otherwise.</dd>
+<dd>true if the JWT is verified, false if it failed to verify.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - wrapping a GeneralSecurityException if there are cryptographic problems when verifying.</dd>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - wrapping a GeneralSecurityException if there are cryptographic problems when verifying or if the key failed to decode.</dd>
 </dl>
 </li>
 </ul>
-<a name="verify-java.security.PublicKey-java.lang.String-java.security.Provider-">
+<a name="verify-java.security.Key-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>verify</h4>
-<pre>public&nbsp;boolean&nbsp;verify(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/PublicKey.html?is-external=true" title="class or interface in java.security">PublicKey</a>&nbsp;key,
-                      <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg,
-                      <a href="https://docs.oracle.com/javase/8/docs/api/java/security/Provider.html?is-external=true" title="class or interface in java.security">Provider</a>&nbsp;provider)</pre>
+<pre>public&nbsp;boolean&nbsp;verify(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/Key.html?is-external=true" title="class or interface in java.security">Key</a>&nbsp;key,
+                      <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg)</pre>
 <div class="block">Verify the JWT.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>key</code> - the key. Required unless the algorithm is "none".</dd>
-<dd><code>alg</code> - the algorithm name. Optional, if it's null it will use <a href="../../../com/bfo/json/JWT.html#getAlgorithm--"><code>getAlgorithm()</code></a>.</dd>
-<dd><code>provider</code> - the Provider to use for Signature verification, or <code>null</code> to use the default.</dd>
+<dd><code>key</code> - the key. A <a href="https://docs.oracle.com/javase/8/docs/api/javax/crypto/SecretKey.html?is-external=true" title="class or interface in javax.crypto"><code>SecretKey</code></a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/security/PublicKey.html?is-external=true" title="class or interface in java.security"><code>PublicKey</code></a>, or null if the algorithm is "none". Missing keys or keys of the wrong type will cause this method to return false.</dd>
+<dd><code>alg</code> - the algorithm name. If <code>null</code> it will default to <a href="../../../com/bfo/json/JWT.html#getAlgorithm--"><code>getAlgorithm()</code></a>.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>true if the JWT is verified, false otherwise.</dd>
+<dd>true if the JWT is verified, false if it failed to verify.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - wrapping a GeneralSecurityException if there are cryptographic problems when verifying.</dd>
 </dl>
@@ -377,28 +409,26 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <div class="block">Sign the JWT. Sets the "alg" key in the header and updates the signature.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>key</code> - the key. Either an HMAC key or a DER or PEM encoded private key for signature types. Required unless the algorithm is "none".</dd>
+<dd><code>key</code> - the key. A raw HMAC key, a DER/PEM encoded private key, or null if the algorithm is "none". Required.</dd>
 <dd><code>alg</code> - the algorithm name. Required.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - wrapping a GeneralSecurityException if there are cryptographic problems when signing.</dd>
+<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - wrapping a GeneralSecurityException if there are cryptographic problems when signing or if the key failed to decode.</dd>
 </dl>
 </li>
 </ul>
-<a name="sign-java.security.PrivateKey-java.lang.String-java.security.Provider-">
+<a name="sign-java.security.Key-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>sign</h4>
-<pre>public&nbsp;void&nbsp;sign(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/PrivateKey.html?is-external=true" title="class or interface in java.security">PrivateKey</a>&nbsp;key,
-                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg,
-                 <a href="https://docs.oracle.com/javase/8/docs/api/java/security/Provider.html?is-external=true" title="class or interface in java.security">Provider</a>&nbsp;provider)</pre>
+<pre>public&nbsp;void&nbsp;sign(<a href="https://docs.oracle.com/javase/8/docs/api/java/security/Key.html?is-external=true" title="class or interface in java.security">Key</a>&nbsp;key,
+                 <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;alg)</pre>
 <div class="block">Sign the JWT. Sets the "alg" key in the header and updates the signature.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>key</code> - the key. Required unless the algorithm is "none".</dd>
+<dd><code>key</code> - the key. A <a href="https://docs.oracle.com/javase/8/docs/api/javax/crypto/SecretKey.html?is-external=true" title="class or interface in javax.crypto"><code>SecretKey</code></a> or <a href="https://docs.oracle.com/javase/8/docs/api/java/security/PrivateKey.html?is-external=true" title="class or interface in java.security"><code>PrivateKey</code></a>, or null if the algorithm is "none". Required.</dd>
 <dd><code>alg</code> - the algorithm name. Required.</dd>
-<dd><code>provider</code> - the Provider to use for Signature creation, or <code>null</code> to use the default.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/RuntimeException.html?is-external=true" title="class or interface in java.lang">RuntimeException</a></code> - wrapping a GeneralSecurityException if there are cryptographic problems when signing.</dd>
 </dl>
