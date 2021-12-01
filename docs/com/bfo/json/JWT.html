@@ -389,7 +389,7 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
 <div class="block">Verify the JWT.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>key</code> - the key. A <a href="https://docs.oracle.com/javase/8/docs/api/javax/crypto/SecretKey.html?is-external=true" title="class or interface in javax.crypto"><code>SecretKey</code></a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/security/PublicKey.html?is-external=true" title="class or interface in java.security"><code>PublicKey</code></a>, or null if the algorithm is "none". Missing keys or keys of the wrong type will cause this method to return false.</dd>
+<dd><code>key</code> - the key. A <a href="https://docs.oracle.com/javase/8/docs/api/javax/crypto/SecretKey.html?is-external=true" title="class or interface in javax.crypto"><code>SecretKey</code></a>, <a href="https://docs.oracle.com/javase/8/docs/api/java/security/PublicKey.html?is-external=true" title="class or interface in java.security"><code>PublicKey</code></a>, or null if the algorithm is "none". Missing keys or keys of the wrong type will cause this method to return false; specifically, if the algorithm is "none" the key <i>must</i> be null.</dd>
 <dd><code>alg</code> - the algorithm name. If <code>null</code> it will default to <a href="../../../com/bfo/json/JWT.html#getAlgorithm--"><code>getAlgorithm()</code></a>.</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>true if the JWT is verified, false if it failed to verify.</dd>
