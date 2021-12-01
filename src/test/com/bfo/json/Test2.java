@@ -41,6 +41,30 @@ public class Test2 {
         assert "b[0]".equals(json.get("a").find(json.get("a.b[0]"))) : json.get("a").find(json.get("b[0]"));
         assert json.find(json.read("{}")) == null;
         assert "".equals(json.find(json)) : json.find(json);
+
+        for (int i=0;i<11;i++) {
+            byte[] b = new byte[i];
+            for (int k=0;k<i;k++) {
+                b[k] = 'a';
+            }
+            Json j = Json.read("{}");
+            j.put("a", new Json(b, null));
+            j = Json.read(j.toString());
+            b = j.get("a").bufferValue().array();
+            assert b.length == i : "Base64 roundtrip failed at " + i;
+            for (int k=0;k<i;k++) {
+                assert b[k] == 'a' : "Base64 roundtrip failed at " + i;
+            }
+            String s = j.get("a").stringValue();
+            while ((s.length() & 3) != 0) {
+                s += "=";
+            }
+            j.put("a", new Json(s, null));
+            byte[] b2 = j.get("a").bufferValue().array();
+            assert Arrays.equals(b, b2) : "Base64 roundtrip failed at " + i + ": " + s + " " + Arrays.toString(b)+" "+Arrays.toString(b2);
+            System.out.println("* base64 round-trip at " + i);
+        }
+
         /*
         assert json.eval("a") == json.get("a");
         assert json.eval("a.b") == json.get("a.b");

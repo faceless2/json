@@ -35,8 +35,27 @@ class IString extends Core {
         }
     }
 
+    private static String nice(char c) {
+        if (c >= ' ' && c < 0x80) {
+            return "\"" + c + "\"";
+        } else {
+            return "U+" + Integer.toHexString(c);
+        }
+    }
+
     @Override ByteBuffer bufferValue() {
         int ilen = value.length();
+        if (ilen == 0) {
+            return ByteBuffer.allocate(0);
+        }
+        if (ilen > 3) {
+            if (value.charAt(ilen - 1) == '=') {
+                ilen--;
+                if (value.charAt(ilen - 1) == '=') {
+                    ilen--;
+                }
+            }
+        }
         int olen = ilen / 4 * 3;
         if ((ilen & 3) == 1) {
             throw new ClassCastException("Base64 failed, length invalid");
@@ -46,53 +65,34 @@ class IString extends Core {
             olen += 2;
         }
         ByteBuffer buf = ByteBuffer.allocate(olen);
-        for (int i=0;i<ilen;) {
+        for (int i=0;i<ilen;i++) {
             int c = value.charAt(i);
-            if (c > 255) {
-                throw new ClassCastException("Base64 failed at " + i);
-            }
-            c = BASE64[c];
-            if (c < 0) {
-                throw new ClassCastException("Base64 failed at " + i);
+            if (c > 255 || (c = BASE64[c]) < 0) {
+                throw new ClassCastException("Base64 failed on " + nice(value.charAt(i))+" at " + i);
             }
             int a = c << 18;
-            if (i == ilen) {
-                throw new ClassCastException("Base64 EOF at " + i);
-            }
-            c = value.charAt(i);
-            if (c > 255) {
-                throw new ClassCastException("Base64 failed at " + i);
-            }
-            c = BASE64[c];
-            if (c < 0) {
-                throw new ClassCastException("Base64 failed at " + i);
+            c = value.charAt(++i);
+            if (c > 255 || (c = BASE64[c]) < 0) {
+                throw new ClassCastException("Base64 failed on " + nice(value.charAt(i))+" at " + i);
             }
             a |= c << 12;
-            if (i == ilen) {
+            if (++i == ilen) {
                 buf.put((byte)(a >> 16));
                 break;
             } else {
                 c = value.charAt(i);
-                if (c > 255) {
-                    throw new ClassCastException("Base64 failed at " + i);
-                }
-                c = BASE64[c];
-                if (c < 0) {
-                    throw new ClassCastException("Base64 failed at " + i);
+                if (c > 255 || (c = BASE64[c]) < 0) {
+                    throw new ClassCastException("Base64 failed on " + nice(value.charAt(i))+" at " + i);
                 }
                 a |= c << 6;
-                if (i == ilen) {
+                if (++i == ilen) {
                     buf.put((byte)(a >> 16));
                     buf.put((byte)(a >> 8));
                     break;
                 } else {
                     c = value.charAt(i);
-                    if (c > 255) {
-                        throw new ClassCastException("Base64 failed at " + i);
-                    }
-                    c = BASE64[c];
-                    if (c < 0) {
-                        throw new ClassCastException("Base64 failed at " + i);
+                    if (c > 255 || (c = BASE64[c]) < 0) {
+                        throw new ClassCastException("Base64 failed on " + nice(value.charAt(i))+" at " + i);
                     }
                     a |= c;
                     buf.put((byte)(a >> 16));

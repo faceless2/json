@@ -22,7 +22,7 @@ class IBuffer extends Core {
     }
 
     @Override String stringValue() {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(value.remaining() * 4 / 3 + 2);
         try {
             write(sb);
         } catch (IOException e) {}      // Can't happen

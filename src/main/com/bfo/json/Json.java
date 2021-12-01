@@ -1,6 +1,7 @@
 package com.bfo.json;
 
 import java.util.*;
+import java.lang.reflect.Array;
 import java.io.*;
 import java.nio.*;
 import java.nio.charset.*;
@@ -192,6 +193,12 @@ public class Json {
                     Collection list = (Collection)object;
                     for (Object o : list) {
                         Json value = new Json(o, factory);
+                        ((IList)core).add(value);
+                    }
+                } else if (object.getClass().isArray()) {
+                    core = new IList();
+                    for (int i=0;i<Array.getLength(object);i++){
+                        Json value = new Json(Array.get(object, i), factory);
                         ((IList)core).add(value);
                     }
                 }
