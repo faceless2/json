@@ -1571,20 +1571,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #stringValue} method on it, otherwise return null
+     * @return the string value of that object
+     * @param path the path
      * @since 4
      */
-    public String stringValue(String key) {
-        Json j = get(key);
+    public String stringValue(String path) {
+        Json j = get(path);
         return j == null ? null : j.stringValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #stringValue} method on it, otherwise return null
+     * @return the string value of that object
+     * @param path the path
      * @since 4
      */
-    public String stringValue(int key) {
-        Json j = get(key);
+    public String stringValue(int path) {
+        Json j = get(path);
         return j == null ? null : j.stringValue();
     }
 
@@ -1608,20 +1612,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #bufferValue} method on it, otherwise return null
+     * @return the buffer value of that object
+     * @param path the path
      * @since 4
      */
-    public ByteBuffer bufferValue(String key) {
-        Json j = get(key);
+    public ByteBuffer bufferValue(String path) {
+        Json j = get(path);
         return j == null ? null : j.bufferValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #bufferValue} method on it, otherwise return null
+     * @return the buffer value of that object
+     * @param path the path
      * @since 4
      */
-    public ByteBuffer bufferValue(int key) {
-        Json j = get(key);
+    public ByteBuffer bufferValue(int path) {
+        Json j = get(path);
         return j == null ? null : j.bufferValue();
     }
 
@@ -1645,20 +1653,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #intValue} method on it, otherwise return null
+     * @return the number value of that object
+     * @param path the path
      * @since 4
      */
-    public Number numberValue(String key) {
-        Json j = get(key);
+    public Number numberValue(String path) {
+        Json j = get(path);
         return j == null ? null : j.numberValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #numberValue} method on it, otherwise return null
+     * @return the number value of that object
+     * @param path the path
      * @since 4
      */
-    public Number numberValue(int key) {
-        Json j = get(key);
+    public Number numberValue(int path) {
+        Json j = get(path);
         return j == null ? null : j.numberValue();
     }
 
@@ -1681,20 +1693,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #intValue} method on it, otherwise return 0
+     * @return the int value of that object
+     * @param path the path
      * @since 4
      */
-    public int intValue(String key) {
-        Json j = get(key);
+    public int intValue(String path) {
+        Json j = get(path);
         return j == null ? 0 : j.intValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #intValue} method on it, otherwise return 0
+     * @return the int value of that object
+     * @param path the path
      * @since 4
      */
-    public int intValue(int key) {
-        Json j = get(key);
+    public int intValue(int path) {
+        Json j = get(path);
         return j == null ? null : j.intValue();
     }
 
@@ -1717,20 +1733,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #longValue} method on it, otherwise return 0
+     * @return the long value of that object
+     * @param path the path
      * @since 4
      */
-    public long longValue(String key) {
-        Json j = get(key);
+    public long longValue(String path) {
+        Json j = get(path);
         return j == null ? 0 : j.intValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #longValue} method on it, otherwise return 0
+     * @return the long value of that object
+     * @param path the path
      * @since 4
      */
-    public long longValue(int key) {
-        Json j = get(key);
+    public long longValue(int path) {
+        Json j = get(path);
         return j == null ? null : j.intValue();
     }
 
@@ -1753,20 +1773,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #floatValue} method on it, otherwise return 0
+     * @return the float value of that object
+     * @param path the path
      * @since 4
      */
-    public float floatValue(String key) {
-        Json j = get(key);
+    public float floatValue(String path) {
+        Json j = get(path);
         return j == null ? 0 : j.floatValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #floatValue} method on it, otherwise return 0
+     * @return the float value of that object
+     * @param path the path
      * @since 4
      */
-    public float floatValue(int key) {
-        Json j = get(key);
+    public float floatValue(int path) {
+        Json j = get(path);
         return j == null ? null : j.floatValue();
     }
 
@@ -1789,20 +1813,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #doubleValue} method on it, otherwise return 0
+     * @return the double value of that object
+     * @param path the path
      * @since 4
      */
-    public double doubleValue(String key) {
-        Json j = get(key);
+    public double doubleValue(String path) {
+        Json j = get(path);
         return j == null ? 0 : j.doubleValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #doubleValue} method on it, otherwise return 0
+     * @return the double value of that object
+     * @param path the path
      * @since 4
      */
-    public double doubleValue(int key) {
-        Json j = get(key);
+    public double doubleValue(int path) {
+        Json j = get(path);
         return j == null ? null : j.doubleValue();
     }
 
@@ -1825,20 +1853,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #booleanValue} method on it, otherwise return false
+     * @return the boolean value of that object
+     * @param path the path
      * @since 4
      */
-    public boolean booleanValue(String key) {
-        Json j = get(key);
+    public boolean booleanValue(String path) {
+        Json j = get(path);
         return j == null ? false : j.booleanValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #booleanValue} method on it, otherwise return false
+     * @return the boolean value of that object
+     * @param path the path
      * @since 4
      */
-    public boolean booleanValue(int key) {
-        Json j = get(key);
+    public boolean booleanValue(int path) {
+        Json j = get(path);
         return j == null ? false : j.booleanValue();
     }
 
@@ -1854,20 +1886,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #mapValue} method on it, otherwise return null
+     * @return the read-only map value of that object
+     * @param path the path
      * @since 4
      */
-    public Map<String,Json> mapValue(String key) {
-        Json j = get(key);
+    public Map<String,Json> mapValue(String path) {
+        Json j = get(path);
         return j == null ? null : j.mapValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #mapValue} method on it, otherwise return null
+     * @return the read-only map value of that object
+     * @param path the path
      * @since 4
      */
-    public Map mapValue(int key) {
-        Json j = get(key);
+    public Map mapValue(int path) {
+        Json j = get(path);
         return j == null ? null : j.mapValue();
     }
 
@@ -1887,20 +1923,24 @@ public class Json {
     /**
      * If the specified descendant of this object exists call
      * the {@link #listValue} method on it, otherwise return null
+     * @return the read-only list value of that object
+     * @param path the path
      * @since 4
      */
-    public List<Json> listValue(String key) {
-        Json j = get(key);
+    public List<Json> listValue(String path) {
+        Json j = get(path);
         return j == null ? null : j.listValue();
     }
 
     /**
      * If the specified descendant of this object exists call
      * the {@link #listValue} method on it, otherwise return null
+     * @return the read-only list value of that object
+     * @param path the path
      * @since 4
      */
-    public List<Json> listValue(int key) {
-        Json j = get(key);
+    public List<Json> listValue(int path) {
+        Json j = get(path);
         return j == null ? null : j.listValue();
     }
 
