@@ -90,6 +90,7 @@ public class JWT {
 
     /**
      * Return the Provider set by {@link #setProvider}
+     * @return the provider
      */
     public Provider getProvider() {
         return provider;
