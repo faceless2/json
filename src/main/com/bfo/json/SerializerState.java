@@ -4,8 +4,10 @@ class SerializerState {
     final StringBuilder prefix;
     final JsonWriteOptions options;
     final JsonWriteOptions.Filter filter;
+    Json json;
 
     SerializerState(Json ctx, JsonWriteOptions options) {
+        this.json = json;
         this.options = options;
         prefix = options.isPretty() ? new StringBuilder("\n") : null;
         JsonWriteOptions.Filter tfilter = options.getFilter();

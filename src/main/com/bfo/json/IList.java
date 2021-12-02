@@ -83,6 +83,7 @@ class IList extends Core {
             Json ochild = list.get(i);
             Json child = state.filter.enter(key, ochild);
             if (child != null) {
+                state.json = child;
                 child.getCore().write(sb, state);
             } else {
                 INull.INSTANCE.write(sb, state);

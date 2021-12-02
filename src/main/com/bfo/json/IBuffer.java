@@ -39,11 +39,17 @@ class IBuffer extends Core {
 
     @Override void write(Appendable sb, SerializerState state) throws IOException {
         sb.append('"');
-        int len = state.options == null ? 0 : state.options.getMaxStringLength();
-        if (len == 0) {
-            write(sb);
+        if (state.filter != null && state.filter.isProxy(state.json)) {
+            Base64OutputStream out = new Base64OutputStream(sb);
+            state.filter.proxyWrite(state.json, out);
+            out.complete();
         } else {
-            sb.append("(" + value.limit() + " bytes)");
+            int len = state.options == null ? 0 : state.options.getMaxStringLength();
+            if (len == 0) {
+                write(sb);
+            } else {
+                sb.append("(" + value.limit() + " bytes)");
+            }
         }
         sb.append('"');
     }
@@ -70,6 +76,56 @@ class IBuffer extends Core {
             int v = ((value.get()&0xFF)<<16);
             out.append(BASE64[(v>>18) & 0x3F]);
             out.append(BASE64[(v>>12) & 0x3F]);
+        }
+    }
+
+    // Because Base64.Encoder makes me write to an OutputStream.
+    private static final class Base64OutputStream extends OutputStream {
+        final Appendable out;
+        int v, count;
+        Base64OutputStream(Appendable a) {
+            this.out = a;
+        }
+
+        @Override public void write(int c) throws IOException {
+            c &= 0xFF;
+            switch (count) {
+                case 0:
+                    v = c;
+                    count++;
+                    break;
+                case 1:
+                    v = (v<<8) | c;
+                    count++;
+                    break;
+                case 2:
+                    v = (v<<8) | c;
+                    out.append(BASE64[(v>>18) & 0x3F]);
+                    out.append(BASE64[(v>>12) & 0x3F]);
+                    out.append(BASE64[(v>>6)  & 0x3F]);
+                    out.append(BASE64[v       & 0x3F]);
+                    count = 0;
+            }
+        }
+
+        @Override public void write(byte[] buf, int off, int len) throws IOException {
+            len += off;
+            while (off < len) {
+                write(buf[off++]);
+            }
+        }
+
+        void complete() throws IOException {
+            if (count == 1) {
+                // 12345678 -> 00123456 00780000
+                // 12345678 9ABCDEFG -> 00123456 00789ABC 00DEFG00
+                out.append(BASE64[(v>>2) & 0x3F]);
+                out.append(BASE64[(v<<4) & 0x3F]);
+            } else if (count == 2) {
+                out.append(BASE64[(v>>10) & 0x3F]);
+                out.append(BASE64[(v>>4)  & 0x3F]);
+                out.append(BASE64[(v<<2)  & 0x3F]);
+            }
         }
     }
 

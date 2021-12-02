@@ -69,6 +69,7 @@ class IMap extends Core {
                 }
                 IString.write(key, 0, sb);
                 sb.append(':');
+                state.json = value;
                 value.getCore().write(sb, state);
             }
             state.filter.exit(key, ovalue);
