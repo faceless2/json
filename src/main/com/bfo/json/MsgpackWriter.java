@@ -120,7 +120,19 @@ class MsgpackWriter {
             }
         } else if (o instanceof IBuffer) {
             int tag = (int)j.getTag();
-            ByteBuffer b = o.bufferValue();
+            final ByteBuffer[] holder = new ByteBuffer[] { o.bufferValue() };
+            if (options != null && options.getFilter() != null && options.getFilter().isProxy(j)) {
+                // Msgpack has no "indefinite length" option, so just make a bytebuffer
+                // from the output written by the proxy
+                ByteArrayOutputStream bout = new ByteArrayOutputStream() {
+                    @Override public void close() {
+                        holder[0] = ByteBuffer.wrap(buf, 0, count);
+                    }
+                };
+                options.getFilter().proxyWrite(j, bout);
+                bout.close();
+            }
+            ByteBuffer b = holder[0];
             b.position(0);
             int s = b.limit();
             if (tag >= 0) {

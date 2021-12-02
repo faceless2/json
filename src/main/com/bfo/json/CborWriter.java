@@ -88,10 +88,39 @@ class CborWriter {
                 }
             }
         } else if (o instanceof IBuffer) {
-            ByteBuffer b = o.bufferValue();
-            writeNum(2, b.limit(), out);
-            b.position(0);
-            Channels.newChannel(out).write(b);
+            if (options != null && options.getFilter() != null && options.getFilter().isProxy(j)) {
+                // We're going to write an indefinite length object
+                writeNum(2, -1, out);
+                OutputStream filter = new FilterOutputStream(out) {
+                    private final ByteArrayOutputStream hold = new ByteArrayOutputStream();
+                    @Override public void write(int v) throws IOException {
+                        v &= 0xFF;
+                        hold.write(v);
+                        if (v == 0xFF) {        // stop bit
+                            close();
+                        }
+                    }
+                    @Override public void close() throws IOException {
+                        writeNum(2, hold.size(), out);
+                        hold.writeTo(out);
+                        hold.reset();
+                    }
+                    @Override public void write(byte[] buf, int off, int len) throws IOException {
+                        len += off;
+                        while (off < len) {
+                            write(buf[off++]);
+                        }
+                    }
+                };
+                options.getFilter().proxyWrite(j, filter);
+                filter.close();
+                out.write(0xFF);
+            } else {
+                ByteBuffer b = o.bufferValue();
+                writeNum(2, b.limit(), out);
+                b.position(0);
+                Channels.newChannel(out).write(b);
+            }
         } else if (o instanceof IString) {
             writeString(o.stringValue(), out, options);
         } else if (o instanceof IList) {
@@ -124,7 +153,9 @@ class CborWriter {
     }
 
     private static void writeNum(int prefix, long i, OutputStream out) throws IOException {
-        if (i < 23) {
+        if (i < 0) {    // indefinite length
+            out.write((prefix << 5) | 0x1F);
+        } else if (i < 23) {
             out.write((prefix << 5) | ((int)i));
         } else if (i <= 255) {
             out.write((prefix << 5) | 24);
