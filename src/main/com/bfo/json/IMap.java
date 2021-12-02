@@ -20,7 +20,7 @@ class IMap extends Core {
         return map;
     }
 
-    @Override Map<String,Json> mapValue() {
+    @Override Map<String,Json> mapValue(Json json) {
         return map;
     }
 
@@ -40,7 +40,7 @@ class IMap extends Core {
         return map.get(key);
     }
 
-    @Override void write(Appendable sb, SerializerState state) throws IOException {
+    @Override void write(Json json, Appendable sb, SerializerState state) throws IOException {
         sb.append("{");
         if (state.prefix != null) {
             state.prefix.append("  ");
@@ -69,8 +69,7 @@ class IMap extends Core {
                 }
                 IString.write(key, 0, sb);
                 sb.append(':');
-                state.json = value;
-                value.getCore().write(sb, state);
+                value.getCore().write(value, sb, state);
             }
             state.filter.exit(key, ovalue);
         }

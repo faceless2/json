@@ -15,7 +15,7 @@ class IList extends Core {
         return list;
     }
 
-    @Override List<Json> listValue() {
+    @Override List<Json> listValue(Json json) {
         return list;
     }
 
@@ -60,7 +60,7 @@ class IList extends Core {
         return ix < 0 || ix >= list.size() ? null : list.get(ix);
     }
 
-    @Override void write(Appendable sb, SerializerState state) throws IOException {
+    @Override void write(Json json, Appendable sb, SerializerState state) throws IOException {
         sb.append("[");
         if (state.prefix != null) {
             state.prefix.append("  ");
@@ -83,10 +83,9 @@ class IList extends Core {
             Json ochild = list.get(i);
             Json child = state.filter.enter(key, ochild);
             if (child != null) {
-                state.json = child;
-                child.getCore().write(sb, state);
+                child.getCore().write(child, sb, state);
             } else {
-                INull.INSTANCE.write(sb, state);
+                INull.INSTANCE.write(child, sb, state);
             }
             state.filter.exit(key, ochild);
         }

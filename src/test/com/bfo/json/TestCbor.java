@@ -108,9 +108,7 @@ public class TestCbor {
         System.out.println("----- END CBOR ROUNDTRIP TESTS -----");
 
         System.out.println("----- BEGIN PROXY WRITE TESTS -----");
-        final Json magic = new Json(ByteBuffer.wrap("bad".getBytes("UTF-8")), null);
         j = Json.read("{}");
-        j.put("foo", magic);
         // Test our "proxyWrite" approach works
         for (int i=0;i<1000;i++) {
             final int c = i;
@@ -118,31 +116,29 @@ public class TestCbor {
             for (int k=0;k<tmp.length;k++) {
                 tmp[k] = (byte)k;
             }
-            JsonWriteOptions opts = new JsonWriteOptions().setFilter(new JsonWriteOptions.Filter() {
-                public boolean isProxy(Json j) {
-                    return j == magic;
-                }
-                public void proxyWrite(Json j, OutputStream out) throws IOException {
+            final Json magic = new Json(ByteBuffer.wrap("bad".getBytes("UTF-8")), null) {
+                protected void writeBuffer(OutputStream out) throws IOException {
                     out.write(tmp);
                 }
-            });
+            };
+            j.put("foo", magic);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             StringWriter w = new StringWriter();
 
-            j.writeCbor(out, opts);
+            j.writeCbor(out, null);
             InputStream in = new ByteArrayInputStream(out.toByteArray());
             Json j2 = Json.readCbor(in, null);
             ByteBuffer b = j2.bufferValue("foo");
             assert Arrays.equals(tmp, b.array()) : "cbor proxy: i="+i+" j="+j+" buf="+hex(b.array());
 
-            j.write(w, opts);
+            j.write(w, null);
             j2 = Json.read(w.toString());
             b = j2.bufferValue("foo");
             assert Arrays.equals(tmp, b.array()) : "json proxy: i="+i+" j="+w+" buf="+hex(b.array());
 
             out.reset();
-            j.writeMsgpack(out, opts);
+            j.writeMsgpack(out, null);
             in = new ByteArrayInputStream(out.toByteArray());
             j2 = Json.readMsgpack(in, null);
             b = j2.bufferValue("foo");

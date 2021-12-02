@@ -4,6 +4,7 @@ import java.util.*;
 import java.lang.reflect.Array;
 import java.io.*;
 import java.nio.*;
+import java.nio.channels.*;
 import java.nio.charset.*;
 
 /**
@@ -513,7 +514,7 @@ public class Json {
             options = DEFAULTWRITEOPTIONS;
         }
         SerializerState state = new SerializerState(this, options);
-        core.write(out, state);
+        core.write(this, out, state);
         if (out instanceof Flushable) {
             ((Flushable)out).flush();
         }
@@ -796,7 +797,7 @@ public class Json {
             }
         } else if (isMap()) {
             IMap map = (IMap)core;
-            for (Iterator<Map.Entry<String,Json>> i = map.mapValue().entrySet().iterator();i.hasNext();) {
+            for (Iterator<Map.Entry<String,Json>> i = map.mapValue(this).entrySet().iterator();i.hasNext();) {
                 Map.Entry<String,Json> e = i.next();
                 if (e.getValue() == json) {
                     notify(this, e.getKey(), json, null);
@@ -1565,7 +1566,7 @@ public class Json {
      * @return the string value of this object
      */
     public String stringValue() {
-        return core.stringValue();
+        return core.stringValue(this);
     }
 
     /**
@@ -1606,7 +1607,7 @@ public class Json {
      * @since 2
      */
     public ByteBuffer bufferValue() {
-        return core.bufferValue();
+        return core.bufferValue(this);
     }
 
     /**
@@ -1647,7 +1648,7 @@ public class Json {
      * @return the number value of this object
      */
     public Number numberValue() {
-        return core.numberValue();
+        return core.numberValue(this);
     }
 
     /**
@@ -1687,7 +1688,7 @@ public class Json {
      * @return the int value of this object
      */
     public int intValue() {
-        return core.intValue();
+        return core.intValue(this);
     }
 
     /**
@@ -1727,7 +1728,7 @@ public class Json {
      * @return the long value of this object
      */
     public long longValue() {
-        return core.longValue();
+        return core.longValue(this);
     }
 
     /**
@@ -1767,7 +1768,7 @@ public class Json {
      * @return the float value of this object
      */
     public float floatValue() {
-        return core.floatValue();
+        return core.floatValue(this);
     }
 
     /**
@@ -1807,7 +1808,7 @@ public class Json {
      * @return the double value of this object
      */
     public double doubleValue() {
-        return core.doubleValue();
+        return core.doubleValue(this);
     }
 
     /**
@@ -1847,7 +1848,7 @@ public class Json {
      * @return the boolean value of this object
      */
     public boolean booleanValue() {
-        return core.booleanValue();
+        return core.booleanValue(this);
     }
 
     /**
@@ -1908,7 +1909,7 @@ public class Json {
     }
 
     Map<String,Json> _mapValue() {
-        return core.mapValue();
+        return core.mapValue(this);
     }
 
     /**
@@ -1945,7 +1946,7 @@ public class Json {
     }
 
     List<Json> _listValue() {
-        return core.listValue();
+        return core.listValue(this);
     }
 
     /**
@@ -1973,13 +1974,13 @@ public class Json {
             }
         }
         if (isMap()) {
-            Map<String,Object> out = new LinkedHashMap<String,Object>(core.mapValue());
+            Map<String,Object> out = new LinkedHashMap<String,Object>(core.mapValue(this));
             for (Map.Entry<String,Object> e : out.entrySet()) {
                 e.setValue(((Json)e.getValue()).objectValue(factory));
             }
             return out;
         } else if (isList()) {
-            List<Json> list = core.listValue();
+            List<Json> list = core.listValue(this);
             List<Object> out = new ArrayList<Object>(list.size());
             for (Json o : list) {
                 out.add(o.objectValue(factory));
@@ -2063,6 +2064,18 @@ public class Json {
             o =  Collections.singletonList(o);
         }
         return (List<Json>)o;
+    }
+
+    /**
+     * Write this objects BufferValue to the specified OutputStream.
+     * Can be overridden if the BufferValue needs to be derived externally,
+     * perhaps because it's very large and of indeterminate length.
+     * @since 4
+     */
+    protected void writeBuffer(OutputStream out) throws IOException {
+        ByteBuffer buf = bufferValue();
+        buf.position(0);
+        Channels.newChannel(out).write(buf);
     }
 
 }

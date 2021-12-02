@@ -132,7 +132,7 @@ class CborReader {
                 }
                 if ((n.intValue() == 2 || n.intValue() == 3) && j.isBuffer()) {
                     int tag = n.intValue();
-                    ByteBuffer b = j.getCore().bufferValue();
+                    ByteBuffer b = j.getCore().bufferValue(j);
                     n = new BigInteger(1, b.array());
                     if (tag == 3) {
                         n = BigInteger.valueOf(-1).subtract((BigInteger)n);

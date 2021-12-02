@@ -234,55 +234,6 @@ public class JsonWriteOptions {
          */
         public default void exit(String key, Json child) {
         }
-
-        /**
-         * Called before writing a node - if this method returns true,
-         * the {@link #proxyWrite} method will be called with this node.
-         * @see #proxyWrite
-         * @param json the object which we are about to write
-         * @return whether writing for this object should be proxied - default is false
-         */
-        public default boolean isProxy(Json json) {
-            return false;
-        }
-
-        /**
-         * <p>
-         * If {@link #isProxy} returned true for <code>json</code>, this method
-         * is called to write the specified object to the stream. This can be
-         * used to create JSON or CBOR objects from very large objects without
-         * needing them serialized in memory first. In both cases the object
-         * will be streamed directly to the OutputStream without any intermediate
-         * buffer.
-         * </p><p>
-         * For example, if you have an object that you want to serialize to CBOR.
-         * Create a proxy object for it in the Json structure, then override
-         * this method to write it out.
-         * </p>
-         * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
-         *  Json json = ...;            // main Json object
-         *  Json proxy = new Json(ByteBuffer.wrap(new byte[0]), null);
-         *  json.put("file", proxy);    // put our proxy in the structure
-         *  JsonWriteOptions options = new JsonWriteOptions().setFilter(new JsonWriteOptions.Filter() {
-         *    public boolean isProxy(Json json) {
-         *      return json == proxy;
-         *    }
-         *    public void proxyWrite(Json json, OutputStream out) throws IOException {
-         *      widget.writeTo(out);      // Serialize our widget in place of the proxy.
-         *    }
-         *  });
-         * json.writeCbor(outputstream, options);
-         * </pre>
-         * Not every type of object can be proxied - currently it's just "buffer" type
-         * objects. The {@link isProxy} method will only be called if proxy writing is
-         * possible.
-         * 
-         * @param json the object which we are supposed to be writing
-         * @param out the OutputStream to write to.
-         * @throws IOException from the supplied OutputStream
-         */
-        public default void proxyWrite(Json json, OutputStream out) throws IOException {
-        }
     }
 
     /**

@@ -16,7 +16,7 @@ class CborWriter {
         }
         Core o = j.getCore();
         if (o instanceof INumber) {
-            Number n = o.numberValue();
+            Number n = o.numberValue(j);
             if (n instanceof BigDecimal) {      // No BigDecimal in CBOR
                 n = Double.valueOf(n.doubleValue());
             }
@@ -88,7 +88,8 @@ class CborWriter {
                 }
             }
         } else if (o instanceof IBuffer) {
-            if (options != null && options.getFilter() != null && options.getFilter().isProxy(j)) {
+            if (j.getClass() != Json.class) {
+                // May have overridden writeBuffer
                 // We're going to write an indefinite length object
                 writeNum(2, -1, out);
                 OutputStream filter = new FilterOutputStream(out) {
@@ -112,25 +113,25 @@ class CborWriter {
                         }
                     }
                 };
-                options.getFilter().proxyWrite(j, filter);
+                j.writeBuffer(filter);
                 filter.close();
                 out.write(0xFF);
             } else {
-                ByteBuffer b = o.bufferValue();
+                ByteBuffer b = o.bufferValue(j);
                 writeNum(2, b.limit(), out);
                 b.position(0);
                 Channels.newChannel(out).write(b);
             }
         } else if (o instanceof IString) {
-            writeString(o.stringValue(), out, options);
+            writeString(o.stringValue(j), out, options);
         } else if (o instanceof IList) {
-            List<Json> l = o.listValue();
+            List<Json> l = o.listValue(j);
             writeNum(4, l.size(), out);
-            for (Json j2 : o.listValue()) {
+            for (Json j2 : l) {
                 write(j2, out, options);
             }
         } else if (o instanceof IMap) {
-            Map<String,Json> map = o.mapValue();
+            Map<String,Json> map = o.mapValue(j);
             writeNum(5, map.size(), out);
             if (options != null && options.isSorted()) {
                 map = new TreeMap<String,Json>(map);
@@ -140,7 +141,7 @@ class CborWriter {
                 write(e.getValue(), out, options);
             }
         } else if (o instanceof IBoolean) {
-            if (o.booleanValue()) {
+            if (o.booleanValue(j)) {
                 out.write(0xf5);
             } else {
                 out.write(0xf4);

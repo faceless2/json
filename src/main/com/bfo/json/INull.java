@@ -18,39 +18,39 @@ class INull extends Core {
         return "null";
     }
 
-    @Override String stringValue() {
+    @Override String stringValue(Json json) {
         return null;
     }
 
-    @Override Number numberValue() {
+    @Override Number numberValue(Json json) {
         return null;
     }
 
-    @Override boolean booleanValue() {
+    @Override boolean booleanValue(Json json) {
         throw new ClassCastException("Value is null");
     }
 
-    @Override int intValue() {
+    @Override int intValue(Json json) {
         throw new ClassCastException("Value is null");
     }
 
-    @Override long longValue() {
+    @Override long longValue(Json json) {
         throw new ClassCastException("Value is null");
     }
 
-    @Override float floatValue() {
+    @Override float floatValue(Json json) {
         throw new ClassCastException("Value is null");
     }
 
-    @Override double doubleValue() {
+    @Override double doubleValue(Json json) {
         throw new ClassCastException("Value is null");
     }
 
-    @Override ByteBuffer bufferValue() {
+    @Override ByteBuffer bufferValue(Json json) {
         throw null;
     }
 
-    @Override void write(Appendable sb, SerializerState state) throws IOException {
+    @Override void write(Json json, Appendable sb, SerializerState state) throws IOException {
         sb.append("null");
     }
 

@@ -13,7 +13,7 @@ class MsgpackWriter {
     static void write(Json j, OutputStream out, JsonWriteOptions options) throws IOException {
         Core o = j.getCore();
         if (o instanceof INumber) {
-            Number n = o.numberValue();
+            Number n = o.numberValue(j);
             if (n instanceof BigDecimal) {      // No BigDecimal in MsgPack
                 n = Double.valueOf(n.doubleValue());
             }
@@ -120,8 +120,8 @@ class MsgpackWriter {
             }
         } else if (o instanceof IBuffer) {
             int tag = (int)j.getTag();
-            final ByteBuffer[] holder = new ByteBuffer[] { o.bufferValue() };
-            if (options != null && options.getFilter() != null && options.getFilter().isProxy(j)) {
+            final ByteBuffer[] holder = new ByteBuffer[] { o.bufferValue(j) };
+            if (j.getClass() != Json.class) {
                 // Msgpack has no "indefinite length" option, so just make a bytebuffer
                 // from the output written by the proxy
                 ByteArrayOutputStream bout = new ByteArrayOutputStream() {
@@ -129,7 +129,7 @@ class MsgpackWriter {
                         holder[0] = ByteBuffer.wrap(buf, 0, count);
                     }
                 };
-                options.getFilter().proxyWrite(j, bout);
+                j.writeBuffer(bout);
                 bout.close();
             }
             ByteBuffer b = holder[0];
@@ -194,9 +194,9 @@ class MsgpackWriter {
                 Channels.newChannel(out).write(b);
             }
         } else if (o instanceof IString) {
-            writeString(o.stringValue(), out, options);
+            writeString(o.stringValue(j), out, options);
         } else if (o instanceof IList) {
-            List<Json> l = o.listValue();
+            List<Json> l = o.listValue(j);
             int s = l.size();
             if (s <= 15) {
                 out.write(0x90 | s);
@@ -211,11 +211,11 @@ class MsgpackWriter {
                 out.write(s>>8);
                 out.write(s);
             }
-            for (Json j2 : o.listValue()) {
+            for (Json j2 : o.listValue(j)) {
                 write(j2, out, options);
             }
         } else if (o instanceof IMap) {
-            Map<String,Json> map = o.mapValue();
+            Map<String,Json> map = o.mapValue(j);
             int s = map.size();
             if (s <= 15) {
                 out.write(0x80 | s);
@@ -238,7 +238,7 @@ class MsgpackWriter {
                 write(e.getValue(), out, options);
             }
         } else if (o instanceof IBoolean) {
-            if (o.booleanValue()) {
+            if (o.booleanValue(j)) {
                 out.write(0xc3);
             } else {
                 out.write(0xc2);

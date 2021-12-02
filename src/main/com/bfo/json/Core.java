@@ -10,44 +10,44 @@ abstract class Core {
 
     abstract String type();
 
-    ByteBuffer bufferValue() {
+    ByteBuffer bufferValue(Json json) {
         throw new ClassCastException("Value is a "+type());
     }
 
-    String stringValue() {
+    String stringValue(Json json) {
         Object o = value();
         return o == null ? null : o.toString();
     }
 
-    Number numberValue() {
+    Number numberValue(Json json) {
         throw new ClassCastException("Value is a "+type());
     }
 
-    int intValue() {
-        return numberValue().intValue();
+    int intValue(Json json) {
+        return numberValue(json).intValue();
     }
 
-    long longValue() {
-        return numberValue().longValue();
+    long longValue(Json json) {
+        return numberValue(json).longValue();
     }
 
-    float floatValue() {
-        return numberValue().floatValue();
+    float floatValue(Json json) {
+        return numberValue(json).floatValue();
     }
 
-    double doubleValue() {
-        return numberValue().doubleValue();
+    double doubleValue(Json json) {
+        return numberValue(json).doubleValue();
     }
 
-    boolean booleanValue() {
-        return intValue() != 0;
+    boolean booleanValue(Json json) {
+        return intValue(json) != 0;
     }
 
-    Map<String,Json> mapValue() {
+    Map<String,Json> mapValue(Json json) {
         throw new ClassCastException("Value is a "+type());
     }
 
-    List<Json> listValue() {
+    List<Json> listValue(Json json) {
         throw new ClassCastException("Value is a "+type());
     }
 
@@ -69,6 +69,6 @@ abstract class Core {
         return false;
     }
 
-    abstract void write(Appendable sb, SerializerState state) throws IOException;
+    abstract void write(Json json, Appendable sb, SerializerState state) throws IOException;
 
 }

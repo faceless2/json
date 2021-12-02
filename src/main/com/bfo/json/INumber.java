@@ -22,14 +22,14 @@ class INumber extends Core {
         return "number";
     }
 
-    @Override boolean booleanValue() {
+    @Override boolean booleanValue(Json json) {
         if ((flags & JsonReadOptions.FLAG_STRICT) != 0) {
             throw new ClassCastException("Cannot convert number " + value + " to boolean in strict mode");
         }
         return value.intValue() != 0;
     }
 
-    @Override Number numberValue() {
+    @Override Number numberValue(Json json) {
         return value;
     }
 
@@ -47,7 +47,7 @@ class INumber extends Core {
         return false;
     }
 
-    @Override void write(Appendable sb, SerializerState state) throws IOException {
+    @Override void write(Json json, Appendable sb, SerializerState state) throws IOException {
         StringBuilder tsb = new StringBuilder();
         if (value instanceof Float) {
             Float n = (Float)value;

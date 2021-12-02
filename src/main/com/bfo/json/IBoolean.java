@@ -21,30 +21,30 @@ class IBoolean extends Core {
         return "boolean";
     }
 
-    @Override boolean booleanValue() {
+    @Override boolean booleanValue(Json json) {
         return value;
     }
 
-    @Override Number numberValue() {
-        return Integer.valueOf(intValue());
+    @Override Number numberValue(Json json) {
+        return Integer.valueOf(intValue(json));
     }
 
-    @Override int intValue() {
+    @Override int intValue(Json json) {
         if ((flags & JsonReadOptions.FLAG_STRICT) != 0) {
             throw new ClassCastException("Cannot convert boolean "+value+" to number in strict mode");
         }
         return value ? 1 : 0;
     }
 
-    @Override float floatValue() {
-        return intValue();
+    @Override float floatValue(Json json) {
+        return intValue(json);
     }
 
-    @Override double doubleValue() {
-        return intValue();
+    @Override double doubleValue(Json json) {
+        return intValue(json);
     }
 
-    @Override void write(Appendable sb, SerializerState state) throws IOException {
+    @Override void write(Json json, Appendable sb, SerializerState state) throws IOException {
         sb.append(value ? "true" : "false");
     }
 

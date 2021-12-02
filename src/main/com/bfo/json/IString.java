@@ -23,13 +23,13 @@ class IString extends Core {
         return "string";
     }
 
-    @Override String stringValue() {
+    @Override String stringValue(Json json) {
         return value;
     }
 
     private static final int BASE64[] = new int[256];
     static {
-        String s = new String(IBuffer.BASE64);
+        String s = new String(Base64OutputStream.BASE64);
         for (int i=0;i<256;i++) {
             BASE64[i] = s.indexOf(Character.toString((char)i));
         }
@@ -43,7 +43,7 @@ class IString extends Core {
         }
     }
 
-    @Override ByteBuffer bufferValue() {
+    @Override ByteBuffer bufferValue(Json json) {
         int ilen = value.length();
         if (ilen == 0) {
             return ByteBuffer.allocate(0);
@@ -117,14 +117,14 @@ class IString extends Core {
         return false;
     }
 
-    @Override boolean booleanValue() {
+    @Override boolean booleanValue(Json json) {
         if (flagTest("boolean")) {
             return  false;
         }
-        return !("false".equals(value) || floatValue() == 0);
+        return !("false".equals(value) || floatValue(json) == 0);
     }
 
-    @Override int intValue() {
+    @Override int intValue(Json json) {
         if (flagTest("integer")) {
             return 0;
         }
@@ -143,7 +143,7 @@ class IString extends Core {
         }
     }
 
-    @Override long longValue() {
+    @Override long longValue(Json json) {
         if (flagTest("long")) {
             return 0;
         }
@@ -173,7 +173,7 @@ class IString extends Core {
         }
     }
 
-    @Override Number numberValue() {
+    @Override Number numberValue(Json json) {
         if (flagTest("number")) {
             return Integer.valueOf(0);
         }
@@ -241,7 +241,7 @@ class IString extends Core {
         }
     }
 
-    @Override void write(Appendable sb, SerializerState state) throws IOException {
+    @Override void write(Json json, Appendable sb, SerializerState state) throws IOException {
         int maxLength = state.options.getMaxStringLength();
         if (state.options.isNFC()) {
             String v = Normalizer.normalize(value, Normalizer.Form.NFC);
