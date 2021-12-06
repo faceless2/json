@@ -21,7 +21,7 @@ public class TestMsgpack {
                     for (int i2=0;i2<j2.size();i2++) {
                         byte[] b = parseBinary(j2.get(i2));
                         Json test = Json.readMsgpack(new ByteArrayInputStream(b), null);
-                        assert test.equals(target) : "FAIL: "+type+" "+target+" "+test;
+                        assert test.equals(target) : "FAIL: "+type+" "+target+"("+target.type()+") "+test+"("+test.type()+")";
                     }
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
                     target.writeMsgpack(out, null);

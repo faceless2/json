@@ -19,9 +19,9 @@ public class Test2 {
         assert json.get("a.b.1").type().equals("null");
         assert json.get("a.b[0]").type().equals("number");
         assert json.get("a.b[1]").type().equals("null");
-        assert json.read("true").type().equals("boolean");
-        assert json.read("-12").type().equals("number");
-        assert json.read("-12.345").type().equals("number");
+        assert Json.read("true").type().equals("boolean");
+        assert Json.read("-12").type().equals("number");
+        assert Json.read("-12.345").type().equals("number");
         assert json.get("a[b][0]").type().equals("number");
         assert json.get("a[b][1]").type().equals("null");
         assert json.toString().equals("{\"a\":{\"b\":[0,null,2]}}") : json.toString();;
@@ -39,7 +39,7 @@ public class Test2 {
         assert "a.b".equals(json.find(json.get("a.b"))) : json.find(json.get("a.b"));
         assert "a".equals(json.find(json.get("a"))) : json.find(json.get("a"));
         assert "b[0]".equals(json.get("a").find(json.get("a.b[0]"))) : json.get("a").find(json.get("b[0]"));
-        assert json.find(json.read("{}")) == null;
+        assert json.find(Json.read("{}")) == null;
         assert "".equals(json.find(json)) : json.find(json);
 
         for (int i=0;i<11;i++) {

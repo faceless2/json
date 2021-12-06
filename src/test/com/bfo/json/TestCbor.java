@@ -117,7 +117,7 @@ public class TestCbor {
                 tmp[k] = (byte)k;
             }
             final Json magic = new Json(ByteBuffer.wrap("bad".getBytes("UTF-8")), null) {
-                protected void writeBuffer(OutputStream out) throws IOException {
+                @Override protected void writeBuffer(OutputStream out) throws IOException {
                     out.write(tmp);
                 }
             };
