@@ -56,7 +56,7 @@ public class TestCbor {
         assert (j=read("f0")).isNull() && j.getTag() == 16;     // simple(16)
         assert (j=read("f818")).isNull() && j.getTag() == 24;   // simple(24)
         assert (j=read("f8ff")).isNull() && j.getTag() == 255 : j.getTag();   // simple(255)
-        assert (j=read("c074323031332d30332d32315432303a30343a30305a")).toString().equals("\"2013-03-21T20:04:00Z\"") && j.getTag() == 0;
+        assert (j=read("c074323031332d30332d32315432303a30343a30305a")).toString().equals("\"2013-03-21T20:04:00Z\"") && j.getTag() == 0 : j;
         assert (j=read("c11a514b67b0")).toString().equals("1363896240") && j.getTag() == 1;
         assert (j=read("c1fb41d452d9ec200000")).toString().equals("1363896240.5") && j.getTag() == 1;
         assert (j=read("d74401020304")).toString().equals("\"AQIDBA\"") && j.getTag() == 23;
@@ -73,7 +73,7 @@ public class TestCbor {
         assert (j=read("62225c")).toString().equals("\"\\\"\\\\\"") : j.toString();
         assert (j=read("62c3bc")).toString().equals("\"ü\"");
         assert (j=read("63e6b0b4")).toString().equals("\"水\"");
-        assert (j=read("64f0908591")).toString().equals("\"𐅑\"");
+        assert (j=read("64f0908591")).toString().equals("\"𐅑\"") : (int)j.toString().charAt(1);
         assert (j=read("80")).toString().equals("[]");
         assert (j=read("83010203")).toString().equals("[1,2,3]");
         assert (j=read("8301820203820405")).toString().equals("[1,[2,3],[4,5]]");

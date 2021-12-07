@@ -33,13 +33,14 @@ class Speed {
                         out.close();
                         byte[] buf = out.toByteArray();
                         string = new String(buf, "UTF-8");
-
-                        long l1 = System.nanoTime();
+                        long time, l1;
                         Json json = null;
+
+                        l1 = System.nanoTime();
                         for (int i=0;i<PASS;i++) {
                             json = Json.read(new ByteArrayInputStream(buf), null);
                         }
-                        long time = (System.nanoTime() - l1) / 1000 / PASS;
+                        time = (System.nanoTime() - l1) / 1000 / PASS;
                         System.out.println("* "+s+": read from binary: "+time+"us, "+(buf.length * 1000000l / 1024 / time)+"Kb/s");
 
                         l1 = System.nanoTime();
