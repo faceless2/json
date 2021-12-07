@@ -112,37 +112,53 @@ public class TestCbor {
         // Test our "proxyWrite" approach works
         for (int i=0;i<1000;i++) {
             final int c = i;
-            final byte[] tmp = new byte[i];
-            for (int k=0;k<tmp.length;k++) {
-                tmp[k] = (byte)k;
+            final byte[] targetbytes = new byte[i];
+            for (int k=0;k<targetbytes.length;k++) {
+                targetbytes[k] = (byte)((k % 26) + 'A');
             }
-            final Json magic = new Json(ByteBuffer.wrap("bad".getBytes("UTF-8")), null) {
+            final String targetstring = new String(targetbytes, "ISO-8859-1");
+            final Json magicBuffer = new Json(ByteBuffer.wrap("bad".getBytes("UTF-8"))) {
                 @Override protected void writeBuffer(OutputStream out) throws IOException {
-                    out.write(tmp);
+                    out.write(targetbytes);
                 }
             };
-            j.put("foo", magic);
+            final Json magicString = new Json("bad") {
+                @Override protected void writeString(Appendable out) throws IOException {
+                    out.append(targetstring);
+                }
+            };
+            j.put("buffer", magicBuffer);
+            j.put("string", magicString);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             StringWriter w = new StringWriter();
+            ByteBuffer testbuf;
+            String teststring;
+            Json j2;
 
             j.writeCbor(out, null);
             InputStream in = new ByteArrayInputStream(out.toByteArray());
-            Json j2 = Json.readCbor(in, null);
-            ByteBuffer b = j2.bufferValue("foo");
-            assert Arrays.equals(tmp, b.array()) : "cbor proxy: i="+i+" j="+j+" buf="+hex(b.array());
+            j2 = Json.readCbor(in, null);
+            testbuf = j2.bufferValue("buffer");
+            assert Arrays.equals(targetbytes, testbuf.array()) : "cbor proxy buffer: i="+i+" j="+j+" buf="+hex(testbuf.array());
+            teststring = j2.stringValue("string");
+            assert teststring.equals(targetstring) : "cbor proxy string: i="+i+" j="+j+" s="+teststring;
 
             j.write(w, null);
             j2 = Json.read(w.toString());
-            b = j2.bufferValue("foo");
-            assert Arrays.equals(tmp, b.array()) : "json proxy: i="+i+" j="+w+" buf="+hex(b.array());
+            testbuf = j2.bufferValue("buffer");
+            assert Arrays.equals(targetbytes, testbuf.array()) : "json proxy buffer: i="+i+" j="+j+" buf="+hex(testbuf.array());
+            teststring = j2.stringValue("string");
+            assert teststring.equals(targetstring) : "json proxy string: i="+i+" j="+j+" s="+teststring;
 
             out.reset();
             j.writeMsgpack(out, null);
             in = new ByteArrayInputStream(out.toByteArray());
             j2 = Json.readMsgpack(in, null);
-            b = j2.bufferValue("foo");
-            assert Arrays.equals(tmp, b.array()) : "msgpack proxy: i="+i+" j="+j+" buf="+hex(b.array());
+            testbuf = j2.bufferValue("buffer");
+            assert Arrays.equals(targetbytes, testbuf.array()) : "msgpack proxy buffer: i="+i+" j="+j+" buf="+hex(testbuf.array());
+            teststring = j2.stringValue("string");
+            assert teststring.equals(targetstring) : "msgpack proxy string: i="+i+" j="+j+" s="+teststring;
         }
         System.out.println("----- END PROXY WRITE TESTS -----");
     }

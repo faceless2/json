@@ -3,6 +3,9 @@ package com.bfo.json;
 import java.io.*;
 import java.nio.*;
 
+/**
+ * A Reader with a nice toString()
+ */
 class ContextReader extends Reader {
 
     private final Reader parent;

@@ -5,6 +5,10 @@ import java.util.*;
 import java.text.*;
 import java.nio.ByteBuffer;
 
+/**
+ * Because OutputStreamWriter is dog-slow.
+ * Appendable is more convenient than Writer, so a slight misnomer
+ */
 class UTF8Writer implements Appendable {
 
     private final OutputStream out;
@@ -15,11 +19,15 @@ class UTF8Writer implements Appendable {
         this.nfc = nfc;
     }
 
+    /**
+     * Write the length of the string about to be written.
+     * Overriden by msgpack and definite-length cbor writers
+     */
     void writeLength(int len) throws IOException {
     }
 
     public Appendable append(char c) throws IOException {
-        throw new UnsupportedOperationException("Must be entire string");
+        return append(Character.toString(c), 0, 1);
     }
 
     public Appendable append(CharSequence s) throws IOException {
@@ -33,7 +41,7 @@ class UTF8Writer implements Appendable {
             slen = s.length();
         }
         int len = 0;
-        if (slen < 1024) {      // arbitrary limit will still catch most strings. Aiming for stack alloc
+        if (slen < 1024) {      // arbitrary limit will still catch most strings. Aiming for stack alloc so not too high
             byte[] buf = new byte[slen * 4];
             for (int i=0;i<slen;i++) {
                 int c = s.charAt(i);
