@@ -2,7 +2,7 @@ package com.bfo.json;
 
 import java.io.*;
 
-class CountingInputStream extends FilterInputStream {
+class CountingInputStream extends BufferedInputStream {
 
     protected long pos;
     private long mark;

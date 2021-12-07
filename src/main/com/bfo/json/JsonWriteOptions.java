@@ -272,4 +272,22 @@ public class JsonWriteOptions {
         };
     }
 
+    Filter initializeFilter(Json root) {
+        Filter filter = this.filter;
+        if (filter == null) {
+            filter = new Filter() {
+                public Json enter(String key, Json child) {
+                    return child;
+                }
+                public void exit(String key, Json child) {
+                }
+                public void initialize(Json ctx) {
+                }
+            };
+        }
+        filter.initialize(root);
+        return filter;
+    }
+
+
 }

@@ -2,12 +2,16 @@ package com.bfo.json;
 
 import java.io.*;
 import java.nio.*;
+import java.nio.charset.*;
 
-class ByteBufferInputStream extends InputStream {
+// Extends CountingInputStream but overrides everything.
+// Just so we can get a single interface for an InputStream with a tell() method
+class ByteBufferInputStream extends CountingInputStream {
 
-    private final ByteBuffer in;
+    final ByteBuffer in;
 
     ByteBufferInputStream(ByteBuffer in) {
+        super(null);
         this.in = in;
     }
 
@@ -47,5 +51,25 @@ class ByteBufferInputStream extends InputStream {
         in.position(in.position() + r);
         return r;
     }
+
+    @Override public long tell() {
+        return in.position();
+    }
+
+    CharSequenceReader getUTF8(CodingErrorAction action) throws IOException {
+        byte[] buf = in.array();
+        int off = in.arrayOffset();
+        int len = off + in.remaining();
+        for (int i=off;i<len;i++) {
+            byte b = buf[i];
+            if (b < 0) {
+                CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+                decoder.onMalformedInput(action);
+                return new CharSequenceReader(decoder.decode(in));
+            }
+        }
+        return new CharSequenceReader(new String(buf, off, len - off, StandardCharsets.ISO_8859_1));
+    }
+
 
 }

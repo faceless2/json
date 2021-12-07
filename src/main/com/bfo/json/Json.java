@@ -4,6 +4,7 @@ import java.util.*;
 import java.lang.reflect.Array;
 import java.io.*;
 import java.nio.*;
+import java.math.*;
 import java.nio.channels.*;
 import java.nio.charset.*;
 
@@ -116,10 +117,13 @@ import java.nio.charset.*;
  */
 public class Json {
 
+    private static final int FLAG_STRICT = 1;
+    private static final int FLAG_SIMPLESTRING = 2;
     private static final JsonWriteOptions DEFAULTWRITEOPTIONS = new JsonWriteOptions();
     private static final JsonReadOptions DEFAULTREADOPTIONS = new JsonReadOptions();
 
-    private Core core;
+    private Object core;
+    private byte flags;
     private Json parent;
     private Object parentkey;
     private List<JsonListener> listeners;
@@ -157,9 +161,7 @@ public class Json {
     @SuppressWarnings("unchecked")
     public Json(Object object, JsonFactory factory) {
         if (object == null) {
-            core = INull.INSTANCE;
-        } else if (object instanceof Core) {
-            core = (Core)object;
+            core = null;
         } else if (object instanceof Json) {
             core = ((Json)object).core;
         } else {
@@ -171,51 +173,76 @@ public class Json {
             }
             if (core == null) {
                 if (object instanceof CharSequence) {
-                    core = new IString(object.toString(), null);
+                    core = object;
                 } else if (object instanceof byte[]) {
-                    core = new IBuffer(ByteBuffer.wrap((byte[])object));
+                    core = ByteBuffer.wrap((byte[])object);
                 } else if (object instanceof ByteBuffer) {
-                    core = new IBuffer((ByteBuffer)object);
+                    core = object;
                 } else if (object instanceof Boolean) {
-                    core = new IBoolean(((Boolean)object).booleanValue(), null);
+                    core = object;
                 } else if (object instanceof Number) {
-                    core = new INumber((Number)object, null);
+                    core = object;
                 } else if (object instanceof Map) {
-                    core = new IMap();
-                    Map map = (Map)object;
-                    for (Iterator<Map.Entry> i = map.entrySet().iterator();i.hasNext();) {
+                    Map<String,Json> map = new LinkedHashMap<String,Json>();
+                    for (Iterator<Map.Entry> i = ((Map)object).entrySet().iterator();i.hasNext();) {
                         Map.Entry e = i.next();
                         String key = e.getKey().toString();
-                        Json value = new Json(e.getValue(), factory);
-                        ((IMap)core).put(key, value);
+                        Json child = new Json(e.getValue(), factory);
+                        child.parent = this;
+                        child.parentkey = key;
+                        map.put(key, child);
                     }
+                    core = map;
                 } else if (object instanceof Collection) {
-                    core = new IList();
-                    Collection list = (Collection)object;
-                    for (Object o : list) {
-                        Json value = new Json(o, factory);
-                        ((IList)core).add(value);
+                    List<Json> list = new ArrayList<Json>();
+                    for (Object o : (Collection)object) {
+                        Json child = new Json(o, factory);
+                        child.parent = this;
+                        child.parentkey = list.size();
+                        list.add(child);
                     }
+                    core = list;
                 } else if (object.getClass().isArray()) {
-                    core = new IList();
+                    List<Json> list = new ArrayList<Json>();
                     for (int i=0;i<Array.getLength(object);i++){
-                        Json value = new Json(Array.get(object, i), factory);
-                        ((IList)core).add(value);
+                        Json child = new Json(Array.get(object, i), factory);
+                        child.parent = this;
+                        child.parentkey = list.size();
+                        list.add(child);
                     }
+                    core = list;
                 }
             }
-        }
-        if (core == null) {
-            throw new IllegalArgumentException(object.getClass().getName());
+            if (core == null) {
+                throw new IllegalArgumentException(object.getClass().getName());
+            }
         }
     }
 
-    Core getCore() {
-        return core;
+    private boolean isStrict() {
+        return (flags & FLAG_STRICT) != 0;
     }
 
-    private void setCore(Core core) {
-        this.core = core;
+    Json setStrict(boolean strict) {
+        if (strict) {
+            flags |= FLAG_STRICT;
+        } else {
+            flags &= ~FLAG_STRICT;
+        }
+        return this;
+    }
+
+    boolean isSimpleString() {
+        return (flags & FLAG_SIMPLESTRING) != 0;
+    }
+
+    Json setSimpleString(boolean simple) {
+        if (simple) {
+            flags |= FLAG_SIMPLESTRING;
+        } else {
+            flags &= ~FLAG_SIMPLESTRING;
+        }
+        return this;
     }
 
     /**
@@ -257,12 +284,12 @@ public class Json {
         } else if (in.length() == 0) {
             throw new IllegalArgumentException("Can't read from an empty string");
         } else if (in.length() == 2 && in.toString().equals("{}")) {
-            return new Json(new IMap());
+            return new Json(Collections.EMPTY_MAP);
         } else if (in.length() == 2 && in.toString().equals("[]")) {
-            return new Json(new IList());
+            return new Json(Collections.EMPTY_LIST);
         } else {
             try {
-                return read(new CharSequenceReader(in), DEFAULTREADOPTIONS);
+                return read(new CharSequenceReader(in), null);
             } catch (IOException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -295,12 +322,13 @@ public class Json {
         }
         in.mark(3);
         int v = in.read();
+        Reader reader;
         if (v < 0) {
             throw new EOFException("Empty file");
         } else if (v == 0xEF) {
             if ((v = in.read()) == 0xBB) {
                 if ((v = in.read()) == 0xBF) {
-                    return read(new InputStreamReader(in, "UTF-8"), options);
+                    reader = new InputStreamReader(in, "UTF-8");
                 } else {
                     throw new IOException("Invalid Json (begins with 0xEF 0xBB 0x"+Integer.toHexString(v));
                 }
@@ -309,31 +337,32 @@ public class Json {
             }
         } else if (v == 0xFE) {
             if ((v = in.read()) == 0xFF) {
-                return read(new InputStreamReader(in, "UTF-16BE"), options);
+                reader = new InputStreamReader(in, "UTF-16BE");
             } else {
                 throw new IOException("Invalid Json (begins with 0xFE 0x"+Integer.toHexString(v));
             }
         } else if (v == 0xFF) {
             if ((v = in.read()) == 0xFE) {
-                return read(new InputStreamReader(in, "UTF-16LE"), options);
+                reader = new InputStreamReader(in, "UTF-16LE");
             } else {
                 throw new IOException("Invalid Json (begins with 0xFF 0x"+Integer.toHexString(v));
             }
         } else if (v == 0) {
             if ((v = in.read()) >= 0x20) { // Sniff: probably UTF-16BE
                 in.reset();
-                return read(new InputStreamReader(in, "UTF-16BE"), options);
+                reader = new InputStreamReader(in, "UTF-16BE");
             } else {
                 throw new IOException("Invalid Json (begins with 0x0 0x"+Integer.toHexString(v));
             }
         } else {
             if (in.read() == 0x0) { // Sniff: probably UTF-16LE
                 in.reset();
-                return read(new InputStreamReader(in, "UTF-16LE"), options);
+                reader = new InputStreamReader(in, "UTF-16LE");
             }
             in.reset();
-            return read(new InputStreamReader(in, "UTF-8"), options);
+            reader = new InputStreamReader(in, "UTF-8");
         }
+        return read(reader, options);
     }
 
     /**
@@ -354,7 +383,7 @@ public class Json {
         if (!(in instanceof CharSequenceReader) && !options.isContextFree()) {
             in = new ContextReader(in);
         }
-        return (Json)JsonReader.read(in, options);
+        return new JsonReader(in, options).read();
     }
 
     /**
@@ -369,11 +398,10 @@ public class Json {
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
-        if (!in.markSupported()) {
-            // We don't need mark, but buffering is a good idea
-            in = new BufferedInputStream(in);
+        if (!(in instanceof CountingInputStream)) {
+            in = new CountingInputStream(in);
         }
-        return (Json)CborReader.read(new CountingInputStream(in), options);
+        return new CborReader((CountingInputStream)in, options).read();
     }
 
     /**
@@ -400,11 +428,10 @@ public class Json {
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
-        if (!in.markSupported()) {
-            // We don't need mark, but buffering is a good idea
-            in = new BufferedInputStream(in);
+        if (!(in instanceof CountingInputStream)) {
+            in = new CountingInputStream(in);
         }
-        return (Json)MsgpackReader.read(new CountingInputStream(in), options);
+        return new MsgpackReader((CountingInputStream)in, options).read();
     }
 
     /**
@@ -416,7 +443,7 @@ public class Json {
      * @since 3
      */
     public static Json readMsgpack(final ByteBuffer in, JsonReadOptions options) throws IOException {
-        return readCbor(new ByteBufferInputStream(in), options);
+        return readMsgpack(new ByteBufferInputStream(in), options);
     }
 
     /**
@@ -428,7 +455,10 @@ public class Json {
      * @since 2
      */
     public OutputStream writeCbor(OutputStream out, JsonWriteOptions options) throws IOException {
-        CborWriter.write(this, out, options);
+        if (options == null) {
+            options = DEFAULTWRITEOPTIONS;
+        }
+        new CborWriter(out, options, this).write(this);
         return out;
     }
 
@@ -441,7 +471,10 @@ public class Json {
      * @since 3
      */
     public OutputStream writeMsgpack(OutputStream out, JsonWriteOptions options) throws IOException {
-        MsgpackWriter.write(this, out, options);
+        if (options == null) {
+            options = DEFAULTWRITEOPTIONS;
+        }
+        new MsgpackWriter(out, options, this).write(this);
         return out;
     }
 
@@ -513,8 +546,7 @@ public class Json {
         if (options == null) {
             options = DEFAULTWRITEOPTIONS;
         }
-        SerializerState state = new SerializerState(this, options);
-        core.write(this, out, state);
+        new JsonWriter(out, options, this).write(this);
         if (out instanceof Flushable) {
             ((Flushable)out).flush();
         }
@@ -528,23 +560,27 @@ public class Json {
     public Json duplicate() {
         Json json;
         if (isMap()) {
-            json = new Json(new IMap());
+            json = new Json(null);
             json.setFactory(getFactory());
-            Map<String,Json> om = json._mapValue();
-            for (Map.Entry<String,Json> e : _mapValue().entrySet()) {
-                om.put(e.getKey(), e.getValue().duplicate());
+            Map<String,Json> map = new LinkedHashMap<String,Json>(((Map)core).size());
+            for (Map.Entry<String,Json> e : mapValue().entrySet()) {
+                map.put(e.getKey(), e.getValue().duplicate());
             }
+            json.core = map;
         } else if (isList()) {
-            json = new Json(new IList());
+            json = new Json(null);
             json.setFactory(getFactory());
-            List<Json> il = _listValue();
-            List<Json> ol = json._listValue();
-            for (int i=0;i<il.size();i++) {
-                ol.add(il.get(i).duplicate());
+            List<Json> list = new ArrayList<Json>(((List)core).size());
+            for (Json e : listValue()) {
+                list.add(e.duplicate());
             }
+            json.core = list;
+        } else if (isString()) {
+            json = new Json(core.toString());
         } else {
             json = new Json(core);
         }
+        json.flags = flags;
         return json;
     }
 
@@ -631,7 +667,7 @@ public class Json {
                 } else {
                     sb.append("[");
                     try {
-                        IString.write(pk, 0, sb);
+                        JsonWriter.writeString(pk, 0, sb);
                     } catch (IOException e) {
                         throw new RuntimeException(e);      // Can't happen.
                     }
@@ -679,7 +715,7 @@ public class Json {
             object = new Json(value, getFactory());
         }
         boolean convert = true;
-        if (core instanceof IList) {
+        if (isList()) {
             try {
                 convert = !Character.isDigit(path.charAt(0)) || Integer.parseInt(path) < 0;
             } catch (Exception e) { }
@@ -688,7 +724,7 @@ public class Json {
             convertToMap();
         }
 
-        if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"' && core instanceof IMap) {
+        if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"' && isMap()) {
             // Shortcut
             path = readQuotedPath(path);
             Map<String,Json> m = _mapValue();
@@ -723,7 +759,7 @@ public class Json {
      * @return the object that was previously found at that path, which may be null
      */
     public Json put(int path, Object value) {
-        if (core instanceof IList && path >= 0) {
+        if (isList() && path >= 0) {
             if (value == null) {
                 throw new IllegalArgumentException("value is null");
             }
@@ -740,7 +776,7 @@ public class Json {
             } else {
                 object = new Json(value);
             }
-            return buildlist(path, (IList)core, this, object);
+            return buildlist(path, _listValue(), this, object);
         } else {
             convertToMap();
             return put(Integer.toString(path), value);
@@ -761,13 +797,13 @@ public class Json {
                 // Should not be possible - ???
             } else if (parent.isList()) {
                 int ix = ((Integer)json.getParentKey()).intValue();
-                IList list = (IList)parent.core;
+                List<Json> list = _listValue();
                 Json oldvalue = list.get(ix);
                 notify(parent, Integer.valueOf(ix), oldvalue, null);
                 list.remove(ix);
                 removed = true;
             } else if (parent.isMap()) {
-                IMap map = (IMap)parent.core;
+                Map<String,Json> map = _mapValue();
                 String key = (String)json.getParentKey();
                 Json oldvalue = map.get(key);
                 notify(parent, key, oldvalue, null);
@@ -787,7 +823,7 @@ public class Json {
      */
     public Json remove(Json json) {
         if (isList()) {
-            IList list = (IList)core;
+            List<Json> list = _listValue();
             for (int i=0;i<list.size();i++) {
                 if (list.get(i) == json) {
                     notify(this, Integer.valueOf(i), json, null);
@@ -796,8 +832,8 @@ public class Json {
                 }
             }
         } else if (isMap()) {
-            IMap map = (IMap)core;
-            for (Iterator<Map.Entry<String,Json>> i = map.mapValue(this).entrySet().iterator();i.hasNext();) {
+            Map<String,Json> map = _mapValue();
+            for (Iterator<Map.Entry<String,Json>> i = map.entrySet().iterator();i.hasNext();) {
                 Map.Entry<String,Json> e = i.next();
                 if (e.getValue() == json) {
                     notify(this, e.getKey(), json, null);
@@ -818,9 +854,10 @@ public class Json {
      */
     public Json remove(int path) {
         if (isList()) {
-            return ((IList)core).remove(path);
+            List<Json> l = _listValue();
+            return path >= 0 && path < l.size() ? l.remove(path) : null;
         } else if (isMap()) {
-            return ((IMap)core).remove(Integer.toString(path));
+            return _mapValue().remove(Integer.toString(path));
         }
         return null;
     }
@@ -852,7 +889,8 @@ public class Json {
             } else if (isList()) {
                 try {
                     int ix = Integer.parseInt(path);
-                    json = ((IList)core).get(ix);
+                    List<Json> l = _listValue();
+                    json = ix >= 0 && ix < l.size() ? l.get(ix) : null;
                 } catch (NumberFormatException e) { }
             }
             return json != null && !json.isNull();
@@ -868,10 +906,10 @@ public class Json {
      */
     public boolean has(int path) {
         if (isList()) {
-            Json j = ((IList)core).get(path);
-            return j != null && !j.isNull();
+            List<Json> l = _listValue();
+            return path >= 0 && path < l.size() && !l.get(path).isNull();
         } else if (isMap()) {
-            Json j = ((IMap)core).get(Integer.toString(path));
+            Json j = _mapValue().get(Integer.toString(path));
             return j != null && !j.isNull();
         }
         return false;
@@ -903,11 +941,10 @@ public class Json {
             if (full) {
                 return traverse(path, null);
             } else if (isMap()) {
-                return ((IMap)core).get(path);
+                return _mapValue().get(path);
             } else if (isList()) {
                 try {
-                    int ix = Integer.parseInt(path);
-                    return ((IList)core).get(ix);
+                    return get(Integer.parseInt(path));
                 } catch (NumberFormatException e) {
                     return null;
                 }
@@ -924,9 +961,10 @@ public class Json {
      */
     public Json get(int path) {
         if (isList()) {
-            return ((IList)core).get(path);
+            List<Json> l = _listValue();
+            return path >= 0 && path < l.size() ? l.get(path) : null;
         } else if (isMap()) {
-            return ((IMap)core).get(Integer.toString(path));
+            return _mapValue().get(Integer.toString(path));
         } else {
             return null;
         }
@@ -938,9 +976,9 @@ public class Json {
      */
     public int size() {
         if (isList()) {
-            return ((IList)core).size();
+            return _listValue().size();
         } else if (isMap()) {
-            return ((IMap)core).size();
+            return _mapValue().size();
         } else {
             return 0;
         }
@@ -974,13 +1012,7 @@ public class Json {
      * @return true if the node is a leaf node.
      */
     public boolean isEmpty() {
-        if (isMap()) {
-            return ((IMap)core).size() == 0;
-        } else if (isList()) {
-            return ((IList)core).size() == 0;
-        } else {
-            return true;
-        }
+        return size() == 0;
     }
 
     /**
@@ -1249,31 +1281,32 @@ public class Json {
 
     private void convertToMap() {
         if (!isMap()) {
-            IMap imap = new IMap();
-            if (core instanceof IList) {
-                IList list = (IList)core;
+            Map<String,Json> map = new LinkedHashMap<String,Json>();
+            if (isList()) {
+                List<Json> list = _listValue();
                 List<JsonListener> tlisteners = listeners;
                 listeners = null;
                 for (int i=0;i<list.size();i++) {
                     Json item = list.get(i);
                     String key = Integer.toString(i);
-                    imap.put(key, item);
+                    map.put(key, item);
                     item.parent = this;
                     item.parentkey = key;
                 }
                 listeners = tlisteners;
-            } else if (!(core instanceof INull)) {
+            } else if (!isNull()) {
                 notify(parent, null, this, null);
             }
-            setCore(imap);
+            core = map;
+            setSimpleString(false);
         }
     }
 
     private void convertToList() {
         if (!isList() && !isMap()) {
-            IList ilist = new IList();
             notify(parent, null, this, null);
-            setCore(ilist);
+            core = new ArrayList<Json>();
+            setSimpleString(false);
         }
     }
 
@@ -1281,7 +1314,7 @@ public class Json {
     private static final Object LB = new Object() { public String toString() { return "["; } };
     private static final Object RB = new Object() { public String toString() { return "]"; } };
 
-    private static Json buildlist(int ix, IList ilist, Json ctx, Json child) {
+    private static Json buildlist(int ix, List<Json> ilist, Json ctx, Json child) {
         Json out = null;
         while (ilist.size() < ix) {
             Json t = new Json(null);
@@ -1303,7 +1336,7 @@ public class Json {
     }
 
     private Json traverse(String path, Json finalchild) {
-//        System.out.println();
+//        System.out.println("TRAVERSE: "+this+" path="+path);
         if (path == null) {
             throw new IllegalArgumentException("path is null");
         }
@@ -1317,13 +1350,12 @@ public class Json {
         int len = path.length();
         for (int i=0;ctx != null && i<=len;i++) {
             char c = i == len ? '.' : path.charAt(i);
-            boolean last = i == len || (i == len -1 && c == ']');;
+            boolean last = i == len || (i == len -1 && c == ']');
             if (c == '\'' || c == '\"') {
-                StringBuilder sb = new StringBuilder();
-                StringReader r = new StringReader(path);
                 try {
-                    r.skip(i+1);
-                    i += IString.parseString(c, r, sb);
+                    CharSequenceReader r = new CharSequenceReader(path, i + 1, path.length() - i - 1);
+                    new JsonReader.JsonStringReader(c, r).readString(); // discard
+                    i = r.tell() - 1;
                     continue;
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -1363,7 +1395,6 @@ public class Json {
             } else {
                 continue;
             }
-//            System.out.println(Arrays.toString(stack));
             if (stack[0] == DOT && stack[1] instanceof String) {
                 // . WORD -
                 // if WORD is int and ctx is array, cvt to int and add to array,
@@ -1373,7 +1404,7 @@ public class Json {
                 if (ctx.isList()) {
                     try {
                         int ix = Integer.parseInt(key);
-                        IList ilist = (IList)ctx.core;
+                        List<Json> ilist = ctx._listValue();
                         if (finalchild != null) {
                             Json t = buildlist(ix, ilist, ctx, last ? finalchild : null);
                             if (output == null) {
@@ -1388,10 +1419,10 @@ public class Json {
                         ctx.convertToMap();
                     }
                     if (ctx.isMap()) {
-                        IMap imap = (IMap)ctx.core;
-                        newctx = imap.get(key);
+                        Map<String,Json> map = ctx._mapValue();
+                        newctx = map.get(key);
                         if (finalchild != null && (newctx == null || last)) {
-                            Json t = imap.put(key, newctx = last ? finalchild : new Json(null));
+                            Json t = map.put(key, newctx = last ? finalchild : new Json(null));
                             if (output == null) {
                                 output = t;
                             }
@@ -1399,7 +1430,6 @@ public class Json {
                         }
                     }
                 }
-//                System.out.println("CTX now "+ctx);
                 ctx = newctx;
                 stack[0] = stack[2];
                 stack[1] = stack[3];
@@ -1420,14 +1450,14 @@ public class Json {
                         ctx.convertToList();
                     }
                     if (ctx.isList()) {
-                        IList ilist = (IList)ctx.core;
+                        List<Json> list = ctx._listValue();
                         if (finalchild != null) {
-                            Json t = buildlist(ix, ilist, ctx, last ? finalchild : null);
+                            Json t = buildlist(ix, list, ctx, last ? finalchild : null);
                             if (output == null) {
                                 output = t;
                             }
                         }
-                        newctx = ilist.get(ix);
+                        newctx = ix >= 0 && ix < list.size() ? list.get(ix) : null;
                     }
                 }
                 if (newctx == null) {
@@ -1437,10 +1467,10 @@ public class Json {
                         ctx.convertToMap();
                     }
                     if (ctx.isMap()) {
-                        IMap imap = (IMap)ctx.core;
-                        newctx = imap.get(key);
+                        Map<String,Json> map = ctx._mapValue();
+                        newctx = map.get(key);
                         if (finalchild != null && (newctx == null || last)) {
-                            Json t = imap.put(key, newctx = last ? finalchild : new Json(null));
+                            Json t = map.put(key, newctx = last ? finalchild : new Json(null));
                             if (output == null) {
                                 output = t;
                             }
@@ -1474,7 +1504,23 @@ public class Json {
      * @return the object type
      */
     public String type() {
-        return core.type();
+        if (isBoolean()) {
+            return "boolean";
+        } else if (isNumber()) {
+            return "number";
+        } else if (isString()) {
+            return "string";
+        } else if (isMap()) {
+            return "map";
+        } else if (isList()) {
+            return "list";
+        } else if (isBuffer()) {
+            return "buffer";
+        } else if (isNull()) {
+            return "null";
+        } else {
+            return "unknown-"+core.getClass().getName();        // Shouldn't happen
+        }
     }
 
     /**
@@ -1482,7 +1528,7 @@ public class Json {
      * @return true if the object is null
      */
     public boolean isNull() {
-        return core instanceof INull;
+        return core == null;
     }
 
     /**
@@ -1490,7 +1536,7 @@ public class Json {
      * @return true if the object is a number
      */
     public boolean isNumber() {
-        return core instanceof INumber;
+        return core instanceof Number;
     }
 
     /**
@@ -1498,7 +1544,7 @@ public class Json {
      * @return true if the object is a boolean
      */
     public boolean isBoolean() {
-        return core instanceof IBoolean;
+        return core instanceof Boolean;
     }
 
     /**
@@ -1506,7 +1552,7 @@ public class Json {
      * @return true if the object is a string
      */
     public boolean isString() {
-        return core instanceof IString;
+        return core instanceof CharSequence;
     }
 
     /**
@@ -1514,7 +1560,7 @@ public class Json {
      * @return true if the object is a buffer
      */
     public boolean isBuffer() {
-        return core instanceof IBuffer;
+        return core instanceof ByteBuffer;
     }
 
     /**
@@ -1522,7 +1568,7 @@ public class Json {
      * @return true if the object is a map
      */
     public boolean isMap() {
-        return core instanceof IMap;
+        return core instanceof Map;
     }
 
     /**
@@ -1530,7 +1576,7 @@ public class Json {
      * @return true if the object is a list
      */
     public boolean isList() {
-        return core instanceof IList;
+        return core instanceof List;
     }
 
     /**
@@ -1540,7 +1586,7 @@ public class Json {
      * @return the object value
      */
     public Object value() {
-        return core.value();
+        return core;
     }
 
     /**
@@ -1556,7 +1602,8 @@ public class Json {
      * @param json the json object that is the source of the intended value of this object
      */
     public void setValue(Json json) {
-        setCore(json.core);
+        core = json == null ? null : json.core;
+        setSimpleString(json.isSimpleString());
     }
 
     /**
@@ -1566,7 +1613,22 @@ public class Json {
      * @return the string value of this object
      */
     public String stringValue() {
-        return core.stringValue(this);
+        if (core == null) {
+            return null;
+        } else if (core instanceof ByteBuffer) {
+            ByteBuffer buf = (ByteBuffer)core;
+            StringBuilder sb = new StringBuilder(buf.remaining() * 4 / 3 + 2);
+            try {
+                Base64OutputStream out = new Base64OutputStream(sb);
+                writeBuffer(out);
+                out.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            return sb.toString();
+        } else {
+            return core.toString();
+        }
     }
 
     /**
@@ -1593,6 +1655,22 @@ public class Json {
         return j == null ? null : j.stringValue();
     }
 
+    private static String nice(char c) {
+        if (c >= ' ' && c < 0x80) {
+            return "\"" + c + "\"";
+        } else {
+            return "U+" + Integer.toHexString(c);
+        }
+    }
+
+    private static final int BASE64[] = new int[256];
+    static {
+        String s = new String(Base64OutputStream.BASE64);
+        for (int i=0;i<256;i++) {
+            BASE64[i] = s.indexOf(Character.toString((char)i));
+        }
+    }
+
     /**
      * Return the value of this node as a ByteBuffer. ByteBuffers only exist
      * natively in the CBOR serialization.
@@ -1607,7 +1685,73 @@ public class Json {
      * @since 2
      */
     public ByteBuffer bufferValue() {
-        return core.bufferValue(this);
+        if (core == null) {
+            return null;
+        } else if (core instanceof ByteBuffer) {
+            return (ByteBuffer)core;
+        } else if (core instanceof CharSequence) {
+            CharSequence value = (CharSequence)core;
+            int ilen = value.length();
+            if (ilen == 0) {
+                return ByteBuffer.allocate(0);
+            }
+            if (ilen > 3) {
+                if (value.charAt(ilen - 1) == '=') {
+                    ilen--;
+                    if (value.charAt(ilen - 1) == '=') {
+                        ilen--;
+                    }
+                }
+            }
+            int olen = ilen / 4 * 3;
+            if ((ilen & 3) == 1) {
+                throw new ClassCastException("Base64 failed, length invalid");
+            } else if ((ilen & 3) == 2) {
+                olen++;
+            } else if ((ilen & 3) == 3) {
+                olen += 2;
+            }
+            ByteBuffer buf = ByteBuffer.allocate(olen);
+            for (int i=0;i<ilen;i++) {
+                int c = value.charAt(i);
+                if (c > 255 || (c = BASE64[c]) < 0) {
+                    throw new ClassCastException("Base64 failed on " + nice(value.charAt(i))+" at " + i);
+                }
+                int a = c << 18;
+                c = value.charAt(++i);
+                if (c > 255 || (c = BASE64[c]) < 0) {
+                    throw new ClassCastException("Base64 failed on " + nice(value.charAt(i))+" at " + i);
+                }
+                a |= c << 12;
+                if (++i == ilen) {
+                    buf.put((byte)(a >> 16));
+                    break;
+                } else {
+                    c = value.charAt(i);
+                    if (c > 255 || (c = BASE64[c]) < 0) {
+                        throw new ClassCastException("Base64 failed on " + nice(value.charAt(i))+" at " + i);
+                    }
+                    a |= c << 6;
+                    if (++i == ilen) {
+                        buf.put((byte)(a >> 16));
+                        buf.put((byte)(a >> 8));
+                        break;
+                    } else {
+                        c = value.charAt(i);
+                        if (c > 255 || (c = BASE64[c]) < 0) {
+                            throw new ClassCastException("Base64 failed on " + nice(value.charAt(i))+" at " + i);
+                        }
+                        a |= c;
+                        buf.put((byte)(a >> 16));
+                        buf.put((byte)(a >> 8));
+                        buf.put((byte)a);
+                    }
+                }
+            }
+            return buf;
+        } else {
+            throw new ClassCastException("Value is a " + type());
+        }
     }
 
     /**
@@ -1648,7 +1792,87 @@ public class Json {
      * @return the number value of this object
      */
     public Number numberValue() {
-        return core.numberValue(this);
+        if (core == null) {
+            return null;
+        } else if (core instanceof Number) {
+            return (Number)core;
+        } else if (core instanceof Boolean) {
+            if (isStrict()) {
+                throw new ClassCastException("Cannot convert boolean " + core + " to number in strict mode");
+            } else {
+                return ((Boolean)core).booleanValue() ? 1 : 0;
+            }
+        } else if (core instanceof CharSequence) {
+            if (isStrict()) {
+                throw new ClassCastException("Cannot convert string \"" + core + "\" to number in strict mode");
+            } else {
+                CharSequence value = (CharSequence)core;
+                SimplestReader r = new SimplestReader(value);
+                // Necessary to ensure we only parse exactly what is specified at json.org
+                boolean valid = true;
+                boolean real = false;
+                int c = r.read();
+                if (c == '-') {
+                    c = r.read();
+                }
+                if (c >= '1' && c <= '9') {
+                    do {
+                        c = r.read();
+                    } while (c >= '0' && c <= '9');
+                } else if (c == '0') {
+                    c = r.read();
+                } else {
+                    valid = false;
+                }
+                if (valid && c == '.') {
+                    real = true;
+                    c = r.read();
+                    if (c >= '0' && c <= '9') {
+                        do {
+                            c = r.read();
+                        } while (c >= '0' && c <= '9');
+                    } else {
+                        valid = false;
+                    }
+                }
+                if (valid && (c == 'e' || c == 'E')) {
+                    real = true;
+                    c = r.read();
+                    if (c == '-' || c == '+') {
+                        c = r.read();
+                    }
+                    if (c >= '0' && c <= '9') {
+                        do {
+                            c = r.read();
+                        } while (c >= '0' && c <= '9');
+                    } else {
+                        valid = false;
+                    }
+                }
+                if (valid && c == -1) {
+                    try {
+                        if (!real && value.length() < 10) {
+                            return Integer.valueOf(value.toString());
+                        }
+                        if (!real && value.length() < 19) {
+                            return Long.valueOf(value.toString());
+                        }
+                        return Double.valueOf(value.toString());
+                    } catch (NumberFormatException e) { }
+                }
+                try {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Cannot convert ");
+                    JsonWriter.writeString(value, 0, sb);
+                    sb.append(" to number");
+                    throw new ClassCastException(sb.toString());
+                } catch (IOException e2) {
+                    throw new RuntimeException(e2); // can't happen
+                }
+            }
+        } else {
+            throw new ClassCastException("Value is a " + type());
+        }
     }
 
     /**
@@ -1688,7 +1912,39 @@ public class Json {
      * @return the int value of this object
      */
     public int intValue() {
-        return core.intValue(this);
+        if (core == null) {
+            throw new ClassCastException("Value is null");
+        } else if (core instanceof Number) {
+            return ((Number)core).intValue();
+        } else if (core instanceof Boolean) {
+            if (isStrict()) {
+                throw new ClassCastException("Cannot convert boolean " + core + " to integer in strict mode");
+            } else {
+                return ((Boolean)core).booleanValue() ? 1 : 0;
+            }
+        } else if (core instanceof CharSequence) {
+            if (isStrict()) {
+                throw new ClassCastException("Cannot convert string \"" + core + "\" to integer in strict mode");
+            } else {
+                CharSequence value = (CharSequence)core;
+                try {
+                    if (value.length() < 12) {
+                        return Integer.parseInt(value.toString());     // Faster than numberValue.toString()
+                    }
+                } catch (NumberFormatException e) {}
+                try {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Cannot convert ");
+                    JsonWriter.writeString(value, 0, sb);
+                    sb.append(" to int");
+                    throw new ClassCastException(sb.toString());
+                } catch (IOException e2) {
+                    throw new RuntimeException(e2); // can't happen
+                }
+            }
+        } else {
+            throw new ClassCastException("Value is a " + type());
+        }
     }
 
     /**
@@ -1728,7 +1984,35 @@ public class Json {
      * @return the long value of this object
      */
     public long longValue() {
-        return core.longValue(this);
+        if (core == null) {
+            throw new ClassCastException("Value is null");
+        } else if (core instanceof Number) {
+            return ((Number)core).longValue();
+        } else if (core instanceof Boolean) {
+            return intValue();
+        } else if (core instanceof CharSequence) {
+            if (isStrict()) {
+                throw new ClassCastException("Cannot convert string \"" + core + "\" to long in strict mode");
+            } else {
+                CharSequence value = core.toString();
+                try {
+                    if (value.length() < 20) {
+                        return Long.parseLong(value.toString()); // Faster than numberValue.toString()
+                    }
+                } catch (NumberFormatException e) {}
+                try {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Cannot convert ");
+                    JsonWriter.writeString(value, 0, sb);
+                    sb.append(" to long");
+                    throw new ClassCastException(sb.toString());
+                } catch (IOException e2) {
+                    throw new RuntimeException(e2); // can't happen
+                }
+            }
+        } else {
+            throw new ClassCastException("Value is a " + type());
+        }
     }
 
     /**
@@ -1768,7 +2052,11 @@ public class Json {
      * @return the float value of this object
      */
     public float floatValue() {
-        return core.floatValue(this);
+        if (core == null) {
+            throw new ClassCastException("Value is null");
+        } else {
+            return numberValue().floatValue();
+        }
     }
 
     /**
@@ -1808,7 +2096,11 @@ public class Json {
      * @return the double value of this object
      */
     public double doubleValue() {
-        return core.doubleValue(this);
+        if (core == null) {
+            throw new ClassCastException("Value is null");
+        } else {
+            return numberValue().doubleValue();
+        }
     }
 
     /**
@@ -1848,7 +2140,26 @@ public class Json {
      * @return the boolean value of this object
      */
     public boolean booleanValue() {
-        return core.booleanValue(this);
+        if (core == null) {
+            throw new ClassCastException("Value is null");
+        } else if (core instanceof Boolean) {
+            return ((Boolean)core).booleanValue();
+        } else if (core instanceof CharSequence) {
+            if (isStrict()) {
+                throw new ClassCastException("Cannot convert string \"" + core + "\" to boolean in strict mode");
+            } else {
+                CharSequence value = (CharSequence)core;
+                return value.length() != 5 || !value.toString().equals("false") || floatValue() != 0;
+            }
+        } else if (core instanceof Number) {
+            if (isStrict()) {
+                throw new ClassCastException("Cannot convert number " + core + " to boolean in strict mode");
+            } else {
+                return floatValue() == 0;
+            }
+        } else {
+            throw new ClassCastException("Value is a " + type());
+        }
     }
 
     /**
@@ -1875,13 +2186,27 @@ public class Json {
         return j == null ? false : j.booleanValue();
     }
 
+    @SuppressWarnings("unchecked") Map<String,Json> _mapValue() {
+        return (Map<String,Json>)core;
+    }
+
+    @SuppressWarnings("unchecked") List<Json> _listValue() {
+        return (List<Json>)core;
+    }
+
     /**
      * Return the value of this node as a map. The returned Map is read-only
      * @throws ClassCastException if the node is not a map.
      * @return the read-only map value of this object
      */
     public Map<String,Json> mapValue() {
-        return Collections.unmodifiableMap(_mapValue());
+        if (core == null) {
+            return null;
+        } else if (core instanceof Map) {
+            return Collections.<String,Json>unmodifiableMap(_mapValue());
+        } else {
+            throw new ClassCastException("Value is a " + type());
+        }
     }
 
     /**
@@ -1908,17 +2233,19 @@ public class Json {
         return j == null ? null : j.mapValue();
     }
 
-    Map<String,Json> _mapValue() {
-        return core.mapValue(this);
-    }
-
     /**
      * Return the value of this node as a list. The returned List is read-only
      * @throws ClassCastException if the node is not a list
      * @return the read-only list value of this object
      */
     public List<Json> listValue() {
-        return Collections.unmodifiableList(_listValue());
+        if (core == null) {
+            return null;
+        } else if (core instanceof List) {
+            return Collections.<Json>unmodifiableList(_listValue());
+        } else {
+            throw new ClassCastException("Value is a " + type());
+        }
     }
 
     /**
@@ -1943,10 +2270,6 @@ public class Json {
     public List<Json> listValue(int path) {
         Json j = get(path);
         return j == null ? null : j.listValue();
-    }
-
-    List<Json> _listValue() {
-        return core.listValue(this);
     }
 
     /**
@@ -1974,15 +2297,14 @@ public class Json {
             }
         }
         if (isMap()) {
-            Map<String,Object> out = new LinkedHashMap<String,Object>(core.mapValue(this));
+            Map<String,Object> out = new LinkedHashMap<String,Object>(_mapValue());
             for (Map.Entry<String,Object> e : out.entrySet()) {
                 e.setValue(((Json)e.getValue()).objectValue(factory));
             }
             return out;
         } else if (isList()) {
-            List<Json> list = core.listValue(this);
-            List<Object> out = new ArrayList<Object>(list.size());
-            for (Json o : list) {
+            List<Object> out = new ArrayList<Object>(size());
+            for (Json o : _listValue()) {
                 out.add(o.objectValue(factory));
             }
             return out;
@@ -1995,14 +2317,55 @@ public class Json {
      * Return a hashCode based on the {@link #value()}
      */
     public int hashCode() {
-        return core.hashCode();
+        return core == null ? 0 : core.hashCode();
     }
 
     /**
      * Return true if the specified object is a Json object and has an equal {@link #value() value}
      */
     public boolean equals(Object o) {
-        return o instanceof Json && core.equals(((Json)o).core);
+        if (o instanceof Json) {
+            Json j = (Json)o;
+            if (core == null) {
+                return j.core == null;
+            } else if (core instanceof Number) {
+                if (j.core instanceof Number) {
+                    Number n1 = (Number)core;
+                    Number n2 = (Number)j.core;
+                    if (n1.getClass() == n2.getClass()) {
+                        return n1.equals(n2);
+                    }
+                    // Ensure we only care about the numeric value, not the storage type
+                    BigDecimal b1 = n1 instanceof BigDecimal ? (BigDecimal)n1 : n1 instanceof Float || n1 instanceof Double ? BigDecimal.valueOf(n1.doubleValue()) : n1 instanceof BigInteger ? new BigDecimal((BigInteger)n1) : BigDecimal.valueOf(n1.longValue());
+                    BigDecimal b2 = n2 instanceof BigDecimal ? (BigDecimal)n2 : n2 instanceof Float || n2 instanceof Double ? BigDecimal.valueOf(n2.doubleValue()) : n2 instanceof BigInteger ? new BigDecimal((BigInteger)n2) : BigDecimal.valueOf(n2.longValue());
+                    return b1.compareTo(b2) == 0;
+                }
+            } else if (core instanceof CharSequence) {
+                if (core.getClass() == j.core.getClass()) {
+                    return core.equals(j.core);
+                } else {
+                    CharSequence c1 = (CharSequence)core;
+                    CharSequence c2 = (CharSequence)j.core;
+                    int s = c1.length();
+                    if (s == c2.length()) {
+                        for (int i=0;i<s;i++) {
+                            if (c1.charAt(i) != c2.charAt(i)) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+            } else if (core instanceof ByteBuffer) {
+                if (j.core instanceof ByteBuffer) {
+                    return ((ByteBuffer)core).position(0).equals(((ByteBuffer)j.core).position(0));
+                }
+            } else {
+                return core.equals(j.core);
+            }
+        }
+        return false;
     }
 
     /**
@@ -2076,6 +2439,27 @@ public class Json {
         ByteBuffer buf = bufferValue();
         buf.position(0);
         Channels.newChannel(out).write(buf);
+    }
+
+    /**
+     * Write this objects StringValue to the specified Appendable.
+     * Can be overridden if the Appendable needs to be derived externally,
+     * perhaps because it's very large and of indeterminate length.
+     * @since 4
+     */
+    protected void writeString(Appendable out) throws IOException {
+        out.append((CharSequence)core);
+    }
+
+    private static class SimplestReader {
+        private final CharSequence s;
+        private int i;
+        SimplestReader(CharSequence s) {
+            this.s = s;
+        }
+        int read() {
+            return i == s.length() ? -1 : s.charAt(i++);
+        }
     }
 
 }

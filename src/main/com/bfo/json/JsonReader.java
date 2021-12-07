@@ -8,121 +8,138 @@ import java.io.*;
 
 /**
  * Class to read/write objects as JSON.
- * Can be overridden to support custom serialization. For writing this should involve
- * overriding the {@link #getCustomWrite} method like so:
- * <pre class="code">
- * public Object getCustomWrite(Object o) {
- *     if (o instanceof Widget) {
- *         Map m = new HashMap();
- *         m.put("type", "widget");
- *         m.put("name", widget.getName());
- *         return m;
- *     } else {
- *         return super.getCustomWrite(o);
- *     }
- * }
- * </pre>
- * and for reading the {@link #getCustomRead} methods:
- * <pre class="code">
- * public Object getCustomRead(Map m) {
- *     if ("widget".equals(m.get("type"))) {
- *         return Widget.getByName((String)m.get("name"));
- *     } else {
- *         return super.getCustomRead();
- .model2*     }
- * }
- * </pre>
- *
- * This class is thread safe and can be used in multiple threads simultaneously (presuming
- * the "lax" and "pretty" values are not being continually modified)
  */
 class JsonReader {
 
-    private final static Object ENDARRAY = new Object() { public String toString() { return "]"; } };
-    private final static Object ENDMAP = new Object() { public String toString() { return "}"; } };
-    private final static Object COMMA = new Object() { public String toString() { return ","; } };
-    private final static Object COLON = new Object() { public String toString() { return ":"; } };
+    private final Reader reader;
+    private final JsonReadOptions options;
+    private final JsonReadOptions.Filter filter;
+    private final boolean strict;
 
+    JsonReader(Reader reader, JsonReadOptions options) {
+        this.reader = reader;
+        this.options = options;
+        this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
+        this.strict = options.isStrictTypes();
+    }
+ 
     /**
      * Parse a JSON serialized object from the Reader and return the Object it represents
      */
-    static Object read(Reader reader, JsonReadOptions options) throws IOException {
-        Object o = readToken(reader, null, false, options);
+    Json read() throws IOException {
+        Json j = readToken(0);
         int c;
-        if ((c=stripBlanks(reader, options))!=-1) {
-            throw new IllegalArgumentException("Unexpected trailing character '"+((char)c)+"'");
+        if ((c=stripBlanks()) != -1) {
+            unexpected("trailing ", c);
         }
-        return o;
+        return j;
     }
 
-    private static Object readToken(Reader reader, Object additional, boolean iskey, JsonReadOptions options) throws IOException {
-        Object out = null;
-        int c = stripBlanks(reader, options);
-        if (c < 0) {
+    private void unexpected(String type, int c) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Unexpected");
+        sb.append(type);
+        sb.append(" character ");
+        if (c >= ' ' && c < 127) {
+            sb.append('\'');
+            sb.append((char)c);
+            sb.append('\'');
+        } else {
+            sb.append("0x");
+            sb.append(Integer.toHexString(c));
+        }
+        sb.append(" at ");
+        sb.append(reader);
+        throw new IllegalArgumentException(sb.toString());
+    }
+
+
+    private Json readToken(int special) throws IOException {
+        Json out = null;
+        int c = stripBlanks();
+        if (c == special && special > 0) {
+            return null;
+        } else if (c < 0) {
             throw new EOFException();
-        } else if (c=='[') {
-            Json list = new Json(new IList());
-            Object o;
+        } else if (c == '[') {
+            // Because passing a populated collection into Json() clones items
+            out = filter.createList();
+            List<Json> list = out._listValue();
+            special = ']';
             while (true) {
-                o = readToken(reader, ENDARRAY, false, options);
-                if (o == ENDARRAY) {
-                    if (list.size() == 0 || options.isAllowTrailingComma()) {
-                        break;
-                    } else {
-                        throw new IllegalArgumentException("Unexpected token "+o+" at "+reader);
-                    }
-                } else if (o instanceof Json) {
-                    Json child = (Json)o;
-                    int size = list.size();
-                    list._listValue().add(child);
-                    Json.notify(list, Integer.valueOf(size), null, child);      // To set parent
+                int size = list.size();
+                filter.enter(out, size);
+                Json child = readToken(special);
+                filter.exit(out, size);
+                if (child  == null) {
+                    break;
+                }
+                list.add(child);
+                Json.notify(out, Integer.valueOf(size), null, child);
+                c = stripBlanks();
+                if (c == ']') {
+                    break;
+                } else if (c != ',') {
+                    unexpected("", c);
+                }
+                special = 0;
+            }
+        } else if (c == '{') {
+            // Because passing a populated collection into Json() clones items
+            out = filter.createMap();
+            Map<String,Json> map = out._mapValue();
+            while (true) {
+                c = stripBlanks();
+                if (c < 0) {
+                    throw new EOFException();
+                } else if (c == '}' && (map.size() == 0 || options.isAllowTrailingComma())) {
+                    break;
                 } else {
-                    throw new IllegalArgumentException("Unexpected response "+o);
-                }
-                if ((o = readEnd(reader, options)) == ENDARRAY) {
-                    break;
-                } else if (o != COMMA) {
-                    throw new IllegalArgumentException("Unexpected token "+o+" at "+reader);
-                }
-            }
-            out = list;
-        } else if (c=='{') {
-            Json map = new Json(new IMap());
-            Object o;
-            while (true) {
-                Object key = readToken(reader, ENDMAP, true, options);
-                if (key == ENDMAP) {
-                    if (map.size() == 0 || options.isAllowTrailingComma()) {
-                        break;
+                    String key;
+                    if (c == '"') {
+                        key = new JsonStringReader((char)c, reader).readString();
+                    } else if (options.isAllowUnquotedKey() && "-0123456789{}[].".indexOf(c) < 0) {
+                        StringBuilder sb = new StringBuilder();
+                        sb.append((char)c);
+                        reader.mark(1);
+                        while ((c=reader.read()) >= 0 && ((c>='a' && c<='z') || (c>='A' && c<='Z') || (c>='0' && c<='9') || c=='_' || c=='-' || c=='.')) {
+
+                            reader.mark(1);
+                            sb.append((char)c);
+                        }
+                        reader.reset();
+                        key = sb.toString();
                     } else {
-                        throw new IllegalArgumentException("Unexpected token "+key+" at "+reader);
+                        unexpected("", c);
+                        key = null;
+                    }
+                    c = stripBlanks();
+                    if (c != ':') {
+                        unexpected("", c);
+                    }
+                    if (options.isNFC()) {
+                        key = Normalizer.normalize(key, Normalizer.Form.NFC);
+                    }
+                    filter.enter(out, key);
+                    Json child = readToken(0);
+                    filter.exit(out, key);
+                    map.put(key, child);
+                    Json.notify(out, key, null, child);
+                    c = stripBlanks();
+                    if (c == '}') {
+                        break;
+                    } else if (c != ',') {
+                        unexpected("", c);
                     }
                 }
-                if (!(key instanceof String)) {
-                    throw new IllegalArgumentException("Invalid object key "+key+" at "+reader);
-                }
-                if ((o = readEnd(reader, options)) != COLON) {
-                    throw new IllegalArgumentException("Unexpected token "+o+" at "+reader);
-                }
-                Json child = (Json)readToken(reader, null, false, options);
-                if (options.isNFC()) {
-                    key = Normalizer.normalize((String)key, Normalizer.Form.NFC);
-                }
-                map._mapValue().put((String)key, child);
-                Json.notify(map, key, null, child);     // To set parent
-                if ((o = readEnd(reader, options)) == ENDMAP) {
-                    break;
-                } else if (o != COMMA) {
-                    throw new IllegalArgumentException("Unexpected token "+o+" at "+reader);
-                }
             }
-            out = map;
         } else if ((c <= '9' && c >= '0') || c == '-') {
             long v = 0;
             StringBuilder sb = null;
             boolean real = false;
             boolean negzero = false;
             short exp = 0;
+            Number n;
 
             // Wringing the pips out of this one.
             // Optimized for most common case, where we're parsing an integer or long
@@ -235,9 +252,9 @@ class JsonReader {
             if (sb == null) {
                 int iv = (int)v;
                 if (v == iv) {
-                    out = new Json(new INumber(Integer.valueOf(iv), options));
+                    n = Integer.valueOf(iv);
                 } else {
-                    out = new Json(new INumber(Long.valueOf(v), options));
+                    n = Long.valueOf(v);
                 }
             } else {
                 String s = sb.toString();
@@ -258,40 +275,32 @@ class JsonReader {
                             BigDecimal bd = new BigDecimal(s);
                             double d2 = bd.doubleValue();
                             if (d2 == d2 && !Double.isInfinite(d2) && bd.equals(new BigDecimal(d2))) {
-                                out = new Json(new INumber(d2, options));
+                                n = d2;
                             } else {
-                                out = new Json(new INumber(bd, options));
+                                n = bd;
                             }
                         } else {
-                            out = new Json(new INumber(d, options));
+                            n = d;
                         }
                     } else if (exp != 0) {
-                        out = new Json(new INumber(new BigDecimal(s).toBigInteger(), options));
+                        n = new BigDecimal(s).toBigInteger();
                     } else {
-                        out = new Json(new INumber(new BigInteger(s), options));
+                        n = new BigInteger(s);
                     }
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Invalid number \""+s+"\" at "+reader, e);
                 }
             }
             reader.reset();
+            out = filter.createNumber(n).setStrict(strict);
         } else if (c == '"') {
-            if (out == null) {
-                try {
-                    StringBuilder sb = new StringBuilder();
-                    IString.parseString((char)c, reader, sb);
-                    out = sb.toString();
-                } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException(e.getMessage()+" at "+reader);
-                }
+            out = filter.createString(new JsonStringReader((char)c, reader), -1);
+            if (options.isNFC() && out.isString()) {
+                String s = out.stringValue();
+                s = Normalizer.normalize(s, Normalizer.Form.NFC);
+                out.setValue(new Json(s));
             }
-            if (!iskey) {
-                if (options.isNFC()) {
-                    out = Normalizer.normalize((String)out, Normalizer.Form.NFC);
-                }
-                out = new Json(new IString((String)out, options));
-            }
-        } else if ((c=='t' || c=='f' || c=='n') && !iskey) {
+        } else if (c == 't' || c == 'f' || c == 'n') {
             StringBuilder sb = new StringBuilder();
             sb.append((char)c);
             reader.mark(1);
@@ -302,57 +311,22 @@ class JsonReader {
             reader.reset();
             String q = sb.toString();
             if (q.equals("true")) {
-                out = new Json(new IBoolean(true, options));
+                out = filter.createBoolean(true);
             } else if (q.equals("false")) {
-                out = new Json(new IBoolean(false, options));
+                out = filter.createBoolean(false);
             } else if (q.equals("null")) {
-                out = new Json(null);
+                out = filter.createNull();
             } else {
                 throw new IllegalArgumentException("Invalid token \""+q+"\" at "+reader);
             }
-        } else if (c==']' && additional==ENDARRAY) {
-            out = ENDARRAY;
-        } else if (c=='}' && additional==ENDMAP) {
-            out = ENDMAP;
-        } else if (iskey && options.isAllowUnquotedKey()) {
-            StringBuilder sb = new StringBuilder();
-            sb.append((char)c);
-            reader.mark(1);
-            while ((c=reader.read()) >= 0 && ((c>='a' && c<='z') || (c>='A' && c<='Z') || (c>='0' && c<='9') || c=='_' || c=='-' || c=='.')) {
-
-                reader.mark(1);
-                sb.append((char)c);
-            }
-            reader.reset();
-            out = sb.toString();
         } else {
-            throw new IllegalArgumentException("Unexpected token '"+((char)c)+"' at "+reader);
+            unexpected("", c);
         }
-//        System.out.println("-> read(1) "+out);
+        out.setStrict(strict);
         return out;
     }
 
-    private static Object readEnd(Reader reader, JsonReadOptions options) throws IOException, IllegalArgumentException {
-        Object out;
-        int c = stripBlanks(reader, options);
-        if (c==']') {
-            out = ENDARRAY;
-        } else if (c=='}') {
-            out = ENDMAP;
-        } else if (c==',') {
-            out = COMMA;
-        } else if (c==':') {
-            out = COLON;
-        } else if (c==-1) {
-            throw new EOFException();
-        } else {
-            throw new IllegalArgumentException("Unexpected character '"+((char)c)+"' at "+reader);
-        }
-//        System.out.println("--> read(2) "+out);
-        return out;
-    }
-
-    private static int stripBlanks(Reader reader, JsonReadOptions options) throws IOException {
+    private int stripBlanks() throws IOException {
         int c;
         while ((c=reader.read()) >= 0 && (c==' ' || c=='\n' || c=='\t' || c=='\r')) {
 //            System.out.println("-> skip(1)="+((char)c));
@@ -376,7 +350,7 @@ class JsonReader {
                 }
                 comment.append("*/");
 //                System.out.println("Read Comment \""+comment+"\": c="+((char)c)+" "+((int)c));
-                return stripBlanks(reader, options);
+                return stripBlanks();
             } else if (c < 0) {
                 throw new EOFException("Trailing /");
             } else {
@@ -384,6 +358,111 @@ class JsonReader {
             }
         }
         return c;
+    }
+
+    static class JsonStringReader extends FilterReader {
+
+        private static final boolean[] literal = new boolean[128];
+        static {
+            for (int c=0;c<128;c++) {
+                literal[c] = c == 127 || !(Character.isISOControl(c) || c == '\\' || c == '"' || c == '\'');
+            }
+        }
+        private final char quote;
+        boolean inquotes = true;
+        private boolean eof;
+
+        JsonStringReader(char quote, Reader reader) {
+            super(reader);
+            this.quote = quote;
+        }
+
+        private int hexnibble(int c) {
+            if (c>='0' & c<='9') {
+                return c - '0';
+            } else if (c<='F' & c>='A') {
+                return c - 'A' + 10;
+            } else if (c<='f' & c>='a') {
+                return c - 'a' + 10;
+            } else if (c < 0) {
+                throw new IllegalArgumentException("Unexpected EOF in hex string at " + in);
+            } else {
+                throw new IllegalArgumentException("Invalid hex digit 0x" + Integer.toHexString(c) + " at " + in);
+            }
+        }
+
+        @Override public int read() throws IOException {
+            if (eof) {
+                return -1;
+            }
+            int c = in.read();
+            if (c < 0) {
+                throw new IllegalArgumentException("Unterminated string at " + in);
+            } else if (c < 127 && literal[c]) {
+                return c;
+            } else if (c == quote) {
+                eof = true;
+                return -1;
+            } else if (c == '\\') {
+                c = in.read();
+                switch (c) {
+                    case '\\':
+                    case '\"':
+                    case '/':
+                        return c;
+                    case 'u':
+                        int v = (hexnibble(in.read()) << 12) | (hexnibble(in.read()) << 8) | (hexnibble(in.read()) << 4) | hexnibble(in.read());
+                        return v;
+                    case 'n':
+                        return '\n';
+                    case 'r':
+                        return '\r';
+                    case 't':
+                        return '\t';
+                    case 'b':
+                        return '\b';
+                    case 'f':
+                        return '\f';
+                    default:
+                        throw new IOException("Invalid trailing backslash in string at " + in);
+                }
+            } else if (!Character.isISOControl(c)) {
+                return c;
+            } else {
+                throw new IllegalArgumentException("Invalid string character 0x" + Integer.toHexString(c) + " at " + in);
+            }
+        }
+
+        @Override public long skip(long n) throws IOException {
+            int c = 0;
+            while (c < n && read() > 0) {
+                c++;
+            }
+            return c;
+        }
+
+        @Override public int read(char[] buf, int off, int len) throws IOException {
+            for (int i=0;i<len;i++) {
+                int v = read();
+                if (v < 0) {
+                    return i == 0 ? -1 : i;
+                }
+                buf[off++] = (char)v;
+            }
+            return len;
+        }
+
+        @Override public void close() {
+        }
+
+        String readString() throws IOException {
+            StringBuilder sb = new StringBuilder();
+            int c;
+            while ((c=read()) >= 0) {
+                sb.append((char)c);
+            }
+            return sb.toString();
+        }
     }
 
 }
