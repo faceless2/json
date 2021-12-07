@@ -10,10 +10,42 @@ import java.text.*;
 
 class MsgpackWriter {
 
-    static void write(Json j, OutputStream out, JsonWriteOptions options) throws IOException {
-        Core o = j.getCore();
-        if (o instanceof INumber) {
-            Number n = o.numberValue();
+    private final OutputStream out;
+    private final JsonWriteOptions options;
+    private final JsonWriteOptions.Filter filter;
+    private final boolean filtered;
+    private final Appendable stringWriter;
+
+    MsgpackWriter(OutputStream out, JsonWriteOptions options, Json root) {
+        this.out = out;
+        this.options = options;
+        this.filtered = options.getFilter() != null;
+        this.filter = options.initializeFilter(root);
+        this.stringWriter = new UTF8Writer(out, options.isNFC()) {
+            @Override void writeLength(int len) throws IOException {
+                if (len <= 31) {
+                    out.write(0xa0 + len);
+                } else if (len <= 255) {
+                    out.write(0xd9);
+                    out.write(len);
+                } else if (len <= 65535) {
+                    out.write(0xda);
+                    out.write(len>>8);
+                    out.write(len);
+                } else {
+                    out.write(0xdb);
+                    out.write(len>>24);
+                    out.write(len>>16);
+                    out.write(len>>8);
+                    out.write(len);
+                }
+            }
+        };
+    }
+
+    void write(Json j) throws IOException {
+        if (j.isNumber()) {
+            Number n = j.numberValue();
             if (n instanceof BigDecimal) {      // No BigDecimal in MsgPack
                 n = Double.valueOf(n.doubleValue());
             }
@@ -118,10 +150,10 @@ class MsgpackWriter {
                 out.write((int)(v>>8));
                 out.write((int)v);
             }
-        } else if (o instanceof IBuffer) {
+        } else if (j.isBuffer()) {
             int tag = (int)j.getTag();
-            final ByteBuffer[] holder = new ByteBuffer[] { o.bufferValue() };
-            if (options != null && options.getFilter() != null && options.getFilter().isProxy(j)) {
+            final ByteBuffer[] holder = new ByteBuffer[] { j.bufferValue() };
+            if (j.getClass() != Json.class) {
                 // Msgpack has no "indefinite length" option, so just make a bytebuffer
                 // from the output written by the proxy
                 ByteArrayOutputStream bout = new ByteArrayOutputStream() {
@@ -129,7 +161,7 @@ class MsgpackWriter {
                         holder[0] = ByteBuffer.wrap(buf, 0, count);
                     }
                 };
-                options.getFilter().proxyWrite(j, bout);
+                j.writeBuffer(bout);
                 bout.close();
             }
             ByteBuffer b = holder[0];
@@ -193,11 +225,12 @@ class MsgpackWriter {
                 out.write(s);
                 Channels.newChannel(out).write(b);
             }
-        } else if (o instanceof IString) {
-            writeString(o.stringValue(), out, options);
-        } else if (o instanceof IList) {
-            List<Json> l = o.listValue();
-            int s = l.size();
+        } else if (j.isString()) {
+            j.writeString(stringWriter);
+        } else if (j.isList()) {
+            List<Json> list = j._listValue();
+            // todo how do we do filtering here? no indefinite length so not possible without temp buffer
+            int s = list.size();
             if (s <= 15) {
                 out.write(0x90 | s);
             } else if (s <= 65535) {
@@ -211,11 +244,15 @@ class MsgpackWriter {
                 out.write(s>>8);
                 out.write(s);
             }
-            for (Json j2 : o.listValue()) {
-                write(j2, out, options);
+            for (Json j2 : list) {
+                write(j2);
             }
-        } else if (o instanceof IMap) {
-            Map<String,Json> map = o.mapValue();
+        } else if (j.isMap()) {
+            Map<String,Json> map = j._mapValue();
+            // todo how do we do filtering here? no indefinite length so not possible without temp buffer
+            if (options.isSorted()) {
+                map = new TreeMap<String,Json>(map);
+            }
             int s = map.size();
             if (s <= 15) {
                 out.write(0x80 | s);
@@ -230,109 +267,20 @@ class MsgpackWriter {
                 out.write(s>>8);
                 out.write(s);
             }
-            if (options != null && options.isSorted()) {
-                map = new TreeMap<String,Json>(map);
-            }
             for (Map.Entry<String,Json> e : map.entrySet()) {
-                writeString(e.getKey(), out, options);
-                write(e.getValue(), out, options);
+                stringWriter.append(e.getKey());
+                write(e.getValue());
             }
-        } else if (o instanceof IBoolean) {
-            if (o.booleanValue()) {
+        } else if (j.isBoolean()) {
+            if (j.booleanValue()) {
                 out.write(0xc3);
             } else {
                 out.write(0xc2);
             }
-        } else if (o == INull.INSTANCE) {
+        } else if (j.isNull()) {
             out.write(0xc0);
         } else {
-            throw new IOException("Unknown object "+o);
-        }
-    }
-
-    private static void writeString(String s, OutputStream out, JsonWriteOptions options) throws IOException {
-        int len = 0;
-        if (options != null && options.isNFC()) {
-            s = Normalizer.normalize(s, Normalizer.Form.NFC);
-        }
-        int slen = s.length();
-        if (slen < 1024) {      // arbitrary limit will still catch most strings. Aiming for stack alloc
-            byte[] buf = new byte[slen * 4];
-            for (int i=0;i<slen;i++) {
-                int c = s.charAt(i);
-                if (c < 0x80) {
-                    buf[len++] = (byte)c;
-                } else if (c < 0x800) {
-                    buf[len++] = (byte)((c >> 6) | 0300);
-                    buf[len++] = (byte)((c & 077) | 0200);
-                } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length()) {
-                    c = ((c-0xd7c0)<<10) | (s.charAt(++i)&0x3ff);
-                    buf[len++] = (byte)((c >> 18) | 0360);
-                    buf[len++] = (byte)(((c >> 12) & 077) | 0200);
-                    buf[len++] = (byte)(((c >> 6) & 077) | 0200);
-                    buf[len++] = (byte)((c & 077) | 0200);
-                } else {
-                    buf[len++] = (byte)((c >> 12) | 0340);
-                    buf[len++] = (byte)(((c >> 6) & 077) | 0200);
-                    buf[len++] = (byte)((c & 077) | 0200);
-                }
-            }
-            if (len <= 31) {
-                out.write(0xa0 + len);
-            } else if (len <= 255) {
-                out.write(0xd9);
-                out.write(len);
-            } else {
-                out.write(0xda);
-                out.write(len>>8);
-                out.write(len);
-            }
-            out.write(buf, 0, len);
-        } else {
-            for (int i=0;i<s.length();i++) {
-                char c = s.charAt(i);
-                if (c < 0x7f) {
-                    len++;
-                } else if (c < 0x800) {
-                    len += 2;
-                } else if (c >= 0xd800 && c <= 0xdbff) {
-                    i++;
-                    len += 4;
-                } else {
-                    len += 3;
-                }
-            }
-            if (len <= 65535) {
-                out.write(0xda);
-                out.write(len>>8);
-                out.write(len);
-            } else {
-                out.write(0xdb);
-                out.write(len>>24);
-                out.write(len>>16);
-                out.write(len>>8);
-                out.write(len);
-            }
-            // Measurably faster than OutputStreamWriter, as we have to init it each time.
-            for (int i=0;i<s.length();i++) {
-                int c = s.charAt(i);
-                if (c < 0x80) {
-                    out.write(c);
-                } else if (c < 0x800) {
-                    out.write((c >> 6) | 0300);
-                    out.write((c & 077) | 0200);
-                } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length()) {
-                    c = ((c-0xd7c0)<<10) | (s.charAt(++i)&0x3ff);
-                    out.write((c >> 18) | 0360);
-                    out.write(((c >> 12) & 077) | 0200);
-                    out.write(((c >> 6) & 077) | 0200);
-                    out.write((c & 077) | 0200);
-                } else {
-                    out.write((c >> 12) | 0340);
-                    out.write(((c >> 6) & 077) | 0200);
-                    out.write((c & 077) | 0200);
-                }
-            }
+            throw new IOException("Unknown object " + j);
         }
     }
 }

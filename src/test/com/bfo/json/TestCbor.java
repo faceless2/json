@@ -56,7 +56,7 @@ public class TestCbor {
         assert (j=read("f0")).isNull() && j.getTag() == 16;     // simple(16)
         assert (j=read("f818")).isNull() && j.getTag() == 24;   // simple(24)
         assert (j=read("f8ff")).isNull() && j.getTag() == 255 : j.getTag();   // simple(255)
-        assert (j=read("c074323031332d30332d32315432303a30343a30305a")).toString().equals("\"2013-03-21T20:04:00Z\"") && j.getTag() == 0;
+        assert (j=read("c074323031332d30332d32315432303a30343a30305a")).toString().equals("\"2013-03-21T20:04:00Z\"") && j.getTag() == 0 : j;
         assert (j=read("c11a514b67b0")).toString().equals("1363896240") && j.getTag() == 1;
         assert (j=read("c1fb41d452d9ec200000")).toString().equals("1363896240.5") && j.getTag() == 1;
         assert (j=read("d74401020304")).toString().equals("\"AQIDBA\"") && j.getTag() == 23;
@@ -73,7 +73,7 @@ public class TestCbor {
         assert (j=read("62225c")).toString().equals("\"\\\"\\\\\"") : j.toString();
         assert (j=read("62c3bc")).toString().equals("\"ü\"");
         assert (j=read("63e6b0b4")).toString().equals("\"水\"");
-        assert (j=read("64f0908591")).toString().equals("\"𐅑\"");
+        assert (j=read("64f0908591")).toString().equals("\"𐅑\"") : (int)j.toString().charAt(1);
         assert (j=read("80")).toString().equals("[]");
         assert (j=read("83010203")).toString().equals("[1,2,3]");
         assert (j=read("8301820203820405")).toString().equals("[1,[2,3],[4,5]]");
@@ -108,9 +108,7 @@ public class TestCbor {
         System.out.println("----- END CBOR ROUNDTRIP TESTS -----");
 
         System.out.println("----- BEGIN PROXY WRITE TESTS -----");
-        final Json magic = new Json(ByteBuffer.wrap("bad".getBytes("UTF-8")), null);
         j = Json.read("{}");
-        j.put("foo", magic);
         // Test our "proxyWrite" approach works
         for (int i=0;i<1000;i++) {
             final int c = i;
@@ -118,31 +116,29 @@ public class TestCbor {
             for (int k=0;k<tmp.length;k++) {
                 tmp[k] = (byte)k;
             }
-            JsonWriteOptions opts = new JsonWriteOptions().setFilter(new JsonWriteOptions.Filter() {
-                public boolean isProxy(Json j) {
-                    return j == magic;
-                }
-                public void proxyWrite(Json j, OutputStream out) throws IOException {
+            final Json magic = new Json(ByteBuffer.wrap("bad".getBytes("UTF-8")), null) {
+                @Override protected void writeBuffer(OutputStream out) throws IOException {
                     out.write(tmp);
                 }
-            });
+            };
+            j.put("foo", magic);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             StringWriter w = new StringWriter();
 
-            j.writeCbor(out, opts);
+            j.writeCbor(out, null);
             InputStream in = new ByteArrayInputStream(out.toByteArray());
             Json j2 = Json.readCbor(in, null);
             ByteBuffer b = j2.bufferValue("foo");
             assert Arrays.equals(tmp, b.array()) : "cbor proxy: i="+i+" j="+j+" buf="+hex(b.array());
 
-            j.write(w, opts);
+            j.write(w, null);
             j2 = Json.read(w.toString());
             b = j2.bufferValue("foo");
             assert Arrays.equals(tmp, b.array()) : "json proxy: i="+i+" j="+w+" buf="+hex(b.array());
 
             out.reset();
-            j.writeMsgpack(out, opts);
+            j.writeMsgpack(out, null);
             in = new ByteArrayInputStream(out.toByteArray());
             j2 = Json.readMsgpack(in, null);
             b = j2.bufferValue("foo");

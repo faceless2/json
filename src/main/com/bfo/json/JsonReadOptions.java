@@ -1,6 +1,8 @@
 package com.bfo.json;
 
 import java.util.*;
+import java.io.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.*;
 
 /**
@@ -30,6 +32,8 @@ public class JsonReadOptions {
     private boolean failOnNonStringKeys;
     private boolean nocontext;
     private byte storeOptions;
+    private int fastStringLength = 262144;
+    private Filter filter;
     private CodingErrorAction codingErrorAction = CodingErrorAction.REPLACE;
 
     static final byte FLAG_STRICT = 1;
@@ -272,6 +276,229 @@ public class JsonReadOptions {
      */
     public boolean isFailOnNonStringKeys() {
         return failOnNonStringKeys;
+    }
+
+    /**
+     * Set the value of the "fastStringLength" value - strings loaded from a binary source
+     * less than this value will be loaded directly into memory, whereas above this length
+     * they will be streamed. The default is 262144 (256KB).
+     * @since 4
+     * @return the fastStringLength value
+     */
+    public void setFastStringLength(int len) {
+        fastStringLength = len;
+    }
+
+    /**
+     * Return the value of the "fastStringLength" as set by {@link #setFastStringLength}
+     * @since 4
+     * @return the fastStringLength value
+     */
+    public int getFastStringLength() {
+        return fastStringLength;
+    }
+
+    /**
+     * Set the {@link Filter} that will be used to convert objects when reading
+     * @param filter the filter, or null for no filter
+     * @return this
+     * @since 4
+     */
+    public JsonReadOptions setFilter(Filter filter) {
+        this.filter = filter;
+        return this;
+    }
+
+    /**
+     * Return the value of the Filter as set by {@link #setFilter}
+     * @since 4
+     * @return the filter
+     */
+    public Filter getFilter() {
+        return filter;
+    }
+
+    /**
+     * A Filter which can be applied during reading of data. The
+     * interface will have its enter/exit methods called to show
+     * where in the input data is being read, and the various
+     * "create" methods can be overridden if necessary. For example,
+     * if a field is known to be particularly large:
+     * <pre>
+     * JsonReadOptions.Filter f = new JsonReadOptions.Filter() {
+     *   public void enter(Json parent, Json key) {
+     *     where.append("." + key);
+     *   }
+     *   public void exit(Json parent, Json key) {
+     *     where = where.substring(0, where.lastIndexOf("."));
+     *   }
+     *   public void createBuffer(InputStream in, long length) {
+     *     if (where.toString().equals("large.file.data")) {
+     *       final Path path = Paths.get("largefile");
+     *       Json j = new Json(ByteBuffer.allocate(0)) {
+     *         protected void writeBuffer(OutputStream out) {
+     *           Files.copy(path, out);
+     *         }
+     *       };
+     *       Files.copy(in, path);
+     *     } else {
+     *       return super.createBuffer(in, length);
+     *     }
+     *   }
+     * }
+     * </pre>
+     * @since 4
+     */
+    public static interface Filter {
+
+        /**
+         * Called once when the Json reading begins
+         */
+        public default void initialize() {
+        }
+
+        /**
+         * Called before reading each entry in a Map.
+         * @param parent the current map
+         * @param key the key of the next entry in the map
+         */
+        public default void enter(Json parent, String key) {
+        }
+
+        /**
+         * Called after reading each entry in a Map.
+         * @param parent the current map
+         * @param key the key of the entry just read in the map
+         */
+        public default void exit(Json parent, String key) {
+        }
+
+        /**
+         * Called before reading each entry in a List.
+         * @param parent the current list
+         * @param key the key of the next entry in the list
+         */
+        public default void enter(Json parent, int key) {
+        }
+
+        /**
+         * Called after reading each entry in a List.
+         * @param parent the current list
+         * @param key the key of the entry just read in the list
+         */
+        public default void exit(Json parent, int key) {
+        }
+
+        /**
+         * Create a new "map" object
+         * @return the new Json object
+         */
+        public default Json createMap() {
+            return new Json(Collections.EMPTY_MAP, null);
+        }
+
+        /**
+         * Create a new "list" object
+         * @return the new Json object
+         */
+        public default Json createList() {
+            return new Json(Collections.EMPTY_LIST, null);
+        }
+
+        /**
+         * Create a new "null" object
+         * @return the new Json object
+         */
+        public default Json createNull() {
+            return new Json(null, null);
+        }
+
+        /**
+         * Create a new "boolean" object
+         * @param b the boolean
+         * @return the new Json object
+         */
+        public default Json createBoolean(boolean b) {
+            return new Json(b, null);
+        }
+
+        /**
+         * Create a new "number" object
+         * @param n the number
+         * @return the new Json object
+         */
+        public default Json createNumber(Number n) {
+            return new Json(n, null);
+        }
+
+        /**
+         * Create a new "string" object
+         * @param in the reader to read the string from
+         * @param length the number of characters that will be read from reader, or -1 if unknown
+         * @return the new Json object
+         * @throws IOException if an error occurs during reading
+         */
+        public default Json createString(Reader in, long length) throws IOException {
+            if (in instanceof StringReader) {
+                String s = in.toString();
+                return new Json(s, null);
+            } else if (in instanceof JsonReader.JsonStringReader) {
+                return new Json(((JsonReader.JsonStringReader)in).readString(), null);
+            } else if (length > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("Can't allocate "+length+" String");
+            } else if (length >= 0) {
+                char[] buf = new char[(int)length];
+                int c, off = 0;
+                while ((c=in.read(buf, off, buf.length - off)) >= 0) {
+                    off += c;
+                }
+                if (off != buf.length) {
+                    throw new EOFException();
+                }
+                return new Json(java.nio.CharBuffer.wrap(buf, 0, buf.length), null);
+            } else {
+                StringBuilder sb = new StringBuilder(8192);
+                char[] buf = new char[8192];
+                int c;
+                while ((c=in.read(buf, 0, buf.length)) >= 0) {
+                    sb.append(buf, 0, c);
+                }
+                return new Json(sb.toString(), null);
+            }
+        }
+
+        /**
+         * Create a new "buffer" object
+         * @param in the InputStream to read the buffer from
+         * @param length the number of bytes that will be read from reader, or -1 if unknown
+         * @return the new Json object
+         * @throws IOException if an error occurs during reading
+         */
+        public default Json createBuffer(InputStream in, long length) throws IOException {
+            if (length > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("Can't allocate "+length+" ByteBuffer");
+            } else if (length >= 0) {
+                byte[] buf = new byte[(int)length];
+                int c, off = 0;
+                while ((c=in.read(buf, off, buf.length - off)) >= 0) {
+                    off += c;
+                }
+                if (off != buf.length) {
+                    throw new EOFException();
+                }
+                return new Json(ByteBuffer.wrap(buf, 0, buf.length), null);
+            } else {
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int c;
+                while ((c=in.read(buf)) >= 0) {
+                    out.write(buf, 0, c);
+                }
+                buf = out.toByteArray();
+                return new Json(ByteBuffer.wrap(buf, 0, buf.length), null);
+            }
+        }
+
     }
 
 }

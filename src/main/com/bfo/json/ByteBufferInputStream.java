@@ -2,12 +2,16 @@ package com.bfo.json;
 
 import java.io.*;
 import java.nio.*;
+import java.nio.charset.*;
 
-class ByteBufferInputStream extends InputStream {
+// Extends CountingInputStream but overrides everything.
+// Just so we can get a single interface for an InputStream with a tell() method
+class ByteBufferInputStream extends CountingInputStream {
 
-    private final ByteBuffer in;
+    ByteBuffer in;
 
     ByteBufferInputStream(ByteBuffer in) {
+        super(null);
         this.in = in;
     }
 
@@ -46,6 +50,10 @@ class ByteBufferInputStream extends InputStream {
         int r = Math.min(in.remaining(), (int)skip);
         in.position(in.position() + r);
         return r;
+    }
+
+    @Override public long tell() {
+        return in.position();
     }
 
 }

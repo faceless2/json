@@ -6,11 +6,10 @@ The BFO JSON/CBOR/Msgpack Parser is yet another Java JSON parser, with the follo
 * the API is essentially a single class, with a few helper classes that are all optional. Items are added with `put`, retrieved with `get`, read with `read` and written with `write`. Collections are used for maps and lists, and you can use the whole API with no more than about 5 or 6 methods. Which means although the API is [fully documented](https://faceless2.github.io/json/docs/), you can probably get away without reading any of it.
 
 ### fast
-* A 2015 Macbook will read Json at about 70MB/s from text (51MB/s from binary, as it has to convert to UTF-8),
-and write at about 196MB/s. It can read CBOR/Msgpack at about 130MB/s and write at 196MB/s.
-There are plenty of Java Json APIs claiming to be the fastest; benchmarking is not something I care to spend much time on,
-but informally it is testing faster than anything else I could find.
-Intermediate buffers are avoided wherever possible.
+* A 2021 Macbook M1 will read Json at about 120MB/s from text (80MB/s from binary, as it has to convert to UTF-8),
+and write at about 400MB/s. It can read CBOR/Msgpack at about 300MB/s and write at 600MB/s. That's ridiculously fast;
+as part of version 4 I had to change the large-file benchmarks to use microseconds. A great deal of effort has been
+spent on removing buffer copying and avoiding slow codepaths in the JVM - I don't think you'll find a faster Java API.
 
 ### correct
 * the API has been tested against the Json sample data made available by Nicolas Seriot at
@@ -49,7 +48,7 @@ and fuzzed input, to make sure errors are handled properly.
 * Json is read from Readers and written to Appendable.
   You can read from an InputStream too, in which case it will look for a BOM at the start of the stream.
   CBOR/Msgpack are read from an InputStream and written to an OutputStream.
-  Errors encountered during reading are reported with context, line and column numbers (for JSON) or byte offset (for CBOR/Msgpack)
+  Errors encountered during reading are reported with context, line and column numbers (for JSON) or byte offset (for CBOR/Msgpack).
 
 * CBOR serialization offers three complexities that are not supported in this API:
 duplicate keys in maps, "special" types that are not defined, and non-string keys in Maps.
@@ -67,6 +66,8 @@ A <code>JsonFactory</code> can easily be written to cover as many of these are n
 Buffers, with the extension type stored as a tag from 0..255. Like CBOR, duplicate keys encountered
 during read will throw an IOException and non-string keys will be converted to strings (by default)
 or throw an IOException.
+
+* It's possible (since v4) to read and write indefinitely large strings and buffers - the [JsonReadOptions.Filter](https://faceless2.github.io/json/docs/api/com/bfo/json/JsonReadOptions.Filter.html) class can be used to divert content away to a File, for example. There use of intermediate buffers has been kept to an absolute minimum.
 
 
 ## Examples

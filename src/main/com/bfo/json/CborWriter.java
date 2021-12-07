@@ -10,13 +10,30 @@ import java.text.*;
 
 class CborWriter {
 
-    static void write(Json j, OutputStream out, JsonWriteOptions options) throws IOException {
+    private final OutputStream out;
+    private final JsonWriteOptions options;
+    private final boolean filtered;
+    private final JsonWriteOptions.Filter filter;
+    private final Appendable stringWriter;
+
+    CborWriter(OutputStream out, JsonWriteOptions options, Json root) {
+        this.out = out;
+        this.options = options;
+        this.filtered = options.getFilter() != null;
+        this.filter = options.initializeFilter(root);
+        stringWriter = new UTF8Writer(out, options.isNFC()) {
+            @Override void writeLength(int len) throws IOException {
+                writeNum(3, len, out);
+            }
+        };
+    }
+
+    void write(Json j) throws IOException {
         if (j.getTag() >= 0) {
             writeNum(6, j.getTag(), out);
         }
-        Core o = j.getCore();
-        if (o instanceof INumber) {
-            Number n = o.numberValue();
+        if (j.isNumber()) {
+            Number n = j.numberValue();
             if (n instanceof BigDecimal) {      // No BigDecimal in CBOR
                 n = Double.valueOf(n.doubleValue());
             }
@@ -87,11 +104,12 @@ class CborWriter {
                     }
                 }
             }
-        } else if (o instanceof IBuffer) {
-            if (options != null && options.getFilter() != null && options.getFilter().isProxy(j)) {
+        } else if (j.isBuffer()) {
+            if (j.getClass() != Json.class) {
+                // May have overridden writeBuffer
                 // We're going to write an indefinite length object
                 writeNum(2, -1, out);
-                OutputStream filter = new FilterOutputStream(out) {
+                OutputStream fo = new FilterOutputStream(out) {
                     private final ByteArrayOutputStream hold = new ByteArrayOutputStream();
                     @Override public void write(int v) throws IOException {
                         v &= 0xFF;
@@ -112,43 +130,66 @@ class CborWriter {
                         }
                     }
                 };
-                options.getFilter().proxyWrite(j, filter);
-                filter.close();
+                j.writeBuffer(fo);
+                fo.close();
                 out.write(0xFF);
             } else {
-                ByteBuffer b = o.bufferValue();
+                ByteBuffer b = j.bufferValue();
                 writeNum(2, b.limit(), out);
                 b.position(0);
                 Channels.newChannel(out).write(b);
             }
-        } else if (o instanceof IString) {
-            writeString(o.stringValue(), out, options);
-        } else if (o instanceof IList) {
-            List<Json> l = o.listValue();
-            writeNum(4, l.size(), out);
-            for (Json j2 : o.listValue()) {
-                write(j2, out, options);
+        } else if (j.isString()) { 
+            j.writeString(stringWriter);
+        } else if (j.isList()) {
+            List<Json> list = j._listValue();
+            writeNum(4, list.size(), out);
+            String key = null;
+            for (int i=0;i<list.size();i++) {
+                Json ovalue = list.get(i);
+                Json value = ovalue;
+                if (filtered) {
+                    key = Integer.toString(i);
+                    value = filter.enter(key, ovalue);
+                }
+                write(value);
+                if (filtered) {
+                    filter.exit(key, ovalue);
+                }
             }
-        } else if (o instanceof IMap) {
-            Map<String,Json> map = o.mapValue();
-            writeNum(5, map.size(), out);
-            if (options != null && options.isSorted()) {
+        } else if (j.isMap()) {
+            Map<String,Json> map = j._mapValue();
+            if (options.isSorted()) {
                 map = new TreeMap<String,Json>(map);
             }
-            for (Map.Entry<String,Json> e : map.entrySet()) {
-                writeString(e.getKey(), out, options);
-                write(e.getValue(), out, options);
+            if (filtered) {
+                writeNum(5, -1, out);
+                for (Map.Entry<String,Json> e : map.entrySet()) {
+                    Json value = filter.enter(e.getKey(), e.getValue());
+                    if (value != null) {
+                        stringWriter.append(e.getKey());
+                        write(value);
+                    }
+                    filter.exit(e.getKey(), e.getValue());
+                }
+                out.write(0xFF);
+            } else {
+                writeNum(5, map.size(), out);
+                for (Map.Entry<String,Json> e : map.entrySet()) {
+                    stringWriter.append(e.getKey());
+                    write(e.getValue());
+                }
             }
-        } else if (o instanceof IBoolean) {
-            if (o.booleanValue()) {
+        } else if (j.isBoolean()) {
+            if (j.booleanValue()) {
                 out.write(0xf5);
             } else {
                 out.write(0xf4);
             }
-        } else if (o == INull.INSTANCE) {
+        } else if (j.isNull()) {
             out.write(0xf6);
         } else {
-            throw new IOException("Unknown object "+o);
+            throw new IOException("Unknown object " + j);
         }
     }
 
@@ -183,70 +224,4 @@ class CborWriter {
         }
     }
 
-    private static void writeString(String s, OutputStream out, JsonWriteOptions options) throws IOException {
-        int len = 0;
-        if (options != null && options.isNFC()) {
-            s = Normalizer.normalize(s, Normalizer.Form.NFC);
-        }
-        int slen = s.length();
-        if (slen < 1024) {      // arbitrary limit will still catch most strings. Aiming for stack alloc
-            byte[] buf = new byte[slen * 4];
-            for (int i=0;i<slen;i++) {
-                int c = s.charAt(i);
-                if (c < 0x80) {
-                    buf[len++] = (byte)c;
-                } else if (c < 0x800) {
-                    buf[len++] = (byte)((c >> 6) | 0300);
-                    buf[len++] = (byte)((c & 077) | 0200);
-                } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length()) {
-                    c = ((c-0xd7c0)<<10) | (s.charAt(++i)&0x3ff);
-                    buf[len++] = (byte)((c >> 18) | 0360);
-                    buf[len++] = (byte)(((c >> 12) & 077) | 0200);
-                    buf[len++] = (byte)(((c >> 6) & 077) | 0200);
-                    buf[len++] = (byte)((c & 077) | 0200);
-                } else {
-                    buf[len++] = (byte)((c >> 12) | 0340);
-                    buf[len++] = (byte)(((c >> 6) & 077) | 0200);
-                    buf[len++] = (byte)((c & 077) | 0200);
-                }
-            }
-            writeNum(3, len, out);
-            out.write(buf, 0, len);
-        } else {
-            for (int i=0;i<s.length();i++) {
-                char c = s.charAt(i);
-                if (c < 0x7f) {
-                    len++;
-                } else if (c < 0x800) {
-                    len += 2;
-                } else if (c >= 0xd800 && c <= 0xdbff) {
-                    i++;
-                    len += 4;
-                } else {
-                    len += 3;
-                }
-            }
-            writeNum(3, len, out);
-            // Measurably faster than OutputStreamWriter, as we have to init it each time.
-            for (int i=0;i<s.length();i++) {
-                int c = s.charAt(i);
-                if (c < 0x80) {
-                    out.write(c);
-                } else if (c < 0x800) {
-                    out.write((c >> 6) | 0300);
-                    out.write((c & 077) | 0200);
-                } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length()) {
-                    c = ((c-0xd7c0)<<10) | (s.charAt(++i)&0x3ff);
-                    out.write((c >> 18) | 0360);
-                    out.write(((c >> 12) & 077) | 0200);
-                    out.write(((c >> 6) & 077) | 0200);
-                    out.write((c & 077) | 0200);
-                } else {
-                    out.write((c >> 12) | 0340);
-                    out.write(((c >> 6) & 077) | 0200);
-                    out.write((c & 077) | 0200);
-                }
-            }
-        }
-    }
 }

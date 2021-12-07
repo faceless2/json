@@ -9,24 +9,41 @@ import java.nio.charset.*;
 class CborReader {
 
     private static final Number INDEFINITE = Float.intBitsToFloat(0x12345678);       // As good as any
-    private static final Json BREAK = new Json(new INumber(INDEFINITE, null));
+    private static final Json BREAK = new Json(INDEFINITE, null);
+
+    private final CountingInputStream in;
+    private final JsonReadOptions options;
+    private final JsonReadOptions.Filter filter;
+    private final boolean strict;
+    private boolean init;
+
+    CborReader(CountingInputStream in, JsonReadOptions options) {
+        this.in = in;
+        this.options = options;
+        this.strict = options.isStrictTypes();
+        this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
+        filter.initialize();
+    }
 
     /**
      * Read a CBOR serialized object
      */
-    static Json read(CountingInputStream in, JsonReadOptions options) throws IOException {
+    Json read() throws IOException {
         int v = in.read();
         if (v < 0) {
             return null;
         }
         Number n;
         Json j;
+        List<Json> list;
+        Map<String,Json> map;
         long tell;
         switch (v>>5) {
             case 0:
-                return new Json(new INumber(readNumber(v, in, false), options));
+                j = filter.createNumber(readNumber(v, false));
+                break;
             case 1:
-                n = readNumber(v, in, false);
+                n = readNumber(v, false);
                 if (n instanceof Integer) {
                     n = Integer.valueOf(-1 - n.intValue());
                 } else if (n instanceof Long) {
@@ -34,45 +51,77 @@ class CborReader {
                 } else if (n instanceof BigInteger) {
                     n = BigInteger.valueOf(-1).subtract((BigInteger)n);
                 }
-                return new Json(new INumber(n, options));
+                j = filter.createNumber(n);
+                break;
             case 2:
-                return new Json(new IBuffer(ByteBuffer.wrap(readBuffer(v, in))));
+                n = readNumber(v, true);
+                j = filter.createBuffer(createBufferInputStream(n, null), n == INDEFINITE ? -1 : n.longValue());
+                break;
             case 3:
-                 CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
-                 decoder.onMalformedInput(options == null ? CodingErrorAction.REPLACE : options.getCborStringCodingErrorAction());
-                 return new Json(new IString(decoder.decode(ByteBuffer.wrap(readBuffer(v, in))).toString(), options));
+                n = readNumber(v, true);
+                InputStream tin = createBufferInputStream(n, options.getCborStringCodingErrorAction());
+                final String tostring = tin.toString();        // will be null if tostring not possible
+                Reader r;
+                long llen = -1;
+                if (tostring != null) {
+                    r = new StringReader(tostring) {
+                        public String toString() {
+                            return tostring;
+                        }
+                    };
+                    llen = tostring.length();
+                } else {
+                    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+                    decoder.onMalformedInput(options.getCborStringCodingErrorAction());
+                    r = new InputStreamReader(tin, decoder);
+                }
+                j = filter.createString(r, llen);
+                break;
             case 4:
-                n = readNumber(v, in, true);
-                j = new Json(new IList());
+                n = readNumber(v, true);
+                // Because passing a populated collection into Json() clones items
+                j = filter.createList();
+                list = j._listValue();
                 if (n == INDEFINITE) {
                     Json j2;
-                    while ((j2 = read(in, options)) != BREAK) {
+                    int i = 0;
+                    filter.enter(j, i);
+                    while ((j2 = read()) != BREAK) {
+                        filter.exit(j, i);
                         if (j2 == null) {
                             throw new EOFException();
                         }
-                        j._listValue().add(j2);
+                        list.add(j2);
+                        Json.notifyDuringLoad(j, i++, j2);
+                        filter.enter(j, i);
                     }
+                    filter.exit(j, i);
                 } else {
-                    int l = n.intValue();
-                    for (int i=0;i<l;i++) {
+                    int len = n.intValue();
+                    for (int i=0;i<len;i++) {
                         tell = in.tell();
-                        Json j2 = read(in, options);
+                        filter.enter(j, i);
+                        Json j2 = read();
+                        filter.exit(j, i);
                         if (j2 == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
                         } else if (j2 == null) {
                             throw new EOFException();
                         }
-                        j._listValue().add(j2);
+                        list.add(j2);
+                        Json.notifyDuringLoad(j, i, j2);
                     }
                 }
-                return j;
+                break;
             case 5:
-                n = readNumber(v, in, true);
-                j = new Json(new IMap());
+                n = readNumber(v, true);
+                // Because passing a populated collection into Json() clones items
+                j = filter.createMap();
+                map = j._mapValue();
                 if (n == INDEFINITE) {
                     Json key;
                     tell = in.tell();
-                    while ((key = read(in, options)) != BREAK) {
+                    while ((key = read()) != BREAK) {
                         if (key == null) {
                             throw new EOFException();
                         }
@@ -80,23 +129,27 @@ class CborReader {
                             throw new IOException("Map key \"" + key + "\" is " + key.type() + " rather than string at " + tell);
                         }
                         tell = in.tell();
-                        Json val = read(in, options);
+                        String k = key.stringValue();
+                        filter.enter(j, k);
+                        Json val = read();
+                        filter.exit(j, k);
                         if (val == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
                         } else if (val == null) {
                             throw new EOFException();
                         }
-                        Object o = j._mapValue().put(key.stringValue(), val);
+                        Object o = map.put(k, val);
                         if (o != null) {
-                            throw new IOException("Duplicate key \"" + key + "\" at " + tell);
+                            throw new IOException("Duplicate key \"" + k + "\" at " + tell);
                         }
+                        Json.notifyDuringLoad(j, k, val);
                         tell = in.tell();
                     }
                 } else {
-                    int l = n.intValue();
-                    for (int i=0;i<l;i++) {
+                    int len = n.intValue();
+                    for (int i=0;i<len;i++) {
                         tell = in.tell();
-                        Json key = read(in, options);
+                        Json key = read();
                         if (key == null) {
                             throw new EOFException();
                         } else if (key == BREAK) {
@@ -105,26 +158,30 @@ class CborReader {
                         if (!key.isString() && options.isFailOnNonStringKeys()) {
                             throw new IOException("Map key \"" + key + "\" is " + key.type() + " rather than string at " + tell);
                         }
-                        Json val = read(in, options);
+                        String k = key.stringValue();
+                        filter.enter(j, k);
+                        Json val = read();
+                        filter.exit(j, k);
                         if (val == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
                         } else if (val == null) {
                             throw new EOFException();
                         }
-                        Object o = j._mapValue().put(key.stringValue(), val);
+                        Object o = map.put(k, val);
                         if (o != null) {
                             throw new IOException("Duplicate key \"" + key + "\" at " + tell);
                         }
+                        Json.notifyDuringLoad(j, k, val);
                     }
                 }
-                return j;
+                break;
             case 6:
                 tell = in.tell();
-                n = readNumber(v, in, false);
+                n = readNumber(v, false);
                 if (n instanceof BigInteger && ((BigInteger)n).bitLength() > 63) {
                     throw new IOException("Tag "+n+" with "+((BigInteger)n).bitLength()+" bits is unsupported at "+tell);
                 }
-                j = read(in, options);
+                j = read();
                 if (j == null) {
                     throw new EOFException();
                 } else if (j == BREAK) {
@@ -132,32 +189,35 @@ class CborReader {
                 }
                 if ((n.intValue() == 2 || n.intValue() == 3) && j.isBuffer()) {
                     int tag = n.intValue();
-                    ByteBuffer b = j.getCore().bufferValue();
+                    ByteBuffer b = j.bufferValue();
                     n = new BigInteger(1, b.array());
                     if (tag == 3) {
                         n = BigInteger.valueOf(-1).subtract((BigInteger)n);
                     }
-                    j = new Json(new INumber(n, options));
+                    j = filter.createNumber(n);
                 } else {
                     j.setTag(n.longValue());
                 }
-                return j;
+                break;
             default:
                 v &= 0x1f;
                 tell = in.tell();
                 switch (v) {
                     case 20:
-                        return new Json(new IBoolean(false, options));
+                        j = filter.createBoolean(false);
+                        break;
                     case 21:
-                        return new Json(new IBoolean(true, options));
+                        j = filter.createBoolean(true);
+                        break;
                     case 22:
-                        return new Json(INull.INSTANCE);
+                        j = filter.createNull();
+                        break;
                     case 23:
-                        j = new Json(INull.INSTANCE);
+                        j = filter.createNull();
                         j.setTag(v);
-                        return j;
+                        break;
                     case 25:
-                        v = readNumber(v, in, false).intValue();
+                        v = readNumber(v, false).intValue();
                         int s = (v & 0x8000) >> 15;
                         int e = (v & 0x7c00) >> 10;
                         int f = v & 0x3ff;
@@ -168,15 +228,18 @@ class CborReader {
                         } else {
                             n = Float.valueOf((float)((s != 0 ? -1f : 1f) * Math.pow(2, e - 15) * (1 + f / Math.pow(2, 10))));
                         }
-                        return new Json(new INumber(n, options));
+                        j = filter.createNumber(n);
+                        break;
                     case 26:
-                        n = readNumber(v, in, false);
+                        n = readNumber(v, false);
                         n = Float.intBitsToFloat(n.intValue());
-                        return new Json(new INumber(n, options));
+                        j = filter.createNumber(n);
+                        break;
                     case 27:
-                        n = readNumber(v, in, false);
+                        n = readNumber(v, false);
                         n = Double.longBitsToDouble(n.longValue());
-                        return new Json(new INumber(n, options));
+                        j = filter.createNumber(n);
+                        break;
                     case 31:
                         return BREAK;
                     case 24:
@@ -189,42 +252,168 @@ class CborReader {
                         if (options.isCborFailOnUnknownTypes()) {
                             throw new IOException("Undefined special type " + v + " at "+tell);
                         } else {
-                            j = new Json(INull.INSTANCE);
+                            j = filter.createNull();
                             j.setTag(v);
-                            return j;
+                            break;
                         }
                 }
         }
+        j.setStrict(strict);
+        return j;
     }
 
-    private static byte[] readBuffer(int v, CountingInputStream in) throws IOException {
-        Number n = readNumber(v, in, true);
+    private InputStream createBufferInputStream(final Number n, CodingErrorAction action) throws IOException {
         if (n == INDEFINITE) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            while ((v = in.read()) >= 0) {
-                if (v == 0xFF) {
-                    return out.toByteArray();
-                }
-                out.write(readBuffer(v, in));
-            }
-            throw new EOFException();
+            return createIndefiniteBufferInputStream(action);
         } else {
-            if (n.intValue() == 0) {
-                return new byte[0];
-            }
-            byte[] buf = new byte[n.intValue()];
-            int i = 0;
-            while (i < buf.length && (v=in.read(buf, i, buf.length - i)) >= 0) {
-                i += v;
-            }
-            if (i == v) {
-                return buf;
-            }
-            throw new EOFException();
+            return createFixedInputStream(in, n.longValue(), options.getFastStringLength(), action);
         }
     }
 
-    private static Number readNumber(int v, CountingInputStream in, boolean allowIndefinite) throws IOException {
+    private InputStream createIndefiniteBufferInputStream(CodingErrorAction action) throws IOException {
+        return new FilterInputStream(in) {
+            boolean eof;
+            private InputStream current = new ByteArrayInputStream(new byte[0]);
+            private void next() throws IOException {
+                int c = in.read();
+                if (c < 0) {
+                    throw new EOFException();
+                }
+                if (c == 0xFF) {
+                    eof = true;
+                } else {
+                    Number n = readNumber(c, true);
+                    current = createFixedInputStream(in, n.longValue(), options.getFastStringLength(), action);
+                }
+            }
+            @Override public int available() throws IOException {
+                int v = current.available();
+                if (v == 0 && !eof) {
+                    next();
+                    v = current.available();
+                }
+                return v;
+            }
+            @Override public int read() throws IOException {
+                int v = current.read();
+                if (v < 0 && !eof) {
+                    next();
+                    v = current.read();
+                }
+                return v;
+            }
+            @Override public int read(byte[] buf, int off, int len) throws IOException {
+                int v = current.read(buf, off, len);
+                if (v < 0 && !eof) {
+                    next();
+                    v = current.read(buf, off, len);
+                }
+                return v;
+            }
+            @Override public long skip(long v) throws IOException {
+                long n = current.skip(v);
+                if (n <= 0 && !eof) {
+                    next();
+                    n = current.skip(v);
+                }
+                return n;
+            }
+            @Override public void close() {
+            }
+            @Override public String toString() {
+                return action == null ? super.toString() : null;
+            }
+        };
+    }
+
+    /**
+     * Return an InputStream of a fixed length from the specified InputStream.
+     * If "action" is not null, the stream will be used as a UTF8 String using the
+     * specified CodingErrorAction. To make that as fast as possible and use as
+     * little memory as possible, this is done by ensuring that toString() on the
+     * returned stream is the string value of the content, or that it returns null
+     * if it has to be read normally. Horrible, needs must.
+     * @param in the InputStream
+     * @param len the length from the stream
+     * @param fastlen if len is less than this value, read it in as a buffer
+     * @param action if not null the stream will be turned into a String
+     */
+    static InputStream createFixedInputStream(InputStream in, long len, int fastlen, CodingErrorAction action) throws IOException {
+        if (len < fastlen) {
+            byte[] buf = new byte[(int)len];
+            int i = 0;
+            int v;
+            while (i < buf.length && (v=in.read(buf, i, buf.length - i)) >= 0) {
+                i += v;
+            }
+            if (i != buf.length) {
+                throw new EOFException();
+            } else if (action == null) {
+                return new ByteArrayInputStream(buf, 0, buf.length);
+            } else {
+                String s;
+                if (action == CodingErrorAction.REPLACE) {
+                    s = new String(buf, 0, buf.length, StandardCharsets.UTF_8);
+                } else {
+                    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+                    decoder.onMalformedInput(action);
+                    s = decoder.decode(ByteBuffer.wrap(buf, 0, buf.length)).toString();
+                }
+                return new ByteArrayInputStream(buf, 0, buf.length) {
+                    public String toString() {
+                        return s;
+                    }
+                };
+            }
+        } else {
+            return new FilterInputStream(in) {
+                long remaining = len;
+                @Override public int available() throws IOException {
+                    int v = in.available();
+                    if (remaining < v) {
+                        v = (int)remaining;
+                    }
+                    return v;
+                }
+                @Override public int read() throws IOException {
+                    if (remaining == 0) {
+                        return -1;
+                    }
+                    int c = in.read();
+                    if (c >= 0) {
+                        remaining--;
+                    }
+                    return c;
+                }
+                @Override public int read(byte[] buf, int off, int len) throws IOException {
+                    if (remaining == 0) {
+                        return -1;
+                    }
+                    if (remaining < len) {
+                        len = (int)remaining;
+                    }
+                    int v = in.read(buf, off, len);
+                    if (v >= 0) {
+                        remaining -= v;
+                    }
+                    return v;
+                }
+                @Override public long skip(long v) throws IOException {
+                    if (remaining < v) {
+                        v = remaining;
+                    }
+                    return super.skip(v);
+                }
+                @Override public void close() throws IOException {
+                }
+                @Override public String toString() {
+                    return action == null ? super.toString() : null;
+                }
+            };
+        }
+    }
+
+    private Number readNumber(int v, boolean allowIndefinite) throws IOException {
         // Major type 0:  an unsigned integer.  The 5-bit additional information
         // the integer itself (for additional information values 0
         // through 23) or the length of additional data.  Additional
