@@ -208,12 +208,12 @@ public class JsonWriteOptions {
      * A Filter which can be used to restrict which nodes are written, or to
      * override the source of data for some nodes
      */
-    public interface Filter {
+    public static class Filter {
         /**
          * Called once when the Json writing begins
          * @param context the root node of the writing process
          */
-        public default void initialize(Json context) {
+        public void initialize(Json context) {
         }
 
         /**
@@ -223,7 +223,7 @@ public class JsonWriteOptions {
          * @param child the value of the current entry in the map
          * @return child if the child is to be written, null if its not.
          */
-        public default Json enter(String key, Json child) {
+        public Json enter(String key, Json child) {
             return child;
         }
 
@@ -232,7 +232,7 @@ public class JsonWriteOptions {
          * @param key the key of the current entry in the map
          * @param child the value of the current entry in the map
          */
-        public default void exit(String key, Json child) {
+        public void exit(String key, Json child) {
         }
     }
 
