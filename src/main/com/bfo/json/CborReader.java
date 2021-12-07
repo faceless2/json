@@ -55,16 +55,21 @@ class CborReader {
                 break;
             case 2:
                 n = readNumber(v, true);
-                j = filter.createBuffer(createBufferInputStream(n), n == INDEFINITE ? -1 : n.longValue());
+                j = filter.createBuffer(createBufferInputStream(n, null), n == INDEFINITE ? -1 : n.longValue());
                 break;
             case 3:
                 n = readNumber(v, true);
-                InputStream tin = createBufferInputStream(n);
+                InputStream tin = createBufferInputStream(n, options.getCborStringCodingErrorAction());
+                final String tostring = tin.toString();        // will be null if tostring not possible
                 Reader r;
                 long llen = -1;
-                if (tin instanceof ByteBufferInputStream) {
-                    r = ((ByteBufferInputStream)tin).getUTF8(options.getCborStringCodingErrorAction());
-                    llen = ((CharSequenceReader)r).stringValue().length();
+                if (tostring != null) {
+                    r = new StringReader(tostring) {
+                        public String toString() {
+                            return tostring;
+                        }
+                    };
+                    llen = tostring.length();
                 } else {
                     CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
                     decoder.onMalformedInput(options.getCborStringCodingErrorAction());
@@ -257,17 +262,15 @@ class CborReader {
         return j;
     }
 
-    private InputStream createBufferInputStream(final Number n) throws IOException {
+    private InputStream createBufferInputStream(final Number n, CodingErrorAction action) throws IOException {
         if (n == INDEFINITE) {
-            return createIndefiniteBufferInputStream();
-        } else if (n.longValue() < 524288) {
-            return createSmallBufferInputStream(n);
+            return createIndefiniteBufferInputStream(action);
         } else {
-            return createLargeBufferInputStream(n);
+            return createFixedInputStream(in, n.longValue(), options.getFastStringLength(), action);
         }
     }
 
-    private InputStream createIndefiniteBufferInputStream() throws IOException {
+    private InputStream createIndefiniteBufferInputStream(CodingErrorAction action) throws IOException {
         return new FilterInputStream(in) {
             boolean eof;
             private InputStream current = new ByteArrayInputStream(new byte[0]);
@@ -280,7 +283,7 @@ class CborReader {
                     eof = true;
                 } else {
                     Number n = readNumber(c, true);
-                    current = createBufferInputStream(n);
+                    current = createFixedInputStream(in, n.longValue(), options.getFastStringLength(), action);
                 }
             }
             @Override public int available() throws IOException {
@@ -317,67 +320,98 @@ class CborReader {
             }
             @Override public void close() {
             }
-        };
-    }
-
-    private InputStream createSmallBufferInputStream(final Number n) throws IOException {
-        byte[] buf = new byte[n.intValue()];
-        int i = 0;
-        int len = buf.length;
-        int v;
-        while (i < len && (v=in.read(buf, i, len - i)) >= 0) {
-            i += v;
-        }
-        if (i == len) {
-            return new ByteBufferInputStream(ByteBuffer.wrap(buf, 0, len));
-        }
-        throw new EOFException();
-    }
-
-    private InputStream createLargeBufferInputStream(final Number n) throws IOException {
-        return new FilterInputStream(in) {
-            long remaining = n.longValue();
-            @Override public int available() throws IOException {
-                int v = in.available();
-                if (remaining < v) {
-                    v = (int)remaining;
-                }
-                return v;
-            }
-            @Override public int read() throws IOException {
-                if (remaining == 0) {
-                    return -1;
-                }
-                int c = in.read();
-                if (c >= 0) {
-                    remaining--;
-                }
-                return c;
-            }
-            @Override public int read(byte[] buf, int off, int len) throws IOException {
-                if (remaining == 0) {
-                    return -1;
-                }
-                if (remaining < len) {
-                    len = (int)remaining;
-                }
-                int v = in.read(buf, off, len);
-                if (v >= 0) {
-                    remaining -= v;
-                }
-                return v;
-            }
-            @Override public long skip(long v) throws IOException {
-                if (remaining < v) {
-                    v = remaining;
-                }
-                return super.skip(v);
-            }
-            @Override public void close() throws IOException {
+            @Override public String toString() {
+                return action == null ? super.toString() : null;
             }
         };
     }
 
+    /**
+     * Return an InputStream of a fixed length from the specified InputStream.
+     * If "action" is not null, the stream will be used as a UTF8 String using the
+     * specified CodingErrorAction. To make that as fast as possible and use as
+     * little memory as possible, this is done by ensuring that toString() on the
+     * returned stream is the string value of the content, or that it returns null
+     * if it has to be read normally. Horrible, needs must.
+     * @param in the InputStream
+     * @param len the length from the stream
+     * @param fastlen if len is less than this value, read it in as a buffer
+     * @param action if not null the stream will be turned into a String
+     */
+    static InputStream createFixedInputStream(InputStream in, long len, int fastlen, CodingErrorAction action) throws IOException {
+        if (len < fastlen) {
+            byte[] buf = new byte[(int)len];
+            int i = 0;
+            int v;
+            while (i < buf.length && (v=in.read(buf, i, buf.length - i)) >= 0) {
+                i += v;
+            }
+            if (i != buf.length) {
+                throw new EOFException();
+            } else if (action == null) {
+                return new ByteArrayInputStream(buf, 0, buf.length);
+            } else {
+                String s;
+                if (action == CodingErrorAction.REPLACE) {
+                    s = new String(buf, 0, buf.length, StandardCharsets.UTF_8);
+                } else {
+                    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+                    decoder.onMalformedInput(action);
+                    s = decoder.decode(ByteBuffer.wrap(buf, 0, buf.length)).toString();
+                }
+                return new ByteArrayInputStream(buf, 0, buf.length) {
+                    public String toString() {
+                        return s;
+                    }
+                };
+            }
+        } else {
+            return new FilterInputStream(in) {
+                long remaining = len;
+                @Override public int available() throws IOException {
+                    int v = in.available();
+                    if (remaining < v) {
+                        v = (int)remaining;
+                    }
+                    return v;
+                }
+                @Override public int read() throws IOException {
+                    if (remaining == 0) {
+                        return -1;
+                    }
+                    int c = in.read();
+                    if (c >= 0) {
+                        remaining--;
+                    }
+                    return c;
+                }
+                @Override public int read(byte[] buf, int off, int len) throws IOException {
+                    if (remaining == 0) {
+                        return -1;
+                    }
+                    if (remaining < len) {
+                        len = (int)remaining;
+                    }
+                    int v = in.read(buf, off, len);
+                    if (v >= 0) {
+                        remaining -= v;
+                    }
+                    return v;
+                }
+                @Override public long skip(long v) throws IOException {
+                    if (remaining < v) {
+                        v = remaining;
+                    }
+                    return super.skip(v);
+                }
+                @Override public void close() throws IOException {
+                }
+                @Override public String toString() {
+                    return action == null ? super.toString() : null;
+                }
+            };
+        }
+    }
 
     private Number readNumber(int v, boolean allowIndefinite) throws IOException {
         // Major type 0:  an unsigned integer.  The 5-bit additional information

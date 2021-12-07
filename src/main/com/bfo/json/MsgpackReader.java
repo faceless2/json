@@ -38,7 +38,7 @@ class MsgpackReader {
         } else if (v <= 0x9f) {
             j = readList(v & 0xf);
         } else if (v <= 0xbf) {
-            j = readString(v & 0x1f);
+            j = readString(v & 0x1f, options.getCborStringCodingErrorAction());
         } else if (v >= 0xe0) {
             j = filter.createNumber((byte)v);
         } else {
@@ -175,21 +175,21 @@ class MsgpackReader {
                     if (v < 0) {
                         throw new EOFException();
                     }
-                    j = readString(v);
+                    j = readString(v, options.getCborStringCodingErrorAction());
                     break;
                 case 0xda: // str16
                     v = (in.read() << 8) | in.read();
                     if (v < 0) {
                         throw new EOFException();
                     }
-                    j = readString(v);
+                    j = readString(v, options.getCborStringCodingErrorAction());
                     break;
                 case 0xdb: // str32
                     v = readInt();
                     if (v < 0) {
                         throw new IOException("Can't create " + (v&0xFFFFFFFFl) + " byte String in Java");
                     }
-                    j = readString(v);
+                    j = readString(v, options.getCborStringCodingErrorAction());
                     break;
                 case 0xdc: // array16
                     v = (in.read() << 8) | in.read();
@@ -228,7 +228,7 @@ class MsgpackReader {
     }
 
     private Json readBuffer(int len) throws IOException {
-        InputStream in = readStream(len);
+        InputStream in = readStream(len, null);
         return filter.createBuffer(in, in.available());
     }
 
@@ -237,17 +237,22 @@ class MsgpackReader {
         if (tag < 0) {
             throw new EOFException();
         }
-        InputStream in = readStream(len);
+        InputStream in = readStream(len, null);
         Json j = filter.createBuffer(in, in.available());
         j.setTag(tag);
         return j;
     }
 
-    private Json readString(int len) throws IOException {
-        InputStream in = readStream(len);
-        if (in instanceof ByteBufferInputStream) {
-            CharSequenceReader r = ((ByteBufferInputStream)in).getUTF8(options.getCborStringCodingErrorAction());
-            return filter.createString(r, r.stringValue().length());
+    private Json readString(int len, CodingErrorAction action) throws IOException {
+        InputStream in = readStream(len, action);
+        final String s = in.toString();
+        if (s != null) {
+            Reader r = new StringReader(s) {
+                public String toString() {
+                    return s;
+                }
+            };
+            return filter.createString(r, s.length());
         } else {
             CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
             decoder.onMalformedInput(options.getCborStringCodingErrorAction());
@@ -255,57 +260,8 @@ class MsgpackReader {
         }
     }
 
-    private InputStream readStream(final int len) throws IOException {
-        if (len <= 65535) {
-            byte[] buf = new byte[len];
-            int i = 0;
-            int v;
-            while (i < buf.length && (v=in.read(buf, i, buf.length - i)) >= 0) {
-                i += v;
-            }
-            if (i == buf.length) {
-                return new ByteBufferInputStream(ByteBuffer.wrap(buf));
-            }
-            throw new EOFException();
-        } else {
-            return new FilterInputStream(in) {
-                int remaining = len;
-                @Override public int available() throws IOException {
-                    return remaining;
-                }
-                @Override public int read() throws IOException {
-                    if (remaining == 0) {
-                        return -1;
-                    }
-                    int c = in.read();
-                    if (c >= 0) {
-                        remaining--;
-                    }
-                    return c;
-                }
-                @Override public int read(byte[] buf, int off, int len) throws IOException {
-                    if (remaining == 0) {
-                        return -1;
-                    }
-                    if (remaining < len) {
-                        len = remaining;
-                    }
-                    int v = in.read(buf, off, len);
-                    if (v >= 0) {
-                        remaining -= v;
-                    }
-                    return v;
-                }
-                @Override public long skip(long v) throws IOException {
-                    if (remaining < v) {
-                        v = remaining;
-                    }
-                    return in.skip(v);
-                }
-                @Override public void close() throws IOException {
-                }
-            };
-        }
+    private InputStream readStream(final int len, CodingErrorAction action) throws IOException {
+        return CborReader.createFixedInputStream(in, len, options.getFastStringLength(), action);
     }
 
     private Json readMap(int len) throws IOException {

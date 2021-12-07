@@ -32,6 +32,7 @@ public class JsonReadOptions {
     private boolean failOnNonStringKeys;
     private boolean nocontext;
     private byte storeOptions;
+    private int fastStringLength = 262144;
     private Filter filter;
     private CodingErrorAction codingErrorAction = CodingErrorAction.REPLACE;
 
@@ -277,6 +278,14 @@ public class JsonReadOptions {
         return failOnNonStringKeys;
     }
 
+    public int getFastStringLength() {
+        return fastStringLength;
+    }
+
+    public void setFastStringLength(int len) {
+        fastStringLength = len;
+    }
+
     /**
      * Set the {@link Filter} that will be used to convert objects when reading
      * @param filter the filter, or null for no filter
@@ -418,8 +427,8 @@ public class JsonReadOptions {
          * @throws IOException if an error occurs during reading
          */
         public default Json createString(Reader in, long length) throws IOException {
-            if (in instanceof CharSequenceReader) {
-                CharSequence s = ((CharSequenceReader)in).stringValue();
+            if (in instanceof StringReader) {
+                String s = in.toString();
                 return new Json(s, null);
             } else if (length > Integer.MAX_VALUE) {
                 throw new IllegalArgumentException("Can't allocate "+length+" String");

@@ -413,7 +413,13 @@ public class Json {
      * @since 2
      */
     public static Json readCbor(final ByteBuffer in, JsonReadOptions options) throws IOException {
-        return readCbor(new ByteBufferInputStream(in), options);
+        InputStream stream;
+        if (!in.isDirect()) {
+            stream = new ByteArrayInputStream(in.array(), in.arrayOffset(), in.remaining());        // seems faster
+        } else {
+            stream = new ByteBufferInputStream(in);
+        }
+        return readCbor(stream, options);
     }
 
     /**
@@ -443,7 +449,13 @@ public class Json {
      * @since 3
      */
     public static Json readMsgpack(final ByteBuffer in, JsonReadOptions options) throws IOException {
-        return readMsgpack(new ByteBufferInputStream(in), options);
+        InputStream stream;
+        if (!in.isDirect()) {
+            stream = new ByteArrayInputStream(in.array(), in.arrayOffset(), in.remaining());        // seems faster
+        } else {
+            stream = new ByteBufferInputStream(in);
+        }
+        return readMsgpack(stream, options);
     }
 
     /**
