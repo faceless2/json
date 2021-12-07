@@ -358,9 +358,10 @@ public class Json {
             if (in.read() == 0x0) { // Sniff: probably UTF-16LE
                 in.reset();
                 reader = new InputStreamReader(in, "UTF-16LE");
+            } else {
+                in.reset();
+                reader = new InputStreamReader(in, "UTF-8");
             }
-            in.reset();
-            reader = new InputStreamReader(in, "UTF-8");
         }
         return read(reader, options);
     }

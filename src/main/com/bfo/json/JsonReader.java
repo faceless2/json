@@ -398,7 +398,7 @@ class JsonReader {
             int c = in.read();
             if (c < 0) {
                 throw new IllegalArgumentException("Unterminated string at " + in);
-            } else if (c < 127 && literal[c]) {
+            } else if (c < 128 && literal[c]) {
                 return c;
             } else if (c == quote) {
                 eof = true;
