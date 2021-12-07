@@ -350,12 +350,12 @@ public class JsonReadOptions {
      * </pre>
      * @since 4
      */
-    public static interface Filter {
+    public static class Filter {
 
         /**
          * Called once when the Json reading begins
          */
-        public default void initialize() {
+        public void initialize() {
         }
 
         /**
@@ -363,7 +363,7 @@ public class JsonReadOptions {
          * @param parent the current map
          * @param key the key of the next entry in the map
          */
-        public default void enter(Json parent, String key) {
+        public void enter(Json parent, String key) {
         }
 
         /**
@@ -371,7 +371,7 @@ public class JsonReadOptions {
          * @param parent the current map
          * @param key the key of the entry just read in the map
          */
-        public default void exit(Json parent, String key) {
+        public void exit(Json parent, String key) {
         }
 
         /**
@@ -379,7 +379,7 @@ public class JsonReadOptions {
          * @param parent the current list
          * @param key the key of the next entry in the list
          */
-        public default void enter(Json parent, int key) {
+        public void enter(Json parent, int key) {
         }
 
         /**
@@ -387,14 +387,14 @@ public class JsonReadOptions {
          * @param parent the current list
          * @param key the key of the entry just read in the list
          */
-        public default void exit(Json parent, int key) {
+        public void exit(Json parent, int key) {
         }
 
         /**
          * Create a new "map" object
          * @return the new Json object
          */
-        public default Json createMap() {
+        public Json createMap() {
             return new Json(Collections.EMPTY_MAP, null);
         }
 
@@ -402,7 +402,7 @@ public class JsonReadOptions {
          * Create a new "list" object
          * @return the new Json object
          */
-        public default Json createList() {
+        public Json createList() {
             return new Json(Collections.EMPTY_LIST, null);
         }
 
@@ -410,7 +410,7 @@ public class JsonReadOptions {
          * Create a new "null" object
          * @return the new Json object
          */
-        public default Json createNull() {
+        public Json createNull() {
             return new Json(null, null);
         }
 
@@ -419,7 +419,7 @@ public class JsonReadOptions {
          * @param b the boolean
          * @return the new Json object
          */
-        public default Json createBoolean(boolean b) {
+        public Json createBoolean(boolean b) {
             return new Json(b, null);
         }
 
@@ -428,7 +428,7 @@ public class JsonReadOptions {
          * @param n the number
          * @return the new Json object
          */
-        public default Json createNumber(Number n) {
+        public Json createNumber(Number n) {
             return new Json(n, null);
         }
 
@@ -439,7 +439,7 @@ public class JsonReadOptions {
          * @return the new Json object
          * @throws IOException if an error occurs during reading
          */
-        public default Json createString(Reader in, long length) throws IOException {
+        public Json createString(Reader in, long length) throws IOException {
             if (in instanceof StringReader) {
                 String s = in.toString();
                 return new Json(s, null);
@@ -475,7 +475,7 @@ public class JsonReadOptions {
          * @return the new Json object
          * @throws IOException if an error occurs during reading
          */
-        public default Json createBuffer(InputStream in, long length) throws IOException {
+        public Json createBuffer(InputStream in, long length) throws IOException {
             if (length > Integer.MAX_VALUE) {
                 throw new IllegalArgumentException("Can't allocate "+length+" ByteBuffer");
             } else if (length >= 0) {
