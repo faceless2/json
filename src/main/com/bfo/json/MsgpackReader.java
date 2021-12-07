@@ -287,7 +287,7 @@ class MsgpackReader {
             if (o != null) {
                 throw new IOException("Duplicate key \"" + key + "\" at " + tell);
             }
-            Json.notify(j, k, null, val);
+            Json.notifyDuringLoad(j, k, val);
         }
         return j;
     }
@@ -305,7 +305,7 @@ class MsgpackReader {
                 throw new EOFException();
             }
             list.add(val);
-            Json.notify(j, size, null, val);
+            Json.notifyDuringLoad(j, size, val);
         }
         return j;
     }

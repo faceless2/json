@@ -612,6 +612,11 @@ public class Json {
         return parentkey;
     }
 
+    static void notifyDuringLoad(Json parent, Object parentkey, Json newvalue) {
+        newvalue.parent = parent;
+        newvalue.parentkey = parentkey;
+    }
+
     static void notify(Json parent, Object parentkey, Json oldvalue, Json newvalue) {
         if (newvalue == null) {
             oldvalue.fireEvent(new JsonEvent(oldvalue, null));

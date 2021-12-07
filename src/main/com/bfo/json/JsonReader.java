@@ -57,7 +57,7 @@ class JsonReader {
     private Json readToken(int special) throws IOException {
         Json out = null;
         int c = stripBlanks();
-        if (c == special && special > 0) {
+        if (special > 0 && c == special) {
             return null;
         } else if (c < 0) {
             throw new EOFException();
@@ -75,7 +75,7 @@ class JsonReader {
                     break;
                 }
                 list.add(child);
-                Json.notify(out, Integer.valueOf(size), null, child);
+                Json.notifyDuringLoad(out, size, child);
                 c = stripBlanks();
                 if (c == ']') {
                     break;
@@ -97,7 +97,9 @@ class JsonReader {
                 } else {
                     String key;
                     if (c == '"') {
-                        key = new JsonStringReader((char)c, reader).readString();
+                        StringBuilder sb = new StringBuilder();
+                        readString(reader, c, Integer.MAX_VALUE, sb);
+                        key = sb.toString();
                     } else if (options.isAllowUnquotedKey() && "-0123456789{}[].".indexOf(c) < 0) {
                         StringBuilder sb = new StringBuilder();
                         sb.append((char)c);
@@ -124,7 +126,7 @@ class JsonReader {
                     Json child = readToken(0);
                     filter.exit(out, key);
                     map.put(key, child);
-                    Json.notify(out, key, null, child);
+                    Json.notifyDuringLoad(out, key, child);
                     c = stripBlanks();
                     if (c == '}') {
                         break;
@@ -294,7 +296,7 @@ class JsonReader {
             reader.reset();
             out = filter.createNumber(n).setStrict(strict);
         } else if (c == '"') {
-            out = filter.createString(new JsonStringReader((char)c, reader), -1);
+            out = filter.createString(new JsonStringReader(c, reader), -1);
             if (options.isNFC() && out.isString()) {
                 String s = out.stringValue();
                 s = Normalizer.normalize(s, Normalizer.Form.NFC);
@@ -360,96 +362,144 @@ class JsonReader {
         return c;
     }
 
-    static class JsonStringReader extends FilterReader {
-
-        private static final boolean[] literal = new boolean[128];
-        static {
-            for (int c=0;c<128;c++) {
-                literal[c] = c == 127 || !(Character.isISOControl(c) || c == '\\' || c == '"' || c == '\'');
-            }
-        }
-        private final char quote;
-        boolean inquotes = true;
-        private boolean eof;
-
-        JsonStringReader(char quote, Reader reader) {
-            super(reader);
-            this.quote = quote;
-        }
-
-        private int hexnibble(int c) {
-            if (c>='0' & c<='9') {
-                return c - '0';
-            } else if (c<='F' & c>='A') {
-                return c - 'A' + 10;
-            } else if (c<='f' & c>='a') {
-                return c - 'a' + 10;
-            } else if (c < 0) {
-                throw new IllegalArgumentException("Unexpected EOF in hex string at " + in);
-            } else {
-                throw new IllegalArgumentException("Invalid hex digit 0x" + Integer.toHexString(c) + " at " + in);
-            }
-        }
-
-        @Override public int read() throws IOException {
-            if (eof) {
-                return -1;
-            }
+    /**
+     * Read a String from the supplied reader, stopping when the matching quote is met or when we've read "maxlen".
+     * The returned character is the number or characters read, or -1 for "we hit maxlen"
+     * Benchmarking shows this is faster than using any sort of FilteredReader
+     */
+    static int readString(Reader in, int quote, int maxlen, Appendable sb) throws IOException {
+        for (int i=0;i<maxlen;i++) {
             int c = in.read();
             if (c < 0) {
                 throw new IllegalArgumentException("Unterminated string at " + in);
             } else if (c < 128 && literal[c]) {
-                return c;
+                // noop
             } else if (c == quote) {
-                eof = true;
-                return -1;
+                return i;
             } else if (c == '\\') {
                 c = in.read();
                 switch (c) {
                     case '\\':
                     case '\"':
                     case '/':
-                        return c;
-                    case 'u':
-                        int v = (hexnibble(in.read()) << 12) | (hexnibble(in.read()) << 8) | (hexnibble(in.read()) << 4) | hexnibble(in.read());
-                        return v;
+                        break;
+                    case 'u': {
+                            int v = in.read();
+                            int q = v <= '9' && v >= '0' ? v - '0' : v <= 'F' && v >= 'A' ? v - 'A' + 10 : v <= 'f' && v >= 'a' ? v - 'a' + 10 : -1;
+                            if (q < 0) {
+                                throw new IllegalArgumentException("Invalid hex digit 0x" + Integer.toHexString(v) + " in string at " + in);
+                            }
+                            c = q << 12;
+                            v = in.read();
+                            q = v <= '9' && v >= '0' ? v - '0' : v <= 'F' && v >= 'A' ? v - 'A' + 10 : v <= 'f' && v >= 'a' ? v - 'a' + 10 : -1;
+                            if (q < 0) {
+                                throw new IllegalArgumentException("Invalid hex digit 0x" + Integer.toHexString(v) + " in string at " + in);
+                            }
+                            c |= q << 8;
+                            v = in.read();
+                            q = v <= '9' && v >= '0' ? v - '0' : v <= 'F' && v >= 'A' ? v - 'A' + 10 : v <= 'f' && v >= 'a' ? v - 'a' + 10 : -1;
+                            if (q < 0) {
+                                throw new IllegalArgumentException("Invalid hex digit 0x" + Integer.toHexString(v) + " in string at " + in);
+                            }
+                            c |= q << 4;
+                            v = in.read();
+                            q = v <= '9' && v >= '0' ? v - '0' : v <= 'F' && v >= 'A' ? v - 'A' + 10 : v <= 'f' && v >= 'a' ? v - 'a' + 10 : -1;
+                            if (q < 0) {
+                                throw new IllegalArgumentException("Invalid hex digit 0x" + Integer.toHexString(v) + " in string at " + in);
+                            }
+                            c |= v;
+                        }
+                        break;
                     case 'n':
-                        return '\n';
+                        c = '\n';
+                        break;
                     case 'r':
-                        return '\r';
+                        c = '\r';
+                        break;
                     case 't':
-                        return '\t';
+                        c = '\t';
+                        break;
                     case 'b':
-                        return '\b';
+                        c = '\b';
+                        break;
                     case 'f':
-                        return '\f';
+                        c = '\f';
+                        break;
                     default:
                         throw new IOException("Invalid trailing backslash in string at " + in);
                 }
-            } else if (!Character.isISOControl(c)) {
+            } else if (Character.isISOControl(c)) {
+                throw new IllegalArgumentException("Invalid string character 0x" + Integer.toHexString(c) + " at " + in);
+            }
+            sb.append((char)c);
+        }
+        return -1;
+    }
+
+    private static final boolean[] literal = new boolean[128];
+    static {
+        for (int c=0;c<128;c++) {
+            literal[c] = c == 127 || !(Character.isISOControl(c) || c == '\\' || c == '"' || c == '\'');
+        }
+    }
+
+    static class JsonStringReader extends FilterReader {
+        private final int quote;
+        private boolean eof;
+
+        JsonStringReader(int quote, Reader reader) {
+            super(reader);
+            this.quote = quote;
+        }
+
+        @Override public int read() throws IOException {
+            char[] c = new char[1];
+            return read(c, 0, 1) == 1 ? c[0] : -1;
+        }
+
+        @Override public int read(char[] buf, final int off, int len) throws IOException {
+            if (eof) {
+                return -1;
+            }
+            int c = JsonReader.readString(in, quote, len, new Appendable() {
+                int i = off;
+                public Appendable append(char c) {
+                    buf[i++] = c;
+                    return this;
+                }
+                public Appendable append(CharSequence s) {
+                    throw new Error();
+                }
+                public Appendable append(CharSequence s, int off, int len) {
+                    throw new Error();
+                }
+            });
+            if (c >= 0) {
+                eof = true;
                 return c;
             } else {
-                throw new IllegalArgumentException("Invalid string character 0x" + Integer.toHexString(c) + " at " + in);
+                return len;
             }
         }
 
         @Override public long skip(long n) throws IOException {
-            int c = 0;
-            while (c < n && read() > 0) {
-                c++;
-            }
-            return c;
-        }
-
-        @Override public int read(char[] buf, int off, int len) throws IOException {
-            for (int i=0;i<len;i++) {
-                int v = read();
-                if (v < 0) {
-                    return i == 0 ? -1 : i;
+            int ml = (int)Math.min(Integer.MAX_VALUE, n);
+            int c = JsonReader.readString(in, quote, ml, new Appendable() {
+                public Appendable append(char c) {
+                    return this;
                 }
-                buf[off++] = (char)v;
+                public Appendable append(CharSequence s) {
+                    return this;
+                }
+                public Appendable append(CharSequence s, int off, int len) {
+                    return this;
+                }
+            });
+            if (c >= 0) {
+                return c;
+            } else {
+                return ml;
             }
-            return len;
         }
 
         @Override public void close() {
@@ -457,10 +507,7 @@ class JsonReader {
 
         String readString() throws IOException {
             StringBuilder sb = new StringBuilder();
-            int c;
-            while ((c=read()) >= 0) {
-                sb.append((char)c);
-            }
+            JsonReader.readString(in, quote, Integer.MAX_VALUE, sb);
             return sb.toString();
         }
     }

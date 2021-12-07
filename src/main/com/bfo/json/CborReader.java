@@ -92,7 +92,7 @@ class CborReader {
                             throw new EOFException();
                         }
                         list.add(j2);
-                        Json.notify(j, i++, null, j2);
+                        Json.notifyDuringLoad(j, i++, j2);
                         filter.enter(j, i);
                     }
                     filter.exit(j, i);
@@ -109,7 +109,7 @@ class CborReader {
                             throw new EOFException();
                         }
                         list.add(j2);
-                        Json.notify(j, i, null, j2);
+                        Json.notifyDuringLoad(j, i, j2);
                     }
                 }
                 break;
@@ -142,7 +142,7 @@ class CborReader {
                         if (o != null) {
                             throw new IOException("Duplicate key \"" + k + "\" at " + tell);
                         }
-                        Json.notify(j, k, null, val);
+                        Json.notifyDuringLoad(j, k, val);
                         tell = in.tell();
                     }
                 } else {
@@ -171,7 +171,7 @@ class CborReader {
                         if (o != null) {
                             throw new IOException("Duplicate key \"" + key + "\" at " + tell);
                         }
-                        Json.notify(j, k, null, val);
+                        Json.notifyDuringLoad(j, k, val);
                     }
                 }
                 break;

@@ -442,6 +442,8 @@ public class JsonReadOptions {
             if (in instanceof StringReader) {
                 String s = in.toString();
                 return new Json(s, null);
+            } else if (in instanceof JsonReader.JsonStringReader) {
+                return new Json(((JsonReader.JsonStringReader)in).readString(), null);
             } else if (length > Integer.MAX_VALUE) {
                 throw new IllegalArgumentException("Can't allocate "+length+" String");
             } else if (length >= 0) {
