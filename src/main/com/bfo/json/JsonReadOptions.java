@@ -278,12 +278,24 @@ public class JsonReadOptions {
         return failOnNonStringKeys;
     }
 
-    public int getFastStringLength() {
-        return fastStringLength;
-    }
-
+    /**
+     * Set the value of the "fastStringLength" value - strings loaded from a binary source
+     * less than this value will be loaded directly into memory, whereas above this length
+     * they will be streamed. The default is 262144 (256KB).
+     * @since 4
+     * @return the fastStringLength value
+     */
     public void setFastStringLength(int len) {
         fastStringLength = len;
+    }
+
+    /**
+     * Return the value of the "fastStringLength" as set by {@link #setFastStringLength}
+     * @since 4
+     * @return the fastStringLength value
+     */
+    public int getFastStringLength() {
+        return fastStringLength;
     }
 
     /**
