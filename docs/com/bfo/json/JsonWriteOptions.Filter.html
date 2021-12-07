@@ -112,20 +112,6 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Called once when the Json writing begins</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#isProxy(com.bfo.json.Json)" class="member-name-link">isProxy</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
-<div class="block">Called before writing a node - if this method returns true,
- the <a href="#proxyWrite(com.bfo.json.Json,java.io.OutputStream)"><code>proxyWrite(com.bfo.json.Json, java.io.OutputStream)</code></a> method will be called with this node.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#proxyWrite(com.bfo.json.Json,java.io.OutputStream)" class="member-name-link">proxyWrite</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;json,
- <a href="https://docs.oracle.com/javase/8/docs/api/java/io/OutputStream.html" title="class or interface in java.io" class="external-link">OutputStream</a>&nbsp;out)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
-<div class="block">
- If <a href="#isProxy(com.bfo.json.Json)"><code>isProxy(com.bfo.json.Json)</code></a> returned true for <code>json</code>, this method
- is called to write the specified object to the stream.</div>
-</div>
 </div>
 </div>
 </div>
@@ -177,70 +163,6 @@ loadScripts(document, 'script');</script>
 <dt>Parameters:</dt>
 <dd><code>key</code> - the key of the current entry in the map</dd>
 <dd><code>child</code> - the value of the current entry in the map</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="isProxy(com.bfo.json.Json)">
-<h3>isProxy</h3>
-<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isProxy</span><wbr><span class="parameters">(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</span></div>
-<div class="block">Called before writing a node - if this method returns true,
- the <a href="#proxyWrite(com.bfo.json.Json,java.io.OutputStream)"><code>proxyWrite(com.bfo.json.Json, java.io.OutputStream)</code></a> method will be called with this node.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>json</code> - the object which we are about to write</dd>
-<dt>Returns:</dt>
-<dd>whether writing for this object should be proxied - default is false</dd>
-<dt>See Also:</dt>
-<dd>
-<ul class="see-list-long">
-<li><a href="#proxyWrite(com.bfo.json.Json,java.io.OutputStream)"><code>proxyWrite(com.bfo.json.Json, java.io.OutputStream)</code></a></li>
-</ul>
-</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="proxyWrite(com.bfo.json.Json,java.io.OutputStream)">
-<h3>proxyWrite</h3>
-<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">proxyWrite</span><wbr><span class="parameters">(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;json,
- <a href="https://docs.oracle.com/javase/8/docs/api/java/io/OutputStream.html" title="class or interface in java.io" class="external-link">OutputStream</a>&nbsp;out)</span>
-                 throws <span class="exceptions"><a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
-<div class="block"><p>
- If <a href="#isProxy(com.bfo.json.Json)"><code>isProxy(com.bfo.json.Json)</code></a> returned true for <code>json</code>, this method
- is called to write the specified object to the stream. This can be
- used to create JSON or CBOR objects from very large objects without
- needing them serialized in memory first. In both cases the object
- will be streamed directly to the OutputStream without any intermediate
- buffer.
- </p><p>
- For example, if you have an object that you want to serialize to CBOR.
- Create a proxy object for it in the Json structure, then override
- this method to write it out.
- </p>
- <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
-  Json json = ...;            // main Json object
-  Json proxy = new Json(ByteBuffer.wrap(new byte[0]), null);
-  json.put("file", proxy);    // put our proxy in the structure
-  JsonWriteOptions options = new JsonWriteOptions().setFilter(new JsonWriteOptions.Filter() {
-    public boolean isProxy(Json json) {
-      return json == proxy;
-    }
-    public void proxyWrite(Json json, OutputStream out) throws IOException {
-      widget.writeTo(out);      // Serialize our widget in place of the proxy.
-    }
-  });
- json.writeCbor(outputstream, options);
- </pre>
- Not every type of object can be proxied - currently it's just "buffer" type
- objects. The <a href="#isProxy(com.bfo.json.Json)"><code>isProxy(com.bfo.json.Json)</code></a> method will only be called if proxy writing is
- possible.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>json</code> - the object which we are supposed to be writing</dd>
-<dd><code>out</code> - the OutputStream to write to.</dd>
-<dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - from the supplied OutputStream</dd>
 </dl>
 </section>
 </li>

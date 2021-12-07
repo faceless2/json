@@ -44,7 +44,7 @@ loadScripts(document, 'script');</script>
 <div>
 <ul class="sub-nav-list">
 <li>Summary:&nbsp;</li>
-<li>Nested&nbsp;|&nbsp;</li>
+<li><a href="#nested-class-summary">Nested</a>&nbsp;|&nbsp;</li>
 <li>Field&nbsp;|&nbsp;</li>
 <li><a href="#constructor-summary">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method-summary">Method</a></li>
@@ -95,6 +95,23 @@ loadScripts(document, 'script');</script>
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<li>
+<section class="nested-class-summary" id="nested-class-summary">
+<h2>Nested Class Summary</h2>
+<div class="caption"><span>Nested Classes</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Class</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="JsonReadOptions.Filter.html" class="type-name-link" title="interface in com.bfo.json">JsonReadOptions.Filter</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">A Filter which can be applied during reading of data.</div>
+</div>
+</div>
+</section>
+</li>
 <!-- ======== CONSTRUCTOR SUMMARY ======== -->
 <li>
 <section class="constructor-summary" id="constructor-summary">
@@ -124,6 +141,16 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Return the CodingErrorAction set by <a href="#setCborStringCodingErrorAction(java.nio.charset.CodingErrorAction)"><code>setCborStringCodingErrorAction(java.nio.charset.CodingErrorAction)</code></a>
  is incorrect, the specified action will be performed.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getFastStringLength()" class="member-name-link">getFastStringLength</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the value of the "fastStringLength" as set by <a href="#setFastStringLength(int)"><code>setFastStringLength(int)</code></a></div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="JsonReadOptions.Filter.html" title="interface in com.bfo.json">JsonReadOptions.Filter</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getFilter()" class="member-name-link">getFilter</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the value of the Filter as set by <a href="#setFilter(com.bfo.json.JsonReadOptions.Filter)"><code>setFilter(com.bfo.json.JsonReadOptions.Filter)</code></a></div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isAllowComments()" class="member-name-link">isAllowComments</a>()</code></div>
@@ -222,6 +249,18 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">When reading CBOR/Msgpack and a map key is encountered that is not a String,
  fail rather than converting it silently to a String.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setFastStringLength(int)" class="member-name-link">setFastStringLength</a><wbr>(int&nbsp;len)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the value of the "fastStringLength" value - strings loaded from a binary source
+ less than this value will be loaded directly into memory, whereas above this length
+ they will be streamed.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setFilter(com.bfo.json.JsonReadOptions.Filter)" class="member-name-link">setFilter</a><wbr>(<a href="JsonReadOptions.Filter.html" title="interface in com.bfo.json">JsonReadOptions.Filter</a>&nbsp;filter)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the <a href="JsonReadOptions.Filter.html" title="interface in com.bfo.json"><code>JsonReadOptions.Filter</code></a> that will be used to convert objects when reading</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setLooseEmptyStrings(boolean)" class="member-name-link">setLooseEmptyStrings</a><wbr>(boolean&nbsp;looseEmptyStrings)</code></div>
@@ -566,6 +605,60 @@ loadScripts(document, 'script');</script>
 <dd>the flag</dd>
 <dt>Since:</dt>
 <dd>3</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setFastStringLength(int)">
+<h3>setFastStringLength</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setFastStringLength</span><wbr><span class="parameters">(int&nbsp;len)</span></div>
+<div class="block">Set the value of the "fastStringLength" value - strings loaded from a binary source
+ less than this value will be loaded directly into memory, whereas above this length
+ they will be streamed. The default is 262144 (256KB).</div>
+<dl class="notes">
+<dt>Since:</dt>
+<dd>4</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="getFastStringLength()">
+<h3>getFastStringLength</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">getFastStringLength</span>()</div>
+<div class="block">Return the value of the "fastStringLength" as set by <a href="#setFastStringLength(int)"><code>setFastStringLength(int)</code></a></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the fastStringLength value</dd>
+<dt>Since:</dt>
+<dd>4</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setFilter(com.bfo.json.JsonReadOptions.Filter)">
+<h3>setFilter</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></span>&nbsp;<span class="element-name">setFilter</span><wbr><span class="parameters">(<a href="JsonReadOptions.Filter.html" title="interface in com.bfo.json">JsonReadOptions.Filter</a>&nbsp;filter)</span></div>
+<div class="block">Set the <a href="JsonReadOptions.Filter.html" title="interface in com.bfo.json"><code>JsonReadOptions.Filter</code></a> that will be used to convert objects when reading</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>filter</code> - the filter, or null for no filter</dd>
+<dt>Returns:</dt>
+<dd>this</dd>
+<dt>Since:</dt>
+<dd>4</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="getFilter()">
+<h3>getFilter</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="JsonReadOptions.Filter.html" title="interface in com.bfo.json">JsonReadOptions.Filter</a></span>&nbsp;<span class="element-name">getFilter</span>()</div>
+<div class="block">Return the value of the Filter as set by <a href="#setFilter(com.bfo.json.JsonReadOptions.Filter)"><code>setFilter(com.bfo.json.JsonReadOptions.Filter)</code></a></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the filter</dd>
+<dt>Since:</dt>
+<dd>4</dd>
 </dl>
 </section>
 </li>
