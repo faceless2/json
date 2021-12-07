@@ -106,30 +106,9 @@ class CborWriter {
             }
         } else if (j.isBuffer()) {
             if (j.getClass() != Json.class) {
-                // May have overridden writeBuffer
-                // We're going to write an indefinite length object
+                // May have overriden writeBuffer - write as an indefinite length buffer
                 writeNum(2, -1, out);
-                OutputStream fo = new FilterOutputStream(out) {
-                    private final ByteArrayOutputStream hold = new ByteArrayOutputStream();
-                    @Override public void write(int v) throws IOException {
-                        v &= 0xFF;
-                        hold.write(v);
-                        if (v == 0xFF) {        // stop bit
-                            close();
-                        }
-                    }
-                    @Override public void close() throws IOException {
-                        writeNum(2, hold.size(), out);
-                        hold.writeTo(out);
-                        hold.reset();
-                    }
-                    @Override public void write(byte[] buf, int off, int len) throws IOException {
-                        len += off;
-                        while (off < len) {
-                            write(buf[off++]);
-                        }
-                    }
-                };
+                OutputStream fo = new IndefiniteLengthOutputStream(out, 2);
                 j.writeBuffer(fo);
                 fo.close();
                 out.write(0xFF);
@@ -140,7 +119,16 @@ class CborWriter {
                 Channels.newChannel(out).write(b);
             }
         } else if (j.isString()) { 
-            j.writeString(stringWriter);
+            if (j.getClass() != Json.class) {
+                // May have overriden writeString - write as an indefinite length string
+                writeNum(3, -1, out);
+                OutputStream fo = new IndefiniteLengthOutputStream(out, 3);
+                j.writeString(new UTF8Writer(fo, options.isNFC()));
+                fo.close();
+                out.write(0xFF);
+            } else {
+                j.writeString(stringWriter);
+            }
         } else if (j.isList()) {
             List<Json> list = j._listValue();
             writeNum(4, list.size(), out);
@@ -221,6 +209,37 @@ class CborWriter {
             out.write((int)(i>>16));
             out.write((int)(i>>8));
             out.write((int)i);
+        }
+    }
+
+    private static class IndefiniteLengthOutputStream extends FilterOutputStream {
+        private final ByteArrayOutputStream hold = new ByteArrayOutputStream();
+        private final int type;
+
+        IndefiniteLengthOutputStream(OutputStream out, int type) {
+            super(out);
+            this.type = type;
+        }
+
+        @Override public void write(int v) throws IOException {
+            v &= 0xFF;
+            hold.write(v);
+            if (v == 0xFF) {        // stop bit
+                close();
+            }
+        }
+
+        @Override public void close() throws IOException {
+            CborWriter.writeNum(type, hold.size(), out);
+            hold.writeTo(out);
+            hold.reset();
+        }
+
+        @Override public void write(byte[] buf, int off, int len) throws IOException {
+            len += off;
+            while (off < len) {
+                write(buf[off++]);
+            }
         }
     }
 

@@ -224,7 +224,8 @@ public class JsonReadOptions {
     /**
      * Return the CodingErrorAction set by {@link #setCborStringCodingErrorAction}
      * is incorrect, the specified action will be performed.
-     * The default is {@link CodingErrorAction#REPLACE}
+     * The default is {@link CodingErrorAction#REPLACE}, which is also the fastest
+     * option.
      * @return the action
      * @since 2
      */

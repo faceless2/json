@@ -4,8 +4,10 @@ import java.io.*;
 import java.nio.*;
 import java.nio.charset.*;
 
-// Extends CountingInputStream but overrides everything.
-// Just so we can get a single interface for an InputStream with a tell() method
+/**
+ * Extends CountingInputStream but overrides everything.
+ * Just so we can get a single interface for an InputStream with a tell() method
+ */
 class ByteBufferInputStream extends CountingInputStream {
 
     ByteBuffer in;

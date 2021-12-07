@@ -283,6 +283,16 @@ class CborReader {
                     eof = true;
                 } else {
                     Number n = readNumber(c, true);
+                    while (n.longValue() == 0) {
+                        // Because a zero-length here is mistaken for eof
+                        c = in.read();
+                        if (c == 0xFF) {
+                            eof = true;
+                            return;
+                        } else {
+                            n = readNumber(c, true);
+                        }
+                    }
                     current = createFixedInputStream(in, n.longValue(), options.getFastStringLength(), action);
                 }
             }

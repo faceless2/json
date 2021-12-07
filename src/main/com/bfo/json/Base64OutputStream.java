@@ -2,6 +2,10 @@ package com.bfo.json;
 
 import java.io.*;
 
+/**
+ * To write to an appendable without going via an intermediate stream or buffer,
+ * as java.util.Base64.getEncoder() requires
+ */
 class Base64OutputStream extends OutputStream {
 
     static final char[] BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray();
