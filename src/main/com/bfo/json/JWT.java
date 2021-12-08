@@ -244,6 +244,7 @@ public class JWT {
                     }
                 }
             }
+            header.put("alg", alg.equals("NONE") ? "none" : alg);
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
@@ -503,7 +504,7 @@ public class JWT {
          * as a live object
          * @return the jwk
          */
-        public Json toJson() {
+        public Json get() {
             return jwk;
         }
 
