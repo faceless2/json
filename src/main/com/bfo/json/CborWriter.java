@@ -105,7 +105,7 @@ class CborWriter {
                 }
             }
         } else if (j.isBuffer()) {
-            if (j.getClass() != Json.class) {
+            if (j.isIndefiniteBuffer()) {
                 // May have overriden writeBuffer - write as an indefinite length buffer
                 writeNum(2, -1, out);
                 OutputStream fo = new IndefiniteLengthOutputStream(out, 2);
@@ -119,7 +119,7 @@ class CborWriter {
                 Channels.newChannel(out).write(b);
             }
         } else if (j.isString()) { 
-            if (j.getClass() != Json.class) {
+            if (j.isIndefiniteString()) {
                 // May have overriden writeString - write as an indefinite length string
                 writeNum(3, -1, out);
                 OutputStream fo = new IndefiniteLengthOutputStream(out, 3);
