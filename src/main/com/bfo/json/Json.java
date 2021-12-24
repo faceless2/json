@@ -1667,7 +1667,7 @@ public class Json {
      */
     public void setValue(Json json) {
         core = json == null ? null : json.core;
-        setSimpleString(json.isSimpleString());
+        setSimpleString(json != null && json.isSimpleString());
     }
 
     /**
@@ -2032,7 +2032,7 @@ public class Json {
      */
     public int intValue(int path) {
         Json j = get(path);
-        return j == null ? null : j.intValue();
+        return j == null ? 0 : j.intValue();
     }
 
     /**
@@ -2100,7 +2100,7 @@ public class Json {
      */
     public long longValue(int path) {
         Json j = get(path);
-        return j == null ? null : j.intValue();
+        return j == null ? 0 : j.intValue();
     }
 
     /**
@@ -2144,7 +2144,7 @@ public class Json {
      */
     public float floatValue(int path) {
         Json j = get(path);
-        return j == null ? null : j.floatValue();
+        return j == null ? 0 : j.floatValue();
     }
 
     /**
@@ -2188,7 +2188,7 @@ public class Json {
      */
     public double doubleValue(int path) {
         Json j = get(path);
-        return j == null ? null : j.doubleValue();
+        return j == null ? 0 : j.doubleValue();
     }
 
     /**

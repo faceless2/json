@@ -15,7 +15,6 @@ class CborReader {
     private final JsonReadOptions options;
     private final JsonReadOptions.Filter filter;
     private final boolean strict;
-    private boolean init;
 
     CborReader(CountingInputStream in, JsonReadOptions options) {
         this.in = in;
