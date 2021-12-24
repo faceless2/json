@@ -290,38 +290,28 @@ public class JWT {
     }
 
     private static String toJavaAlgorithm(String alg) {
-        switch (alg) {
-            case "HS256":
-            case "HS384":
-            case "HS512":
-                return "HmacSHA" + alg.substring(2);
-            case "RS256":
-            case "RS384":
-            case "RS512":
-                return "SHA" + alg.substring(2) + "withRSA";
-            case "PS256":
-            case "PS384":
-            case "PS512":
-                return "RSASSA-PSS";
-            case "ES256":
-            case "ES384":
-            case "ES512":
-                return "SHA" + alg.substring(2) + "withECDSA";
-            default:
-                throw new IllegalStateException("Unsupported alg \"" + alg + "\"");
+        if ("HS256".equals(alg) || "HS384".equals(alg) || "HS512".equals(alg)) {
+            return "HmacSHA" + alg.substring(2);
+        } else if ("RS256".equals(alg) || "RS384".equals(alg) || "RS512".equals(alg)) {
+            return "SHA" + alg.substring(2) + "withRSA";
+        } else if ("PS256".equals(alg) || "PS384".equals(alg) || "PS512".equals(alg)) {
+            return "RSASSA-PSS";
+        } else if ("ES256".equals(alg) || "ES384".equals(alg) || "ES512".equals(alg)) {
+            return "SHA" + alg.substring(2) + "withECDSA";
+        } else {
+            throw new IllegalStateException("Unsupported alg \"" + alg + "\"");
         }
     }
 
     private static AlgorithmParameterSpec toJavaAlgorithmParameters(String alg) {
-        switch (alg) {
-            case "PS256":
-                return new PSSParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, 1);
-            case "PS384":
-                return new PSSParameterSpec("SHA-384", "MGF1", MGF1ParameterSpec.SHA384, 48, 1);
-            case "PS512":
-                return new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1);
-            default:
-                return null;
+        if ("PS256".equals(alg)) {
+            return new PSSParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, 1);
+        } else if ("PS384".equals(alg)) {
+            return new PSSParameterSpec("SHA-384", "MGF1", MGF1ParameterSpec.SHA384, 48, 1);
+        } else if ("PS512".equals(alg)) {
+            return new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1);
+        } else {
+            return null;
         }
     }
 
@@ -409,26 +399,16 @@ public class JWT {
                 key = Base64.getMimeDecoder().decode(s);
             }
         }
-        switch(alg) {
-            case "HS256":
-            case "HS384":
-            case "HS512":
-                return new SecretKeySpec(key, "HmacSHA" + alg.substring(2));
-            case "RS256":
-            case "RS384":
-            case "RS512":
-            case "PS256":
-            case "PS384":
-            case "PS512":
-                alg = "RSA";
-                break;
-            case "ES256":
-            case "ES384":
-            case "ES512":
-                alg = "EC";
-                break;
-            default:
-                return null;
+        if ("HS256".equals(alg) || "HS384".equals(alg) || "HS512".equals(alg)) {
+            return new SecretKeySpec(key, "HmacSHA" + alg.substring(2));
+        } else if ("RS256".equals(alg) || "RS384".equals(alg) || "RS512".equals(alg)) {
+            alg = "RSA";
+        } else if ("PS256".equals(alg) || "PS384".equals(alg) || "PS512".equals(alg)) {
+            alg = "RSA";
+        } else if ("ES256".equals(alg) || "ES384".equals(alg) || "ES512".equals(alg)) {
+            alg = "EC";
+        } else {
+            return null;
         }
         KeyFactory keyfactory = provider == null ? KeyFactory.getInstance(alg) : KeyFactory.getInstance(alg, provider);
         if (pub) {
@@ -729,18 +709,14 @@ public class JWT {
                         KeyFactory factory = provider == null ? KeyFactory.getInstance("EC") : KeyFactory.getInstance("EC", provider);
                         String crv = stringValue("crv");
                         ECParameterSpec params;
-                        switch (crv) {
-                            case "P-256":
-                                params = ECSPEC_P256;
-                                break;
-                            case "P-384":
-                                params = ECSPEC_P384;
-                                break;
-                            case "P-521":
-                                params = ECSPEC_P521;
-                                break;
-                            default:
-                                throw new IllegalArgumentException("Unknown EC curve \"" + crv + "\"");
+                        if ("P-256".equals(crv)) {
+                            params = ECSPEC_P256;
+                        } else if ("P-384".equals(crv)) {
+                            params = ECSPEC_P384;
+                        } else if ("P-521".equals(crv)) {
+                            params = ECSPEC_P521;
+                        } else {
+                            throw new IllegalArgumentException("Unknown EC curve \"" + crv + "\"");
                         }
                         BigInteger d = bigint(this, "d", "EC private", true);
                         if (d != null) {
@@ -801,24 +777,12 @@ public class JWT {
                         String alg = stringValue("alg");
                         if (alg == null) {
                             alg = "NONE";
+                        } else if ("HS256".equals(alg) || "HS384".equals(alg) || "HS512".equals(alg)) {
+                            alg = "HmacSHA" + alg.substring(2);
+                        } else if ("A128KW".equals(alg) || "A192KW".equals(alg) || "A256KW".equals(alg)) {
+                            alg = "AES";
                         } else {
-                            switch (alg) {
-                                case "HS256":
-                                case "HS384":
-                                case "HS512":
-                                    alg = "HmacSHA" + alg.substring(2);
-                                    break;
-                                case "A128KW":
-                                case "A192KW":
-                                case "A256KW":
-                                    alg = "AES";
-                                    break;
-                                case "A128GCMKW":
-                                case "A192GCMKW":
-                                case "A256GCMKW":
-                                default:
-                                    throw new IllegalArgumentException("Unknown symmetric alg \"" + alg + "\"");
-                            }
+                            throw new IllegalArgumentException("Unknown symmetric alg \"" + alg + "\""); // Some TODO here?
                         }
                         key = new SecretKeySpec(k, alg);
                     } else {
