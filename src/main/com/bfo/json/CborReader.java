@@ -270,7 +270,7 @@ class CborReader {
         }
     }
 
-    private InputStream createIndefiniteBufferInputStream(CodingErrorAction action) throws IOException {
+    private InputStream createIndefiniteBufferInputStream(final CodingErrorAction action) throws IOException {
         return new FilterInputStream(in) {
             boolean eof;
             private InputStream current = new ByteArrayInputStream(new byte[0]);
@@ -348,7 +348,7 @@ class CborReader {
      * @param fastlen if len is less than this value, read it in as a buffer
      * @param action if not null the stream will be turned into a String
      */
-    static InputStream createFixedInputStream(InputStream in, long len, int fastlen, CodingErrorAction action) throws IOException {
+    static InputStream createFixedInputStream(InputStream in, final long len, int fastlen, final CodingErrorAction action) throws IOException {
         if (len < fastlen) {
             byte[] buf = new byte[(int)len];
             int i = 0;
@@ -369,9 +369,10 @@ class CborReader {
                     decoder.onMalformedInput(action);
                     s = decoder.decode(ByteBuffer.wrap(buf, 0, buf.length)).toString();
                 }
+                final String fs = s;
                 return new ByteArrayInputStream(buf, 0, buf.length) {
                     public String toString() {
-                        return s;
+                        return fs;
                     }
                 };
             }

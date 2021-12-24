@@ -457,7 +457,7 @@ class JsonReader {
             return read(c, 0, 1) == 1 ? c[0] : -1;
         }
 
-        @Override public int read(char[] buf, final int off, int len) throws IOException {
+        @Override public int read(final char[] buf, final int off, int len) throws IOException {
             if (eof) {
                 return -1;
             }

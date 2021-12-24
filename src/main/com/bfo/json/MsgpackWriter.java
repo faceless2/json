@@ -16,7 +16,7 @@ class MsgpackWriter {
     private final boolean filtered;
     private final Appendable stringWriter;
 
-    MsgpackWriter(OutputStream out, JsonWriteOptions options, Json root) {
+    MsgpackWriter(final OutputStream out, final JsonWriteOptions options, final Json root) {
         this.out = out;
         this.options = options;
         this.filtered = options.getFilter() != null;

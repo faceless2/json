@@ -16,7 +16,7 @@ class CborWriter {
     private final JsonWriteOptions.Filter filter;
     private final Appendable stringWriter;
 
-    CborWriter(OutputStream out, JsonWriteOptions options, Json root) {
+    CborWriter(final OutputStream out, JsonWriteOptions options, Json root) {
         this.out = out;
         this.options = options;
         this.filtered = options.getFilter() != null;
