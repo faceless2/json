@@ -158,7 +158,7 @@ public class Json {
      * @param factory the factory for conversion, which may be null
      * @throws ClassCastException if the object cannot be converted to Json
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked","rawtypes"})
     public Json(Object object, JsonFactory factory) {
         if (object == null) {
             core = null;
@@ -1224,12 +1224,12 @@ public class Json {
             return Collections.<Map.Entry<String,Json>>emptyIterator();
         }
         return new Iterator<Map.Entry<String,Json>>() {
-            List<Iterator> stack;
+            List<Iterator<?>> stack;
             List<Object> string;
             Json last;
 
             {
-                stack = new ArrayList<Iterator>();
+                stack = new ArrayList<Iterator<?>>();
                 string = new ArrayList<Object>();
                 last = Json.this;
                 if (isMap()) {
@@ -1284,7 +1284,7 @@ public class Json {
 
             @SuppressWarnings("unchecked")
             private void across() {
-                Iterator i = stack.get(stack.size() - 1);
+                Iterator<?> i = stack.get(stack.size() - 1);
                 if (i instanceof ListIterator) {
                     string.set(string.size() - 1, Integer.valueOf(((ListIterator)i).nextIndex()));
                     last = (Json)i.next();
@@ -2292,7 +2292,7 @@ public class Json {
      * @param path the path
      * @since 4
      */
-    public Map mapValue(int path) {
+    public Map<String,Json> mapValue(int path) {
         Json j = get(path);
         return j == null ? null : j.mapValue();
     }
