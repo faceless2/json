@@ -37,14 +37,7 @@ class CborWriter {
             if (n instanceof BigDecimal) {      // No BigDecimal in CBOR
                 n = Double.valueOf(n.doubleValue());
             }
-            if (n instanceof Integer) {
-                int i = n.intValue();
-                if (i < 0) {
-                    writeNum(1, -i - 1, out);
-                } else {
-                    writeNum(0, i, out);
-                }
-            } else if (n instanceof Long) {
+            if (n instanceof Long) {
                 long l = n.longValue();
                 if (l < 0) {
                     writeNum(1, -l - 1, out);
@@ -102,6 +95,13 @@ class CborWriter {
                         writeNum(2, b.length, out);
                         out.write(b);
                     }
+                }
+            } else {
+                int i = n.intValue();
+                if (i < 0) {
+                    writeNum(1, -i - 1, out);
+                } else {
+                    writeNum(0, i, out);
                 }
             }
         } else if (j.isBuffer()) {
