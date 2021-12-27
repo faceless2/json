@@ -731,7 +731,7 @@ public class Json {
      * the old object (which may be a subtree) is removed and returned.
      * The object will be converted with the factory set by {@link #setFactory setFactory()}, if any.
      * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
-     * @param value the value to insert, which must not be null, this or an ancestor of this
+     * @param value the value to insert, which must not be this or an ancestor of this
      * @return the object that was previously found at that path, which may be null
      */
     public Json put(String path, Object value) {
@@ -739,7 +739,7 @@ public class Json {
             throw new IllegalArgumentException("path is null");
         }
         if (value == null) {
-            throw new IllegalArgumentException("value is null");
+            value = new Json(null);
         }
         Json object;
         if (value instanceof Json) {
