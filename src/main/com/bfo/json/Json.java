@@ -302,7 +302,7 @@ public class Json {
      */
     public static Json read(CharSequence in) {
         if (in == null) {
-            throw new IllegalArgumentException("Can't read from a null string");
+            throw new IllegalArgumentException("Input is null");
         } else if (in.length() == 0) {
             throw new IllegalArgumentException("Can't read from an empty string");
         } else if (in.length() == 2 && in.toString().equals("{}")) {
@@ -339,6 +339,9 @@ public class Json {
      * @throws IllegalArgumentException if the JSON is invalid
      */
     public static Json read(InputStream in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         if (!in.markSupported()) {
             in = new BufferedInputStream(in);
         }
@@ -397,6 +400,9 @@ public class Json {
      * @throws IllegalArgumentException if the JSON is invalid
      */
     public static Json read(Reader in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
@@ -418,6 +424,9 @@ public class Json {
      * @since 2
      */
     public static Json readCbor(InputStream in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
@@ -436,6 +445,9 @@ public class Json {
      * @since 2
      */
     public static Json readCbor(final ByteBuffer in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         InputStream stream;
         if (!in.isDirect()) {
             stream = new ByteArrayInputStream(in.array(), in.arrayOffset(), in.remaining());        // seems faster
@@ -454,6 +466,9 @@ public class Json {
      * @since 3
      */
     public static Json readMsgpack(InputStream in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
@@ -472,6 +487,9 @@ public class Json {
      * @since 3
      */
     public static Json readMsgpack(final ByteBuffer in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         InputStream stream;
         if (!in.isDirect()) {
             stream = new ByteArrayInputStream(in.array(), in.arrayOffset(), in.remaining());        // seems faster
@@ -490,6 +508,9 @@ public class Json {
      * @since 2
      */
     public OutputStream writeCbor(OutputStream out, JsonWriteOptions options) throws IOException {
+        if (out == null) {
+            throw new IllegalArgumentException("Output is null");
+        }
         if (options == null) {
             options = DEFAULTWRITEOPTIONS;
         }
@@ -506,6 +527,9 @@ public class Json {
      * @since 3
      */
     public OutputStream writeMsgpack(OutputStream out, JsonWriteOptions options) throws IOException {
+        if (out == null) {
+            throw new IllegalArgumentException("Output is null");
+        }
         if (options == null) {
             options = DEFAULTWRITEOPTIONS;
         }
