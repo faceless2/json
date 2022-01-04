@@ -33,7 +33,7 @@ class JsonReader {
         if ((c=stripBlanks()) != -1) {
             unexpected("trailing ", c);
         }
-        filter.complete();
+        filter.complete(j);
         return j;
     }
 

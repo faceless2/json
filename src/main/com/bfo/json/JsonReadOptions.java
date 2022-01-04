@@ -355,13 +355,13 @@ public class JsonReadOptions {
         /**
          * Called once when the Json reading begins
          */
-        public void initialize() {
+        public void initialize() throws IOException {
         }
 
         /**
          * Called once when the Json reading ends
          */
-        public void complete() {
+        public void complete(Json j) throws IOException {
         }
 
         /**
@@ -369,7 +369,7 @@ public class JsonReadOptions {
          * @param parent the current map
          * @param key the key of the next entry in the map
          */
-        public void enter(Json parent, String key) {
+        public void enter(Json parent, String key) throws IOException {
         }
 
         /**
@@ -377,7 +377,7 @@ public class JsonReadOptions {
          * @param parent the current map
          * @param key the key of the entry just read in the map
          */
-        public void exit(Json parent, String key) {
+        public void exit(Json parent, String key) throws IOException {
         }
 
         /**
@@ -385,7 +385,7 @@ public class JsonReadOptions {
          * @param parent the current list
          * @param key the key of the next entry in the list
          */
-        public void enter(Json parent, int key) {
+        public void enter(Json parent, int key) throws IOException {
         }
 
         /**
@@ -393,14 +393,14 @@ public class JsonReadOptions {
          * @param parent the current list
          * @param key the key of the entry just read in the list
          */
-        public void exit(Json parent, int key) {
+        public void exit(Json parent, int key) throws IOException {
         }
 
         /**
          * Create a new "map" object
          * @return the new Json object
          */
-        public Json createMap() {
+        public Json createMap() throws IOException {
             return new Json(Collections.EMPTY_MAP, null);
         }
 
@@ -408,7 +408,7 @@ public class JsonReadOptions {
          * Create a new "list" object
          * @return the new Json object
          */
-        public Json createList() {
+        public Json createList() throws IOException {
             return new Json(Collections.EMPTY_LIST, null);
         }
 
@@ -416,7 +416,7 @@ public class JsonReadOptions {
          * Create a new "null" object
          * @return the new Json object
          */
-        public Json createNull() {
+        public Json createNull() throws IOException {
             return new Json(null, null);
         }
 
@@ -425,7 +425,7 @@ public class JsonReadOptions {
          * @param b the boolean
          * @return the new Json object
          */
-        public Json createBoolean(boolean b) {
+        public Json createBoolean(boolean b) throws IOException {
             return new Json(b, null);
         }
 
@@ -434,7 +434,7 @@ public class JsonReadOptions {
          * @param n the number
          * @return the new Json object
          */
-        public Json createNumber(Number n) {
+        public Json createNumber(Number n) throws IOException {
             return new Json(n, null);
         }
 

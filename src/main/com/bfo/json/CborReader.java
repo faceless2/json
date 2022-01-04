@@ -26,7 +26,7 @@ class CborReader {
     Json read() throws IOException {
         filter.initialize();
         Json j = readPrivate();
-        filter.complete();
+        filter.complete(j);
         return j;
     }
 
