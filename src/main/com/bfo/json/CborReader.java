@@ -333,6 +333,9 @@ class CborReader {
                 }
                 return n;
             }
+            @Override public boolean markSupported() {
+                return false;
+            }
             @Override public void close() {
             }
             @Override public String toString() {
@@ -421,6 +424,9 @@ class CborReader {
                     return super.skip(v);
                 }
                 @Override public void close() throws IOException {
+                }
+                @Override public boolean markSupported() {
+                    return false;
                 }
                 @Override public String toString() {
                     return action == null ? super.toString() : null;
