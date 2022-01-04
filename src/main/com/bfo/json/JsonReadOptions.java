@@ -359,6 +359,12 @@ public class JsonReadOptions {
         }
 
         /**
+         * Called once when the Json reading ends
+         */
+        public void complete() {
+        }
+
+        /**
          * Called before reading each entry in a Map.
          * @param parent the current map
          * @param key the key of the next entry in the map

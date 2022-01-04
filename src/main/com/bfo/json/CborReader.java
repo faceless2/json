@@ -21,13 +21,19 @@ class CborReader {
         this.options = options;
         this.strict = options.isStrictTypes();
         this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
+    }
+
+    Json read() throws IOException {
         filter.initialize();
+        Json j = readPrivate();
+        filter.complete();
+        return j;
     }
 
     /**
      * Read a CBOR serialized object
      */
-    Json read() throws IOException {
+    private Json readPrivate() throws IOException {
         int v = in.read();
         if (v < 0) {
             return null;
@@ -85,7 +91,7 @@ class CborReader {
                     Json j2;
                     int i = 0;
                     filter.enter(j, i);
-                    while ((j2 = read()) != BREAK) {
+                    while ((j2 = readPrivate()) != BREAK) {
                         filter.exit(j, i);
                         if (j2 == null) {
                             throw new EOFException();
@@ -100,7 +106,7 @@ class CborReader {
                     for (int i=0;i<len;i++) {
                         tell = in.tell();
                         filter.enter(j, i);
-                        Json j2 = read();
+                        Json j2 = readPrivate();
                         filter.exit(j, i);
                         if (j2 == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
@@ -120,7 +126,7 @@ class CborReader {
                 if (n == INDEFINITE) {
                     Json key;
                     tell = in.tell();
-                    while ((key = read()) != BREAK) {
+                    while ((key = readPrivate()) != BREAK) {
                         if (key == null) {
                             throw new EOFException();
                         }
@@ -130,7 +136,7 @@ class CborReader {
                         tell = in.tell();
                         String k = key.stringValue();
                         filter.enter(j, k);
-                        Json val = read();
+                        Json val = readPrivate();
                         filter.exit(j, k);
                         if (val == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
@@ -148,7 +154,7 @@ class CborReader {
                     int len = n.intValue();
                     for (int i=0;i<len;i++) {
                         tell = in.tell();
-                        Json key = read();
+                        Json key = readPrivate();
                         if (key == null) {
                             throw new EOFException();
                         } else if (key == BREAK) {
@@ -159,7 +165,7 @@ class CborReader {
                         }
                         String k = key.stringValue();
                         filter.enter(j, k);
-                        Json val = read();
+                        Json val = readPrivate();
                         filter.exit(j, k);
                         if (val == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
@@ -180,7 +186,7 @@ class CborReader {
                 if (n instanceof BigInteger && ((BigInteger)n).bitLength() > 63) {
                     throw new IOException("Tag "+n+" with "+((BigInteger)n).bitLength()+" bits is unsupported at "+tell);
                 }
-                j = read();
+                j = readPrivate();
                 if (j == null) {
                     throw new EOFException();
                 } else if (j == BREAK) {

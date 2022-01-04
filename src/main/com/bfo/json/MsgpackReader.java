@@ -18,13 +18,19 @@ class MsgpackReader {
         this.options = options;
         this.strict = options.isStrictTypes();
         this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
+    }
+
+    Json read() throws IOException {
         filter.initialize();
+        Json j = readPrivate();
+        filter.complete();
+        return j;
     }
 
     /**
      * Read a Msgpack serialized object
      */
-    Json read() throws IOException {
+    private Json readPrivate() throws IOException {
         int v = in.read();
         if (v < 0) {
             return null;
@@ -270,7 +276,7 @@ class MsgpackReader {
         Map<String,Json> map = j._mapValue();
         while (len-- > 0) {
             long tell = in.tell();
-            Json key = read();
+            Json key = readPrivate();
             if (key == null) {
                 throw new EOFException();
             } else if (!key.isString() && options.isFailOnNonStringKeys()) {
@@ -278,7 +284,7 @@ class MsgpackReader {
             }
             String k = key.isNull() ? "null" : key.stringValue();
             filter.enter(j, k);
-            Json val = read();
+            Json val = readPrivate();
             filter.exit(j, k);
             if (val == null) {
                 throw new EOFException();
@@ -299,7 +305,7 @@ class MsgpackReader {
         while (len-- > 0) {
             int size = list.size();
             filter.exit(j, size);
-            Json val = read();
+            Json val = readPrivate();
             filter.exit(j, size);
             if (val == null) {
                 throw new EOFException();

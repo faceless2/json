@@ -27,11 +27,13 @@ class JsonReader {
      * Parse a JSON serialized object from the Reader and return the Object it represents
      */
     Json read() throws IOException {
+        filter.initialize();
         Json j = readToken(0);
         int c;
         if ((c=stripBlanks()) != -1) {
             unexpected("trailing ", c);
         }
+        filter.complete();
         return j;
     }
 
