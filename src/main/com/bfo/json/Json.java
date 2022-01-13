@@ -2237,7 +2237,7 @@ public class Json {
                 throw new ClassCastException("Cannot convert string \"" + core + "\" to boolean in strict mode");
             } else {
                 CharSequence value = (CharSequence)core;
-                return value.length() != 5 || !value.toString().equals("false") || floatValue() != 0;
+                return !(value.toString().equals("false"));
             }
         } else if (core instanceof Number) {
             if (isStrict()) {

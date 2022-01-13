@@ -460,7 +460,7 @@ public class JWT {
     public static class JWK extends Json {
 
         private Provider provider;
-        private Key key;
+        private List<Key> keys;
         private List<X509Certificate> certs;
 
         /**
@@ -694,14 +694,15 @@ public class JWT {
         }
 
         /**
-         * Retrieve the Key specified in this JWK. If the certificates
+         * Retrieve the Keys specified in this JWK. If the certificates
          * have been retrieved and no key was otherwise specified,
-         * return the key from the certificates
-         * @return key the key
-         * @throws IllegalArgumentException if it cannot be generated for any reason
+         * return the key from the first certificate
+         * @return key the keys - either a single SecretKey, PublicKey or PrivateKey, or a paired PublicKey and PrivateKey. If no keys are found, return an empty list.
+         * @throws IllegalArgumentException if the Keys cannot be generated for any reason
          */
-        public Key getKey() {
-            if (key == null && isString("kty")) {
+        public List<Key> getKeys() {
+            if (keys == null && isString("kty")) {
+                List<Key> keys = new ArrayList<Key>();
                 try {
                     // https://www.rfc-editor.org/rfc/rfc7518.html - list of algs
                     String kty = stringValue("kty");
@@ -719,25 +720,29 @@ public class JWT {
                             throw new IllegalArgumentException("Unknown EC curve \"" + crv + "\"");
                         }
                         BigInteger d = bigint(this, "d", "EC private", true);
+                        BigInteger x = bigint(this, "x", "EC public", true);
+                        BigInteger y = bigint(this, "y", "EC public", true);
                         if (d != null) {
                             // EC private
                             ECPrivateKeySpec spec = new ECPrivateKeySpec(d, params);
-                            key = factory.generatePrivate(spec);
-                        } else {
-                            BigInteger x = bigint(this, "x", "EC public", false);
-                            BigInteger y = bigint(this, "y", "EC public", false);
+                            keys.add(factory.generatePrivate(spec));
+                        }
+                        if (x != null && y != null) {
                             ECPublicKeySpec spec = new ECPublicKeySpec(new ECPoint(x, y), params);
-                            key = factory.generatePublic(spec);
+                            keys.add(factory.generatePublic(spec));
                         }
                     } else if ("RSA".equals(kty)) {
                         KeyFactory factory = provider == null ? KeyFactory.getInstance("RSA") : KeyFactory.getInstance("RSA", provider);
                         BigInteger n = bigint(this, "n", "RSA", false);
                         BigInteger d = bigint(this, "d", "RSA", true);
+                        BigInteger e = bigint(this, "e", "RSA", true);
                         if (d != null) {
                             KeySpec spec;
                             BigInteger p = bigint(this, "p", "RSA private", true);
                             if (p != null) {
-                                BigInteger e  = bigint(this, "e",  "RSA", false);
+                                if (e == null) {
+                                    throw new IllegalArgumentException("Missing RSA param e");
+                                }
                                 BigInteger q  = bigint(this, "q",  "RSA private", false);
                                 BigInteger dp = bigint(this, "dp", "RSA private", false);
                                 BigInteger dq = bigint(this, "dq", "RSA private", false);
@@ -757,11 +762,11 @@ public class JWT {
                             } else {
                                 spec = new RSAPrivateKeySpec(n, d);
                             }
-                            key = factory.generatePrivate(spec);
-                        } else {
-                            BigInteger e = bigint(this, "e", "RSA", false);
+                            keys.add(factory.generatePrivate(spec));
+                        }
+                        if (e != null) {
                             RSAPublicKeySpec spec = new RSAPublicKeySpec(n, e);
-                            key = factory.generatePublic(spec);
+                            keys.add(factory.generatePublic(spec));
                         }
                     } else if ("oct".equals(kty)) {
                         byte[] k = null;
@@ -781,10 +786,16 @@ public class JWT {
                             alg = "HmacSHA" + alg.substring(2);
                         } else if ("A128KW".equals(alg) || "A192KW".equals(alg) || "A256KW".equals(alg)) {
                             alg = "AES";
+                        } else if ("A128GCMKW".equals(alg) || "A192GCMKW".equals(alg) || "A256GCMKW".equals(alg)) {
+                            // TODO
+                            throw new IllegalArgumentException("Symmetric alg \"" + alg + "\" not yet supported (no AES GCM)");
                         } else {
                             throw new IllegalArgumentException("Unknown symmetric alg \"" + alg + "\""); // Some TODO here?
                         }
-                        key = new SecretKeySpec(k, alg);
+                        keys.add(new SecretKeySpec(k, alg));
+                    } else if ("OKP".equals(kty)) {
+                        // TODO
+                        throw new IllegalArgumentException("Key type \"" + kty + "\" not yet supported");
                     } else {
                         throw new IllegalArgumentException("Unknown key type \"" + kty + "\"");
                     }
@@ -793,21 +804,67 @@ public class JWT {
                 } catch (NoSuchAlgorithmException e) {
                     throw new IllegalArgumentException("Unknown algorithm", e);
                 }
+                if (keys.isEmpty()) {
+                    throw new IllegalStateException("No keys found");
+                }
+                this.keys = Collections.<Key>unmodifiableList(keys);
             }
-            if (key != null) {
-                return key;
-            } else if (certs != null && !certs.isEmpty()) {
-                return certs.get(0).getPublicKey();
+            if (keys != null) {
+                return keys;
+            } else if (keys == null && certs != null && !certs.isEmpty()) {
+                return Collections.<Key>unmodifiableList(Collections.<Key>singletonList(certs.get(0).getPublicKey()));
+            } else {
+                return Collections.<Key>emptyList();
+            }
+        }
+
+        /**
+         * Return the PublicKey from {@link #getKeys}, or null if none exists
+         * @return the key
+         */
+        public PublicKey getPublicKey() {
+            for (Key key : getKeys()) {
+                if (key instanceof PublicKey) {
+                    return (PublicKey)key;
+                }
             }
             return null;
         }
+
+        /**
+         * Return the PrivateEKey from {@link #getKeys}, or null if none exists
+         * @return the key
+         */
+        public PrivateKey getPrivateKey() {
+            for (Key key : getKeys()) {
+                if (key instanceof PrivateKey) {
+                    return (PrivateKey)key;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Return the SecretKey from {@link #getKeys}, or null if none exists
+         * @return the key
+         */
+        public SecretKey getSecretKey() {
+            for (Key key : getKeys()) {
+                if (key instanceof SecretKey) {
+                    return (SecretKey)key;
+                }
+            }
+            return null;
+        }
+        
+        
         
         /**
          * Set the Key on this JWK. This removes any existing key,
          * but does not clear any X509Certificates from the JWK.
          * @param key the key to store, or null to remove any existing key
          */
-        public void setKey(Key key) {
+        public void setKeys(Collection<Key> keys) {
             remove("kty");
             remove("x");
             remove("y");
@@ -822,36 +879,63 @@ public class JWT {
             remove("dq");
             remove("ri");
             remove("crv");
-            if (key == null) {
+            if (keys == null) {
                 return;
-            } else if (key instanceof ECKey) {
-                put("kty", "EC");
-                ECParameterSpec spec = ((ECKey)key).getParams();
-                if (eq(spec, ECSPEC_P256)) {
-                    put("crv", "P-256");
-                } else if (eq(spec, ECSPEC_P384)) {
-                    put("crv", "P-384");
-                } else if (eq(spec, ECSPEC_P521)) {
-                    put("crv", "P-521");
-                } else {
-                    throw new IllegalArgumentException("Unknown EC curve");
-                }
-                if (key instanceof ECPublicKey) {
-                    ECPublicKey k = (ECPublicKey)key;
-                    put("x", bigint(k.getW().getAffineX()));
-                    put("y", bigint(k.getW().getAffineY()));
-                } else if (key instanceof ECPrivateKey) {
-                    ECPrivateKey k = (ECPrivateKey)key;
-                    put("d", bigint(k.getS()));
+            }
+            int seentype = 0;
+            boolean seenpub = false, seenpri = false;
+            for (Key key : keys) {
+                if (key instanceof ECKey) {
+                    if (seentype != 0 && seentype != 1) {
+                        throw new IllegalArgumentException("Can't mix Key algorithms");
+                    }
+                    seentype = 1;
+                    put("kty", "EC");
+                    ECParameterSpec spec = ((ECKey)key).getParams();
+                    if (eq(spec, ECSPEC_P256)) {
+                        put("crv", "P-256");
+                    } else if (eq(spec, ECSPEC_P384)) {
+                        put("crv", "P-384");
+                    } else if (eq(spec, ECSPEC_P521)) {
+                        put("crv", "P-521");
+                    } else {
+                        throw new IllegalArgumentException("Unknown EC curve");
+                    }
+                    if (key instanceof ECPublicKey) {
+                        if (seenpub) {
+                            throw new IllegalArgumentException("Only one ECPublicKey allowed");
+                        }
+                        seenpub = true;
+                        ECPublicKey k = (ECPublicKey)key;
+                        put("x", bigint(k.getW().getAffineX()));
+                        put("y", bigint(k.getW().getAffineY()));
+                    } else if (key instanceof ECPrivateKey) {
+                        if (seenpri) {
+                            throw new IllegalArgumentException("Only one ECPrivateKey allowed");
+                        }
+                        seenpri = true;
+                        ECPrivateKey k = (ECPrivateKey)key;
+                        put("d", bigint(k.getS()));
+                    } else {
+                        throw new IllegalArgumentException("Unknown key class");
+                    }
+                } else if (key instanceof SecretKey) {
+                    if (seentype != 0) {
+                        throw new IllegalArgumentException("Only once SecretKey allowed");
+                    }
+                    seentype = 2;
+                    SecretKey k = (SecretKey)key;
+                    put("kty", "oct");
+                    put("k", base64encode(k.getEncoded()));
+                } else if (key instanceof RSAKey) {
+                    if (seentype != 0 && seentype != 3) {
+                        throw new IllegalArgumentException("Can't mix Key algorithms");
+                    }
+                    seentype = 3;
+                    throw new IllegalArgumentException("RSA not done yet");     // TODO RSA
                 } else {
                     throw new IllegalArgumentException("Unknown key class");
                 }
-            } else if (key instanceof SecretKey) {
-                SecretKey k = (SecretKey)key;
-                put("kty", "oct");
-                put("k", base64encode(k.getEncoded()));
-            } else {
-                throw new IllegalArgumentException("Unknown key class");
             }
         }
     }
