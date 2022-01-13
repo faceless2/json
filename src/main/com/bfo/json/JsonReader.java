@@ -57,6 +57,7 @@ class JsonReader {
 
 
     private Json readToken(int special) throws IOException {
+        reader.mark(8);
         Json out = null;
         int c = stripBlanks();
         if (special > 0 && c == special) {
