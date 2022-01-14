@@ -787,14 +787,51 @@ public class JWT {
                         } else if ("A128KW".equals(alg) || "A192KW".equals(alg) || "A256KW".equals(alg)) {
                             alg = "AES";
                         } else if ("A128GCMKW".equals(alg) || "A192GCMKW".equals(alg) || "A256GCMKW".equals(alg)) {
-                            // TODO
-                            throw new IllegalArgumentException("Symmetric alg \"" + alg + "\" not yet supported (no AES GCM)");
+                            // We need to create a GCMParameterSpec here as well as a SecretKeySpec
+                            // secretkeyspec. Our API doesn't cover that. But we can still create the key.
+                            alg = "AES";
+                            byte[] iv, tag;
+                            if (isString("iv")) {
+                                try {
+                                    iv = base64decode(stringValue("iv"));
+                                } catch (Exception e) {
+                                    throw new IllegalArgumentException("Invalid symmetric param iv", e);
+                                }
+                            } else {
+                                throw new IllegalArgumentException("Missing symmetric param iv");
+                            }
+                            if (isString("tag")) {
+                                try {
+                                    tag = base64decode(stringValue("tag"));
+                                } catch (Exception e) {
+                                    throw new IllegalArgumentException("Invalid symmetric param tag", e);
+                                }
+                            } else {
+                                throw new IllegalArgumentException("Missing symmetric param tag");
+                            }
+                            // https://stackoverflow.com/questions/23864440/aes-gcm-implementation-with-authentication-tag-in-java
+                            // rest is TODO, but this is JWE specific
+                        } else if ("dir".equals(alg)) {
+                            // Meh. JWE specific
+                            throw new IllegalArgumentException("Unsupported symmetric alg \"" + alg + "\"");
                         } else {
-                            throw new IllegalArgumentException("Unknown symmetric alg \"" + alg + "\""); // Some TODO here?
+                            throw new IllegalArgumentException("Unknown symmetric alg \"" + alg + "\"");
                         }
                         keys.add(new SecretKeySpec(k, alg));
                     } else if ("OKP".equals(kty)) {
-                        // TODO
+                        // https://datatracker.ietf.org/doc/html/rfc8037
+                        // lots of TODO
+                        String crv = stringValue("crv");
+                        ECParameterSpec params;
+                        if ("Ed25519".equals(crv)) {
+                        } else if ("Ed448".equals(crv)) {
+                        } else if ("X25519".equals(crv)) {
+                        } else if ("X448".equals(crv)) {
+                        } else {
+                            throw new IllegalArgumentException("Unknown EC curve \"" + crv + "\"");
+                        }
+                        BigInteger d = bigint(this, "d", "EC ", false);
+                        BigInteger x = bigint(this, "x", "EC ", false);
                         throw new IllegalArgumentException("Key type \"" + kty + "\" not yet supported");
                     } else {
                         throw new IllegalArgumentException("Unknown key type \"" + kty + "\"");
@@ -862,7 +899,7 @@ public class JWT {
         /**
          * Set the Key on this JWK. This removes any existing key,
          * but does not clear any X509Certificates from the JWK.
-         * @param key the key to store, or null to remove any existing key
+         * @param keys the keys to store, or null to remove any existing key
          */
         public void setKeys(Collection<Key> keys) {
             remove("kty");
@@ -932,7 +969,50 @@ public class JWT {
                         throw new IllegalArgumentException("Can't mix Key algorithms");
                     }
                     seentype = 3;
-                    throw new IllegalArgumentException("RSA not done yet");     // TODO RSA
+
+                    put("kty", "RSA");
+                    if (key instanceof RSAPublicKey) {
+                        if (seenpub) {
+                            throw new IllegalArgumentException("Only one RSAPublicKey allowed");
+                        }
+                        seenpub = true;
+                        RSAPublicKey k = (RSAPublicKey)key;
+                        put("n", bigint(k.getModulus()));
+                        put("e", bigint(k.getPublicExponent()));
+                    } else if (key instanceof RSAPrivateKey) {
+                        if (seenpri) {
+                            throw new IllegalArgumentException("Only one RSA PrivateKey allowed");
+                        }
+                        seenpri = true;
+                        RSAPrivateKey k = (RSAPrivateKey)key;
+                        put("n", bigint(k.getModulus()));
+                        put("d", bigint(k.getPrivateExponent()));
+                        if (key instanceof RSAPrivateCrtKey) {
+                            RSAPrivateCrtKey kk = (RSAPrivateCrtKey)key;
+                            put("e", bigint(kk.getPublicExponent()));
+                            put("p", bigint(kk.getPrimeP()));
+                            put("q", bigint(kk.getPrimeQ()));
+                            put("dp", bigint(kk.getPrimeExponentP()));
+                            put("dq", bigint(kk.getPrimeExponentQ()));
+                            put("qi", bigint(kk.getCrtCoefficient()));
+                        } else if (key instanceof RSAMultiPrimePrivateCrtKey) {
+                            RSAMultiPrimePrivateCrtKey kk = (RSAMultiPrimePrivateCrtKey)key;
+                            put("e", bigint(kk.getPublicExponent()));
+                            put("p", bigint(kk.getPrimeP()));
+                            put("q", bigint(kk.getPrimeQ()));
+                            put("dp", bigint(kk.getPrimeExponentP()));
+                            put("dq", bigint(kk.getPrimeExponentQ()));
+                            put("qi", bigint(kk.getCrtCoefficient()));
+                            RSAOtherPrimeInfo[] oth = kk.getOtherPrimeInfo();
+                            for (int i=0;i<oth.length;i++) {
+                                put("oth[" + i + "].r", bigint(oth[i].getPrime()));
+                                put("oth[" + i + "].d", bigint(oth[i].getExponent()));
+                                put("oth[" + i + "].t", bigint(oth[i].getCrtCoefficient()));
+                            }
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Unknown key class");
+                    }
                 } else {
                     throw new IllegalArgumentException("Unknown key class");
                 }
