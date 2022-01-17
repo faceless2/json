@@ -40,15 +40,19 @@ class JsonReader {
     private void unexpected(String type, int c) {
         StringBuilder sb = new StringBuilder();
         sb.append("Unexpected");
-        sb.append(type);
-        sb.append(" character ");
-        if (c >= ' ' && c < 127) {
-            sb.append('\'');
-            sb.append((char)c);
-            sb.append('\'');
+        if (c < 0) {
+            sb.append(" EOF");
         } else {
-            sb.append("0x");
-            sb.append(Integer.toHexString(c));
+            sb.append(type);
+            sb.append(" character ");
+            if (c >= ' ' && c < 127) {
+                sb.append('\'');
+                sb.append((char)c);
+                sb.append('\'');
+            } else {
+                sb.append("0x");
+                sb.append(Integer.toHexString(c));
+            }
         }
         sb.append(" at ");
         sb.append(reader);
