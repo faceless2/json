@@ -12,13 +12,18 @@ class CountingInputStream extends BufferedInputStream {
     }
 
     public int read() throws IOException {
-        pos++;
-        return super.read();
+        int v = super.read();
+        if (v >= 0) {
+            pos++;
+        }
+        return v;
     }
 
     public long skip(long n) throws IOException {
         long v = super.skip(n);
-        pos += v;
+        if (v >= 0) {
+            pos += v;
+        }
         return v;
     }
 
@@ -42,6 +47,10 @@ class CountingInputStream extends BufferedInputStream {
     public void reset() throws IOException {
         super.reset();
         this.pos = mark;
+    }
+
+    public String toString() {
+        return "{counting@"+pos+" on "+in+"}";
     }
 
 }
