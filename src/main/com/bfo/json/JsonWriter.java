@@ -28,7 +28,7 @@ class JsonWriter {
                  return append(s.subSequence(off, len));
              }
              public Appendable append(CharSequence s) throws IOException {
-                 simple = writeString(s, maxlen, JsonWriter.this.out);
+                 simple = writeString(s, maxlen, JsonWriter.this.out) && maxlen == 0;
                  return this;
              }
         };
