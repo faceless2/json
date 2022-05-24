@@ -101,6 +101,10 @@ loadScripts(document, 'script');</script>
 <dl class="index">
 <dt><a href="com/bfo/json/package-summary.html">com.bfo.json</a> - package com.bfo.json</dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/bfo/json/JsonReadOptions.Filter.html#complete(com.bfo.json.Json)" class="member-name-link">complete(Json)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.Filter.html" title="class in com.bfo.json">JsonReadOptions.Filter</a></dt>
+<dd>
+<div class="block">Called once when the Json reading ends</div>
+</dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#createArray()" class="member-name-link">createArray()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/bfo/json/JsonReadOptions.Filter.html#createBoolean(boolean)" class="member-name-link">createBoolean(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.Filter.html" title="class in com.bfo.json">JsonReadOptions.Filter</a></dt>
@@ -250,6 +254,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return the algorithm name.</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getAlgorithm()" class="member-name-link">getAlgorithm()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Return the algorithm name, if set</div>
+</dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#getArrayIndex(java.lang.Object,int)" class="member-name-link">getArrayIndex(Object, int)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#getArrayIndex(java.lang.Object,int,boolean)" class="member-name-link">getArrayIndex(Object, int, boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
@@ -258,6 +266,11 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return the CodingErrorAction set by <a href="com/bfo/json/JsonReadOptions.html#setCborStringCodingErrorAction(java.nio.charset.CodingErrorAction)"><code>JsonReadOptions.setCborStringCodingErrorAction(java.nio.charset.CodingErrorAction)</code></a>
  is incorrect, the specified action will be performed.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getCertificates()" class="member-name-link">getCertificates()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Return the list of X.509 certificates specified in the JWK,
+ downloading them if required.</div>
 </dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#getConfiguration()" class="member-name-link">getConfiguration()</a> - Static method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
@@ -289,6 +302,14 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return the header object.</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getId()" class="member-name-link">getId()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Return the key id, if set.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getKeys()" class="member-name-link">getKeys()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Retrieve the Keys specified in this JWK.</div>
+</dd>
 <dt><a href="com/bfo/json/Json.html#getListeners()" class="member-name-link">getListeners()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Return the read-only set of listeners on this class.</div>
@@ -303,15 +324,35 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return the "maxStringLength" field as set by <a href="com/bfo/json/JsonWriteOptions.html#setMaxStringLength(int)"><code>JsonWriteOptions.setMaxStringLength(int)</code></a></div>
 </dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getOps()" class="member-name-link">getOps()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Return the key operations, if set</div>
+</dd>
 <dt><a href="com/bfo/json/JWT.html#getPayload()" class="member-name-link">getPayload()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
 <dd>
 <div class="block">Return the payload object.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getPrivateKey()" class="member-name-link">getPrivateKey()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Return the PrivateEKey from <a href="com/bfo/json/JWT.JWK.html#getKeys()"><code>JWT.JWK.getKeys()</code></a>, or null if none exists</div>
 </dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#getPropertyKeys(java.lang.Object)" class="member-name-link">getPropertyKeys(Object)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/bfo/json/JWT.html#getProvider()" class="member-name-link">getProvider()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
 <dd>
 <div class="block">Return the Provider set by <a href="com/bfo/json/JWT.html#setProvider(java.security.Provider)"><code>JWT.setProvider(java.security.Provider)</code></a></div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getProvider()" class="member-name-link">getProvider()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Return the Provider set by <a href="com/bfo/json/JWT.JWK.html#setProvider(java.security.Provider)"><code>JWT.JWK.setProvider(java.security.Provider)</code></a></div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getPublicKey()" class="member-name-link">getPublicKey()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Return the PublicKey from <a href="com/bfo/json/JWT.JWK.html#getKeys()"><code>JWT.JWK.getKeys()</code></a>, or null if none exists</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getSecretKey()" class="member-name-link">getSecretKey()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Return the SecretKey from <a href="com/bfo/json/JWT.JWK.html#getKeys()"><code>JWT.JWK.getKeys()</code></a>, or null if none exists</div>
 </dd>
 <dt><a href="com/bfo/json/JWT.html#getSignature()" class="member-name-link">getSignature()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
 <dd>
@@ -320,6 +361,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/Json.html#getTag()" class="member-name-link">getTag()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Return the tag for this item.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#getUse()" class="member-name-link">getUse()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Return the key use, if set.</div>
 </dd>
 </dl>
 <h2 class="title" id="I:H">H</h2>
@@ -467,6 +512,14 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return true if this node is null</div>
 </dd>
+<dt><a href="com/bfo/json/Json.html#isNull(int)" class="member-name-link">isNull(int)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
+<dd>
+<div class="block">Return true if the specified descendant of this object is of type "null".</div>
+</dd>
+<dt><a href="com/bfo/json/Json.html#isNull(java.lang.String)" class="member-name-link">isNull(String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
+<dd>
+<div class="block">Return true if the specified descendant of this object is of type "null".</div>
+</dd>
 <dt><a href="com/bfo/json/Json.html#isNumber()" class="member-name-link">isNumber()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Return true if this node is a "number"</div>
@@ -575,6 +628,14 @@ loadScripts(document, 'script');</script>
 <div class="block">A Filter which can be used to restrict which nodes are written, or to
  override the source of data for some nodes</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#%3Cinit%3E()" class="member-name-link">JWK()</a> - Constructor for class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Create a new, empty JWK</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">JWK(Json)</a> - Constructor for class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Create a new JWK from the specified Json, sharing its content</div>
+</dd>
 <dt><a href="com/bfo/json/JWT.html" class="type-name-link" title="class in com.bfo.json">JWT</a> - Class in <a href="com/bfo/json/package-summary.html">com.bfo.json</a></dt>
 <dd>
 <div class="block">A trivial Java Web Token class.</div>
@@ -590,6 +651,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/JWT.html#%3Cinit%3E(java.lang.CharSequence)" class="member-name-link">JWT(CharSequence)</a> - Constructor for class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
 <dd>
 <div class="block">Create a new JWT from the encoded representation</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html" class="type-name-link" title="class in com.bfo.json">JWT.JWK</a> - Class in <a href="com/bfo/json/package-summary.html">com.bfo.json</a></dt>
+<dd>
+<div class="block">A trivial Java Web Key (JWK) class</div>
 </dd>
 </dl>
 <h2 class="title" id="I:L">L</h2>
@@ -776,6 +841,11 @@ loadScripts(document, 'script');</script>
 <div class="block">When reading CBOR/Msgpack, if a String is encountered where the UTF-8 encoding
  is incorrect, the specified action will be performed.</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#setCertificates(java.util.List,java.lang.String)" class="member-name-link">setCertificates(List&lt;X509Certificate&gt;, String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Set the list of X.509 certificates specified in the JWK,
+ either as a url or inline.</div>
+</dd>
 <dt><a href="com/bfo/json/JsonReadOptions.html#setContextFree(boolean)" class="member-name-link">setContextFree(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
 <dd>
 <div class="block">Whether to turn off tracking of the line, column and context of the reader when
@@ -813,6 +883,14 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">The String format to use when formatting a float.</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#setId(java.lang.String)" class="member-name-link">setId(String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Set the key id</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#setKeys(java.util.Collection)" class="member-name-link">setKeys(Collection&lt;Key&gt;)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Set the Key on this JWK.</div>
+</dd>
 <dt><a href="com/bfo/json/JsonReadOptions.html#setLooseEmptyStrings(boolean)" class="member-name-link">setLooseEmptyStrings(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
 <dd>
 <div class="block">When the <a href="com/bfo/json/JsonReadOptions.html#setStrictTypes(boolean)"><code>strictTypes</code></a> flag is not set, this flag will determine
@@ -836,6 +914,10 @@ loadScripts(document, 'script');</script>
 <div class="block">Set whether to normalize all Strings (including map keys) to Unicode <a href="https://docs.oracle.com/javase/8/docs/api/java/text/Normalizer.Form.html#NFC" title="class or interface in java.text" class="external-link"><code>normal form C</code></a>
  when writing.</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#setOps(java.util.Collection)" class="member-name-link">setOps(Collection&lt;String&gt;)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Set the key operations</div>
+</dd>
 <dt><a href="com/bfo/json/JsonWriteOptions.html#setPretty(boolean)" class="member-name-link">setPretty(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></dt>
 <dd>
 <div class="block">Whether to pretty-print the Json, using newlines and
@@ -843,6 +925,10 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#setProperty(java.lang.Object,java.lang.Object,java.lang.Object)" class="member-name-link">setProperty(Object, Object, Object)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#setProvider(java.security.Provider)" class="member-name-link">setProvider(Provider)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Set the Provider to be used for any cryptographic operations</div>
+</dd>
 <dt><a href="com/bfo/json/JWT.html#setProvider(java.security.Provider)" class="member-name-link">setProvider(Provider)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
 <dd>
 <div class="block">Set the Provider to be used for any cryptographic operations</div>
@@ -859,6 +945,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/Json.html#setTag(long)" class="member-name-link">setTag(long)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Set the tag for this item.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.JWK.html#setUse(java.lang.String)" class="member-name-link">setUse(String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></dt>
+<dd>
+<div class="block">Set the key use</div>
 </dd>
 <dt><a href="com/bfo/json/Json.html#setValue(com.bfo.json.Json)" class="member-name-link">setValue(Json)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>

@@ -75,6 +75,10 @@ loadScripts(document, 'script');</script>
 <div class="inheritance">com.bfo.json.Json</div>
 </div>
 <section class="class-description" id="class-description">
+<dl class="notes">
+<dt>Direct Known Subclasses:</dt>
+<dd><code><a href="JWT.JWK.html" title="class in com.bfo.json">JWT.JWK</a></code></dd>
+</dl>
 <hr>
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">Json</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
@@ -450,6 +454,16 @@ loadScripts(document, 'script');</script>
 <div class="block">Return true if this node is null</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isNull(int)" class="member-name-link">isNull</a><wbr>(int&nbsp;path)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return true if the specified descendant of this object is of type "null".</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isNull(java.lang.String)" class="member-name-link">isNull</a><wbr>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;path)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return true if the specified descendant of this object is of type "null".</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isNumber()" class="member-name-link">isNumber</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Return true if this node is a "number"</div>
@@ -524,7 +538,7 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Return the value of this node as a map.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a></code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="Json.html" title="class in com.bfo.json">Json</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#mapValue(int)" class="member-name-link">mapValue</a><wbr>(int&nbsp;path)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">If the specified descendant of this object exists call
@@ -1109,7 +1123,7 @@ loadScripts(document, 'script');</script>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>path</code> - the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null</dd>
-<dd><code>value</code> - the value to insert, which must not be null, this or an ancestor of this</dd>
+<dd><code>value</code> - the value to insert, which must not be this or an ancestor of this</dd>
 <dt>Returns:</dt>
 <dd>the object that was previously found at that path, which may be null</dd>
 </dl>
@@ -1280,6 +1294,36 @@ loadScripts(document, 'script');</script>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>true if the node is a leaf node.</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="isNull(java.lang.String)">
+<h3>isNull</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isNull</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;path)</span></div>
+<div class="block">Return true if the specified descendant of this object is of type "null".
+ Equivalent to <code>has(path) &amp;&amp; get(path).isNull()</code>.
+ It is <b>not the same</b> as the path being missing.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>path</code> - the path</dd>
+<dt>Returns:</dt>
+<dd>true if the descendant exists and is null</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="isNull(int)">
+<h3>isNull</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isNull</span><wbr><span class="parameters">(int&nbsp;path)</span></div>
+<div class="block">Return true if the specified descendant of this object is of type "null".
+ Equivalent to <code>has(path) &amp;&amp; get(path).isNull()</code>.
+ It is <b>not the same</b> as the path being missing.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>path</code> - the path</dd>
+<dt>Returns:</dt>
+<dd>true if the descendant exists and is null</dd>
 </dl>
 </section>
 </li>
@@ -2063,7 +2107,7 @@ loadScripts(document, 'script');</script>
 <li>
 <section class="detail" id="mapValue(int)">
 <h3>mapValue</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a></span>&nbsp;<span class="element-name">mapValue</span><wbr><span class="parameters">(int&nbsp;path)</span></div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="Json.html" title="class in com.bfo.json">Json</a>&gt;</span>&nbsp;<span class="element-name">mapValue</span><wbr><span class="parameters">(int&nbsp;path)</span></div>
 <div class="block">If the specified descendant of this object exists call
  the <a href="#mapValue()"><code>mapValue()</code></a> method on it, otherwise return null</div>
 <dl class="notes">
@@ -2130,7 +2174,7 @@ loadScripts(document, 'script');</script>
  to plain objects so that the returned object is guaranteed to have
  no reference to this package. The returned value is as follows
  <ul>
- <li>If this object <a href="#isNull()"><code>is null</code></a>, return null</li>
+ <li>If this object <a href="#isNull(java.lang.String)"><code>is null</code></a>, return null</li>
  <li>If factory is not null and <a href="JsonFactory.html#fromJson(com.bfo.json.Json)"><code>fromJson()</code></a> returns a non-null value, return that value</li>
  <li>If this value is a string, buffer, number or boolean, return the value from <a href="#value()"><code>value()</code></a></li>
  <li>If this value is a list or map, populate the map values with the output of this method and return as a Map&lt;String,Object&gt; or List&lt;Object&gt;</li>

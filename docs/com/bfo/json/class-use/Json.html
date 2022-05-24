@@ -55,6 +55,17 @@ loadScripts(document, 'script');</script>
 <li>
 <section class="detail" id="com.bfo.json">
 <h2>Uses of <a href="../Json.html" title="class in com.bfo.json">Json</a> in <a href="../package-summary.html">com.bfo.json</a></h2>
+<div class="caption"><span>Subclasses of <a href="../Json.html" title="class in com.bfo.json">Json</a> in <a href="../package-summary.html">com.bfo.json</a></span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Class</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../JWT.JWK.html" class="type-name-link" title="class in com.bfo.json">JWT.JWK</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">A trivial Java Web Key (JWK) class</div>
+</div>
+</div>
 <div class="caption"><span>Fields in <a href="../package-summary.html">com.bfo.json</a> declared as <a href="../Json.html" title="class in com.bfo.json">Json</a></span></div>
 <div class="summary-table three-column-summary">
 <div class="table-header col-first">Modifier and Type</div>
@@ -284,8 +295,14 @@ loadScripts(document, 'script');</script>
 <div class="block">Return the value of this node as a map.</div>
 </div>
 <div class="col-first even-row-color"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="../Json.html" title="class in com.bfo.json">Json</a>&gt;</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">Json.</span><code><a href="../Json.html#mapValue(java.lang.String)" class="member-name-link">mapValue</a><wbr>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;path)</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">Json.</span><code><a href="../Json.html#mapValue(int)" class="member-name-link">mapValue</a><wbr>(int&nbsp;path)</code></div>
 <div class="col-last even-row-color">
+<div class="block">If the specified descendant of this object exists call
+ the <a href="../Json.html#mapValue()"><code>mapValue()</code></a> method on it, otherwise return null</div>
+</div>
+<div class="col-first odd-row-color"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="../Json.html" title="class in com.bfo.json">Json</a>&gt;</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">Json.</span><code><a href="../Json.html#mapValue(java.lang.String)" class="member-name-link">mapValue</a><wbr>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;path)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">If the specified descendant of this object exists call
  the <a href="../Json.html#mapValue()"><code>mapValue()</code></a> method on it, otherwise return null</div>
 </div>
@@ -296,75 +313,80 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>void</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">JsonReadOptions.Filter.</span><code><a href="../JsonReadOptions.Filter.html#enter(com.bfo.json.Json,int)" class="member-name-link">enter</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
- int&nbsp;key)</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">JsonReadOptions.Filter.</span><code><a href="../JsonReadOptions.Filter.html#complete(com.bfo.json.Json)" class="member-name-link">complete</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
 <div class="col-last even-row-color">
-<div class="block">Called before reading each entry in a List.</div>
+<div class="block">Called once when the Json reading ends</div>
 </div>
 <div class="col-first odd-row-color"><code>void</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">JsonReadOptions.Filter.</span><code><a href="../JsonReadOptions.Filter.html#enter(com.bfo.json.Json,java.lang.String)" class="member-name-link">enter</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
- <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key)</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">JsonReadOptions.Filter.</span><code><a href="../JsonReadOptions.Filter.html#enter(com.bfo.json.Json,int)" class="member-name-link">enter</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
+ int&nbsp;key)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Called before reading each entry in a List.</div>
+</div>
+<div class="col-first even-row-color"><code>void</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">JsonReadOptions.Filter.</span><code><a href="../JsonReadOptions.Filter.html#enter(com.bfo.json.Json,java.lang.String)" class="member-name-link">enter</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
+ <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Called before reading each entry in a Map.</div>
 </div>
-<div class="col-first even-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">JsonWriteOptions.Filter.</span><code><a href="../JsonWriteOptions.Filter.html#enter(java.lang.String,com.bfo.json.Json)" class="member-name-link">enter</a><wbr>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
+<div class="col-first odd-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">JsonWriteOptions.Filter.</span><code><a href="../JsonWriteOptions.Filter.html#enter(java.lang.String,com.bfo.json.Json)" class="member-name-link">enter</a><wbr>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
  <a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;child)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Called before writing each entry in a Map, this method can control
  which entries from the map are written.</div>
 </div>
-<div class="col-first odd-row-color"><code>void</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">JsonReadOptions.Filter.</span><code><a href="../JsonReadOptions.Filter.html#exit(com.bfo.json.Json,int)" class="member-name-link">exit</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
+<div class="col-first even-row-color"><code>void</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">JsonReadOptions.Filter.</span><code><a href="../JsonReadOptions.Filter.html#exit(com.bfo.json.Json,int)" class="member-name-link">exit</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
  int&nbsp;key)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Called after reading each entry in a List.</div>
 </div>
-<div class="col-first even-row-color"><code>void</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">JsonReadOptions.Filter.</span><code><a href="../JsonReadOptions.Filter.html#exit(com.bfo.json.Json,java.lang.String)" class="member-name-link">exit</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
+<div class="col-first odd-row-color"><code>void</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">JsonReadOptions.Filter.</span><code><a href="../JsonReadOptions.Filter.html#exit(com.bfo.json.Json,java.lang.String)" class="member-name-link">exit</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Called after reading each entry in a Map.</div>
 </div>
-<div class="col-first odd-row-color"><code>void</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">JsonWriteOptions.Filter.</span><code><a href="../JsonWriteOptions.Filter.html#exit(java.lang.String,com.bfo.json.Json)" class="member-name-link">exit</a><wbr>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
+<div class="col-first even-row-color"><code>void</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">JsonWriteOptions.Filter.</span><code><a href="../JsonWriteOptions.Filter.html#exit(java.lang.String,com.bfo.json.Json)" class="member-name-link">exit</a><wbr>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
  <a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;child)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Called after writing each entry in a Map.</div>
 </div>
-<div class="col-first even-row-color"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">Json.</span><code><a href="../Json.html#find(com.bfo.json.Json)" class="member-name-link">find</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;descendant)</code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">Json.</span><code><a href="../Json.html#find(com.bfo.json.Json)" class="member-name-link">find</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;descendant)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">
  Get the path from this node to the specified object,
  which should be a descendant of this node.</div>
 </div>
-<div class="col-first odd-row-color"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">JsonFactory.</span><code><a href="../JsonFactory.html#fromJson(com.bfo.json.Json)" class="member-name-link">fromJson</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">JsonFactory.</span><code><a href="../JsonFactory.html#fromJson(com.bfo.json.Json)" class="member-name-link">fromJson</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Given a Json object, return a more specific
  type if this factory knows about it, otherwise return null</div>
 </div>
-<div class="col-first even-row-color"><code>void</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">JsonWriteOptions.Filter.</span><code><a href="../JsonWriteOptions.Filter.html#initialize(com.bfo.json.Json)" class="member-name-link">initialize</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;context)</code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>void</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">JsonWriteOptions.Filter.</span><code><a href="../JsonWriteOptions.Filter.html#initialize(com.bfo.json.Json)" class="member-name-link">initialize</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;context)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Called once when the Json writing begins</div>
 </div>
-<div class="col-first odd-row-color"><code>void</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">JsonListener.</span><code><a href="../JsonListener.html#jsonEvent(com.bfo.json.Json,com.bfo.json.JsonEvent)" class="member-name-link">jsonEvent</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;owner,
+<div class="col-first even-row-color"><code>void</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">JsonListener.</span><code><a href="../JsonListener.html#jsonEvent(com.bfo.json.Json,com.bfo.json.JsonEvent)" class="member-name-link">jsonEvent</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;owner,
  <a href="../JsonEvent.html" title="class in com.bfo.json">JsonEvent</a>&nbsp;event)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Called when a JsonEvent was fired on the object the listener was added to
  or one of its descendants.</div>
 </div>
-<div class="col-first even-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">Json.</span><code><a href="../Json.html#remove(com.bfo.json.Json)" class="member-name-link">remove</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">Json.</span><code><a href="../Json.html#remove(com.bfo.json.Json)" class="member-name-link">remove</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Remove the specified child from this object.</div>
 </div>
-<div class="col-first odd-row-color"><code>void</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">Json.</span><code><a href="../Json.html#setValue(com.bfo.json.Json)" class="member-name-link">setValue</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>void</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">Json.</span><code><a href="../Json.html#setValue(com.bfo.json.Json)" class="member-name-link">setValue</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Copy the internal value from the specified Json object to this object.</div>
 </div>
 </div>
@@ -393,8 +415,13 @@ loadScripts(document, 'script');</script>
 <div class="block">Create a new JsonEvent</div>
 </div>
 <div class="col-first odd-row-color"><code>&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="../JWT.html#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">JWT</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;payload)</code></div>
+<div class="col-second odd-row-color"><code><a href="../JWT.JWK.html#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">JWK</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;jwk)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Create a new JWK from the specified Json, sharing its content</div>
+</div>
+<div class="col-first even-row-color"><code>&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../JWT.html#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">JWT</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;payload)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Create a new JWT with the specified payload and the "none" algorithm.</div>
 </div>
 </div>
