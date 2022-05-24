@@ -19,11 +19,13 @@ public class JsonPathProviderBFO implements JsonProvider {
     }
 
     @Override
+    @SuppressWarnings("rawtypes")
     public Object createArray() {
         return new ArrayList();
     }
 
     @Override
+    @SuppressWarnings("rawtypes")
     public Object createMap() {
         return new HashMap();
     }
@@ -59,6 +61,7 @@ public class JsonPathProviderBFO implements JsonProvider {
     }
 
     @Override
+    @SuppressWarnings("rawtypes")
     public Iterable toIterable(Object o) {
         return ((Json)o).listValue();
     }

@@ -158,7 +158,7 @@ public class Json {
      * @param factory the factory for conversion, which may be null
      * @throws ClassCastException if the object cannot be converted to Json
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked","rawtypes"})
     public Json(Object object, JsonFactory factory) {
         if (object == null) {
             core = null;
@@ -232,6 +232,28 @@ public class Json {
         return this;
     }
 
+    boolean isIndefiniteBuffer() {
+        // For now, a simple test - if writeBuffer is overridden in this
+        // subclass of Json, write CBOR output as indefinite.
+        if (getClass() != Json.class) {
+            try {
+                getClass().getDeclaredMethod("writeBuffer", OutputStream.class);
+                return true;
+            } catch (Exception e) {}
+        }
+        return false;
+    }
+
+    boolean isIndefiniteString() {
+        if (getClass() != Json.class) {
+            try {
+                getClass().getDeclaredMethod("writeString", Appendable.class);
+                return true;
+            } catch (Exception e) {}
+        }
+        return false;
+    }
+
     boolean isSimpleString() {
         return (flags & FLAG_SIMPLESTRING) != 0;
     }
@@ -280,7 +302,7 @@ public class Json {
      */
     public static Json read(CharSequence in) {
         if (in == null) {
-            throw new IllegalArgumentException("Can't read from a null string");
+            throw new IllegalArgumentException("Input is null");
         } else if (in.length() == 0) {
             throw new IllegalArgumentException("Can't read from an empty string");
         } else if (in.length() == 2 && in.toString().equals("{}")) {
@@ -317,6 +339,9 @@ public class Json {
      * @throws IllegalArgumentException if the JSON is invalid
      */
     public static Json read(InputStream in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         if (!in.markSupported()) {
             in = new BufferedInputStream(in);
         }
@@ -375,6 +400,9 @@ public class Json {
      * @throws IllegalArgumentException if the JSON is invalid
      */
     public static Json read(Reader in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
@@ -396,6 +424,9 @@ public class Json {
      * @since 2
      */
     public static Json readCbor(InputStream in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
@@ -414,6 +445,9 @@ public class Json {
      * @since 2
      */
     public static Json readCbor(final ByteBuffer in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         InputStream stream;
         if (!in.isDirect()) {
             stream = new ByteArrayInputStream(in.array(), in.arrayOffset(), in.remaining());        // seems faster
@@ -432,6 +466,9 @@ public class Json {
      * @since 3
      */
     public static Json readMsgpack(InputStream in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
@@ -450,6 +487,9 @@ public class Json {
      * @since 3
      */
     public static Json readMsgpack(final ByteBuffer in, JsonReadOptions options) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("Input is null");
+        }
         InputStream stream;
         if (!in.isDirect()) {
             stream = new ByteArrayInputStream(in.array(), in.arrayOffset(), in.remaining());        // seems faster
@@ -468,6 +508,9 @@ public class Json {
      * @since 2
      */
     public OutputStream writeCbor(OutputStream out, JsonWriteOptions options) throws IOException {
+        if (out == null) {
+            throw new IllegalArgumentException("Output is null");
+        }
         if (options == null) {
             options = DEFAULTWRITEOPTIONS;
         }
@@ -484,6 +527,9 @@ public class Json {
      * @since 3
      */
     public OutputStream writeMsgpack(OutputStream out, JsonWriteOptions options) throws IOException {
+        if (out == null) {
+            throw new IllegalArgumentException("Output is null");
+        }
         if (options == null) {
             options = DEFAULTWRITEOPTIONS;
         }
@@ -709,7 +755,7 @@ public class Json {
      * the old object (which may be a subtree) is removed and returned.
      * The object will be converted with the factory set by {@link #setFactory setFactory()}, if any.
      * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
-     * @param value the value to insert, which must not be null, this or an ancestor of this
+     * @param value the value to insert, which must not be this or an ancestor of this
      * @return the object that was previously found at that path, which may be null
      */
     public Json put(String path, Object value) {
@@ -717,7 +763,7 @@ public class Json {
             throw new IllegalArgumentException("path is null");
         }
         if (value == null) {
-            throw new IllegalArgumentException("value is null");
+            value = new Json(null);
         }
         Json object;
         if (value instanceof Json) {
@@ -1034,6 +1080,30 @@ public class Json {
     }
 
     /**
+     * Return true if the specified descendant of this object is of type "null".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isNull()</code>.
+     * It is <b>not the same</b> as the path being missing.
+     * @param path the path
+     * @return true if the descendant exists and is null
+     */
+    public boolean isNull(String path) {
+        Json j = get(path);
+        return j != null && j.isNull();
+    }
+
+    /**
+     * Return true if the specified descendant of this object is of type "null".
+     * Equivalent to <code>has(path) &amp;&amp; get(path).isNull()</code>.
+     * It is <b>not the same</b> as the path being missing.
+     * @param path the path
+     * @return true if the descendant exists and is null
+     */
+    public boolean isNull(int path) {
+        Json j = get(path);
+        return j != null && j.isNull();
+    }
+
+    /**
      * Return true if the specified descendant of this object is of type "buffer".
      * Equivalent to <code>has(path) &amp;&amp; get(path).isBuffer()</code>
      * @param path the path
@@ -1178,12 +1248,12 @@ public class Json {
             return Collections.<Map.Entry<String,Json>>emptyIterator();
         }
         return new Iterator<Map.Entry<String,Json>>() {
-            List<Iterator> stack;
+            List<Iterator<?>> stack;
             List<Object> string;
             Json last;
 
             {
-                stack = new ArrayList<Iterator>();
+                stack = new ArrayList<Iterator<?>>();
                 string = new ArrayList<Object>();
                 last = Json.this;
                 if (isMap()) {
@@ -1238,7 +1308,7 @@ public class Json {
 
             @SuppressWarnings("unchecked")
             private void across() {
-                Iterator i = stack.get(stack.size() - 1);
+                Iterator<?> i = stack.get(stack.size() - 1);
                 if (i instanceof ListIterator) {
                     string.set(string.size() - 1, Integer.valueOf(((ListIterator)i).nextIndex()));
                     last = (Json)i.next();
@@ -1621,7 +1691,7 @@ public class Json {
      */
     public void setValue(Json json) {
         core = json == null ? null : json.core;
-        setSimpleString(json.isSimpleString());
+        setSimpleString(json != null && json.isSimpleString());
     }
 
     /**
@@ -1631,10 +1701,10 @@ public class Json {
      * @return the string value of this object
      */
     public String stringValue() {
-        if (core == null) {
-            return null;
-        } else if (core instanceof ByteBuffer) {
-            ByteBuffer buf = (ByteBuffer)core;
+        if (core == null || core instanceof String) {
+            return (String)core;
+        } else if (isBuffer()) {
+            ByteBuffer buf = bufferValue();
             StringBuilder sb = new StringBuilder(buf.remaining() * 4 / 3 + 2);
             try {
                 Base64OutputStream out = new Base64OutputStream(sb);
@@ -1986,7 +2056,7 @@ public class Json {
      */
     public int intValue(int path) {
         Json j = get(path);
-        return j == null ? null : j.intValue();
+        return j == null ? 0 : j.intValue();
     }
 
     /**
@@ -2054,7 +2124,7 @@ public class Json {
      */
     public long longValue(int path) {
         Json j = get(path);
-        return j == null ? null : j.intValue();
+        return j == null ? 0 : j.intValue();
     }
 
     /**
@@ -2098,7 +2168,7 @@ public class Json {
      */
     public float floatValue(int path) {
         Json j = get(path);
-        return j == null ? null : j.floatValue();
+        return j == null ? 0 : j.floatValue();
     }
 
     /**
@@ -2142,7 +2212,7 @@ public class Json {
      */
     public double doubleValue(int path) {
         Json j = get(path);
-        return j == null ? null : j.doubleValue();
+        return j == null ? 0 : j.doubleValue();
     }
 
     /**
@@ -2167,7 +2237,7 @@ public class Json {
                 throw new ClassCastException("Cannot convert string \"" + core + "\" to boolean in strict mode");
             } else {
                 CharSequence value = (CharSequence)core;
-                return value.length() != 5 || !value.toString().equals("false") || floatValue() != 0;
+                return !(value.toString().equals("false"));
             }
         } else if (core instanceof Number) {
             if (isStrict()) {
@@ -2246,7 +2316,7 @@ public class Json {
      * @param path the path
      * @since 4
      */
-    public Map mapValue(int path) {
+    public Map<String,Json> mapValue(int path) {
         Json j = get(path);
         return j == null ? null : j.mapValue();
     }
@@ -2346,38 +2416,33 @@ public class Json {
             Json j = (Json)o;
             if (core == null) {
                 return j.core == null;
+            } else if (core.getClass() == j.core.getClass()) {
+                return core.equals(j.core);
             } else if (core instanceof Number) {
                 if (j.core instanceof Number) {
                     Number n1 = (Number)core;
                     Number n2 = (Number)j.core;
-                    if (n1.getClass() == n2.getClass()) {
-                        return n1.equals(n2);
-                    }
                     // Ensure we only care about the numeric value, not the storage type
                     BigDecimal b1 = n1 instanceof BigDecimal ? (BigDecimal)n1 : n1 instanceof Float || n1 instanceof Double ? BigDecimal.valueOf(n1.doubleValue()) : n1 instanceof BigInteger ? new BigDecimal((BigInteger)n1) : BigDecimal.valueOf(n1.longValue());
                     BigDecimal b2 = n2 instanceof BigDecimal ? (BigDecimal)n2 : n2 instanceof Float || n2 instanceof Double ? BigDecimal.valueOf(n2.doubleValue()) : n2 instanceof BigInteger ? new BigDecimal((BigInteger)n2) : BigDecimal.valueOf(n2.longValue());
                     return b1.compareTo(b2) == 0;
                 }
             } else if (core instanceof CharSequence) {
-                if (core.getClass() == j.core.getClass()) {
-                    return core.equals(j.core);
-                } else {
-                    CharSequence c1 = (CharSequence)core;
-                    CharSequence c2 = (CharSequence)j.core;
-                    int s = c1.length();
-                    if (s == c2.length()) {
-                        for (int i=0;i<s;i++) {
-                            if (c1.charAt(i) != c2.charAt(i)) {
-                                return false;
-                            }
+                CharSequence c1 = (CharSequence)core;
+                CharSequence c2 = (CharSequence)j.core;
+                int s = c1.length();
+                if (s == c2.length()) {
+                    for (int i=0;i<s;i++) {
+                        if (c1.charAt(i) != c2.charAt(i)) {
+                            return false;
                         }
-                        return true;
                     }
-                    return false;
+                    return true;
                 }
-            } else if (core instanceof ByteBuffer) {
-                if (j.core instanceof ByteBuffer) {
-                    return ((ByteBuffer)core).position(0).equals(((ByteBuffer)j.core).position(0));
+                return false;
+            } else if (isBuffer()) {
+                if (j.isBuffer()) {
+                    return bufferValue().position(0).equals(j.bufferValue().position(0));
                 }
             } else {
                 return core.equals(j.core);

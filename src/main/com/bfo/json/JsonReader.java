@@ -27,26 +27,32 @@ class JsonReader {
      * Parse a JSON serialized object from the Reader and return the Object it represents
      */
     Json read() throws IOException {
+        filter.initialize();
         Json j = readToken(0);
         int c;
         if ((c=stripBlanks()) != -1) {
             unexpected("trailing ", c);
         }
+        filter.complete(j);
         return j;
     }
 
     private void unexpected(String type, int c) {
         StringBuilder sb = new StringBuilder();
         sb.append("Unexpected");
-        sb.append(type);
-        sb.append(" character ");
-        if (c >= ' ' && c < 127) {
-            sb.append('\'');
-            sb.append((char)c);
-            sb.append('\'');
+        if (c < 0) {
+            sb.append(" EOF");
         } else {
-            sb.append("0x");
-            sb.append(Integer.toHexString(c));
+            sb.append(type);
+            sb.append(" character ");
+            if (c >= ' ' && c < 127) {
+                sb.append('\'');
+                sb.append((char)c);
+                sb.append('\'');
+            } else {
+                sb.append("0x");
+                sb.append(Integer.toHexString(c));
+            }
         }
         sb.append(" at ");
         sb.append(reader);
@@ -55,6 +61,7 @@ class JsonReader {
 
 
     private Json readToken(int special) throws IOException {
+        reader.mark(8);
         Json out = null;
         int c = stripBlanks();
         if (special > 0 && c == special) {
@@ -457,7 +464,7 @@ class JsonReader {
             return read(c, 0, 1) == 1 ? c[0] : -1;
         }
 
-        @Override public int read(char[] buf, final int off, int len) throws IOException {
+        @Override public int read(final char[] buf, final int off, int len) throws IOException {
             if (eof) {
                 return -1;
             }

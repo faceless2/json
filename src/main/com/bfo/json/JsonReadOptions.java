@@ -283,11 +283,13 @@ public class JsonReadOptions {
      * Set the value of the "fastStringLength" value - strings loaded from a binary source
      * less than this value will be loaded directly into memory, whereas above this length
      * they will be streamed. The default is 262144 (256KB).
+     * @param len the length
      * @since 4
-     * @return the fastStringLength value
+     * @return this
      */
-    public void setFastStringLength(int len) {
+    public JsonReadOptions setFastStringLength(int len) {
         fastStringLength = len;
+        return this;
     }
 
     /**
@@ -354,63 +356,79 @@ public class JsonReadOptions {
 
         /**
          * Called once when the Json reading begins
+         * @throws IOException if an error occurs during processing
          */
-        public void initialize() {
+        public void initialize() throws IOException {
+        }
+
+        /**
+         * Called once when the Json reading ends
+         * @param json the completed object
+         * @throws IOException if an error occurs during processing
+         */
+        public void complete(Json json) throws IOException {
         }
 
         /**
          * Called before reading each entry in a Map.
          * @param parent the current map
          * @param key the key of the next entry in the map
+         * @throws IOException if an error occurs during processing
          */
-        public void enter(Json parent, String key) {
+        public void enter(Json parent, String key) throws IOException {
         }
 
         /**
          * Called after reading each entry in a Map.
          * @param parent the current map
          * @param key the key of the entry just read in the map
+         * @throws IOException if an error occurs during processing
          */
-        public void exit(Json parent, String key) {
+        public void exit(Json parent, String key) throws IOException {
         }
 
         /**
          * Called before reading each entry in a List.
          * @param parent the current list
          * @param key the key of the next entry in the list
+         * @throws IOException if an error occurs during processing
          */
-        public void enter(Json parent, int key) {
+        public void enter(Json parent, int key) throws IOException {
         }
 
         /**
          * Called after reading each entry in a List.
          * @param parent the current list
          * @param key the key of the entry just read in the list
+         * @throws IOException if an error occurs during processing
          */
-        public void exit(Json parent, int key) {
+        public void exit(Json parent, int key) throws IOException {
         }
 
         /**
          * Create a new "map" object
          * @return the new Json object
+         * @throws IOException if an error occurs during reading
          */
-        public Json createMap() {
+        public Json createMap() throws IOException {
             return new Json(Collections.EMPTY_MAP, null);
         }
 
         /**
          * Create a new "list" object
          * @return the new Json object
+         * @throws IOException if an error occurs during reading
          */
-        public Json createList() {
+        public Json createList() throws IOException {
             return new Json(Collections.EMPTY_LIST, null);
         }
 
         /**
          * Create a new "null" object
          * @return the new Json object
+         * @throws IOException if an error occurs during reading
          */
-        public Json createNull() {
+        public Json createNull() throws IOException {
             return new Json(null, null);
         }
 
@@ -418,8 +436,9 @@ public class JsonReadOptions {
          * Create a new "boolean" object
          * @param b the boolean
          * @return the new Json object
+         * @throws IOException if an error occurs during reading
          */
-        public Json createBoolean(boolean b) {
+        public Json createBoolean(boolean b) throws IOException {
             return new Json(b, null);
         }
 
@@ -427,8 +446,9 @@ public class JsonReadOptions {
          * Create a new "number" object
          * @param n the number
          * @return the new Json object
+         * @throws IOException if creation failed
          */
-        public Json createNumber(Number n) {
+        public Json createNumber(Number n) throws IOException {
             return new Json(n, null);
         }
 

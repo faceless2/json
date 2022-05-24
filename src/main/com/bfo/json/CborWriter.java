@@ -16,7 +16,7 @@ class CborWriter {
     private final JsonWriteOptions.Filter filter;
     private final Appendable stringWriter;
 
-    CborWriter(OutputStream out, JsonWriteOptions options, Json root) {
+    CborWriter(final OutputStream out, JsonWriteOptions options, Json root) {
         this.out = out;
         this.options = options;
         this.filtered = options.getFilter() != null;
@@ -37,14 +37,7 @@ class CborWriter {
             if (n instanceof BigDecimal) {      // No BigDecimal in CBOR
                 n = Double.valueOf(n.doubleValue());
             }
-            if (n instanceof Integer) {
-                int i = n.intValue();
-                if (i < 0) {
-                    writeNum(1, -i - 1, out);
-                } else {
-                    writeNum(0, i, out);
-                }
-            } else if (n instanceof Long) {
+            if (n instanceof Long) {
                 long l = n.longValue();
                 if (l < 0) {
                     writeNum(1, -l - 1, out);
@@ -103,9 +96,16 @@ class CborWriter {
                         out.write(b);
                     }
                 }
+            } else {
+                int i = n.intValue();
+                if (i < 0) {
+                    writeNum(1, -i - 1, out);
+                } else {
+                    writeNum(0, i, out);
+                }
             }
         } else if (j.isBuffer()) {
-            if (j.getClass() != Json.class) {
+            if (j.isIndefiniteBuffer()) {
                 // May have overriden writeBuffer - write as an indefinite length buffer
                 writeNum(2, -1, out);
                 OutputStream fo = new IndefiniteLengthOutputStream(out, 2);
@@ -119,7 +119,7 @@ class CborWriter {
                 Channels.newChannel(out).write(b);
             }
         } else if (j.isString()) { 
-            if (j.getClass() != Json.class) {
+            if (j.isIndefiniteString()) {
                 // May have overriden writeString - write as an indefinite length string
                 writeNum(3, -1, out);
                 OutputStream fo = new IndefiniteLengthOutputStream(out, 3);

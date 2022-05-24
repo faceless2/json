@@ -30,7 +30,10 @@
     <javac encoding="utf-8" debug="true" source="8" target="8" destdir="${classes.main}">
       <src path="${src.main}"/>
       <compilerarg value="-Xlint:unchecked"/>
+      <compilerarg value="-Xlint:rawtypes"/>
       <compilerarg value="-Xlint:deprecation"/>
+      <compilerarg value="-Xlint:finally"/>
+      <compilerarg value="-Xlint:overrides"/>
       <classpath refid="path.build" />
     </javac>
     <copy todir="${classes.main}">

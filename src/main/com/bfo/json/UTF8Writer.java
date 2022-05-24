@@ -44,14 +44,14 @@ class UTF8Writer implements Appendable {
         if (slen < 1024) {      // arbitrary limit will still catch most strings. Aiming for stack alloc so not too high
             byte[] buf = new byte[slen * 4];
             for (int i=0;i<slen;i++) {
-                int c = s.charAt(i);
+                int c = s.charAt(off + i);
                 if (c < 0x80) {
                     buf[len++] = (byte)c;
                 } else if (c < 0x800) {
                     buf[len++] = (byte)((c >> 6) | 0300);
                     buf[len++] = (byte)((c & 077) | 0200);
-                } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length()) {
-                    c = ((c-0xd7c0)<<10) | (s.charAt(++i)&0x3ff);
+                } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < slen) {
+                    c = ((c-0xd7c0)<<10) | (s.charAt(off + ++i)&0x3ff);
                     buf[len++] = (byte)((c >> 18) | 0360);
                     buf[len++] = (byte)(((c >> 12) & 077) | 0200);
                     buf[len++] = (byte)(((c >> 6) & 077) | 0200);
@@ -67,11 +67,11 @@ class UTF8Writer implements Appendable {
         } else {
             for (int i=0;i<slen;i++) {
                 char c = s.charAt(off + i);
-                if (c < 0x7f) {
+                if (c < 0x80) {
                     len++;
                 } else if (c < 0x800) {
                     len += 2;
-                } else if (c >= 0xd800 && c <= 0xdbff) {
+                } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < slen) {
                     i++;
                     len += 4;
                 } else {
@@ -80,15 +80,15 @@ class UTF8Writer implements Appendable {
             }
             writeLength(len);
             // Measurably faster than OutputStreamWriter, as we have to init it each time.
-            for (int i=0;i<s.length();i++) {
-                int c = s.charAt(i);
+            for (int i=0;i<slen;i++) {
+                int c = s.charAt(off + i);
                 if (c < 0x80) {
                     out.write(c);
                 } else if (c < 0x800) {
                     out.write((c >> 6) | 0300);
                     out.write((c & 077) | 0200);
-                } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length()) {
-                    c = ((c-0xd7c0)<<10) | (s.charAt(++i)&0x3ff);
+                } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < slen) {
+                    c = ((c-0xd7c0)<<10) | (s.charAt(off + ++i)&0x3ff);
                     out.write((c >> 18) | 0360);
                     out.write(((c >> 12) & 077) | 0200);
                     out.write(((c >> 6) & 077) | 0200);

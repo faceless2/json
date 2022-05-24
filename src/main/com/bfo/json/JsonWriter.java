@@ -14,7 +14,7 @@ class JsonWriter {
     private final Appendable stringWriter;
     private boolean simple;
 
-    JsonWriter(Appendable out, JsonWriteOptions options, Json root) {
+    JsonWriter(Appendable out, final JsonWriteOptions options, final Json root) {
         this.out = out;
         this.options = options;
         this.prefix = options.isPretty() ? new StringBuilder("\n") : null;
@@ -28,7 +28,7 @@ class JsonWriter {
                  return append(s.subSequence(off, len));
              }
              public Appendable append(CharSequence s) throws IOException {
-                 simple = writeString(s, maxlen, out);
+                 simple = writeString(s, maxlen, JsonWriter.this.out) && maxlen == 0;
                  return this;
              }
         };
@@ -63,8 +63,9 @@ class JsonWriter {
                 out.append('"');
                 Appendable a = out;
                 if (len != 0 && len < j.stringValue().length()) {
+                    final int flen = len;
                     a = new Appendable() {
-                        int r = len;
+                        int r = flen;
                         public Appendable append(CharSequence s, int off, int len) throws IOException {
                             if (r < 0) {
                                 // noop

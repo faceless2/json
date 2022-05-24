@@ -15,20 +15,25 @@ class CborReader {
     private final JsonReadOptions options;
     private final JsonReadOptions.Filter filter;
     private final boolean strict;
-    private boolean init;
 
     CborReader(CountingInputStream in, JsonReadOptions options) {
         this.in = in;
         this.options = options;
         this.strict = options.isStrictTypes();
         this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
+    }
+
+    Json read() throws IOException {
         filter.initialize();
+        Json j = readPrivate();
+        filter.complete(j);
+        return j;
     }
 
     /**
      * Read a CBOR serialized object
      */
-    Json read() throws IOException {
+    private Json readPrivate() throws IOException {
         int v = in.read();
         if (v < 0) {
             return null;
@@ -86,7 +91,7 @@ class CborReader {
                     Json j2;
                     int i = 0;
                     filter.enter(j, i);
-                    while ((j2 = read()) != BREAK) {
+                    while ((j2 = readPrivate()) != BREAK) {
                         filter.exit(j, i);
                         if (j2 == null) {
                             throw new EOFException();
@@ -101,7 +106,7 @@ class CborReader {
                     for (int i=0;i<len;i++) {
                         tell = in.tell();
                         filter.enter(j, i);
-                        Json j2 = read();
+                        Json j2 = readPrivate();
                         filter.exit(j, i);
                         if (j2 == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
@@ -121,7 +126,7 @@ class CborReader {
                 if (n == INDEFINITE) {
                     Json key;
                     tell = in.tell();
-                    while ((key = read()) != BREAK) {
+                    while ((key = readPrivate()) != BREAK) {
                         if (key == null) {
                             throw new EOFException();
                         }
@@ -131,7 +136,7 @@ class CborReader {
                         tell = in.tell();
                         String k = key.stringValue();
                         filter.enter(j, k);
-                        Json val = read();
+                        Json val = readPrivate();
                         filter.exit(j, k);
                         if (val == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
@@ -149,7 +154,7 @@ class CborReader {
                     int len = n.intValue();
                     for (int i=0;i<len;i++) {
                         tell = in.tell();
-                        Json key = read();
+                        Json key = readPrivate();
                         if (key == null) {
                             throw new EOFException();
                         } else if (key == BREAK) {
@@ -160,7 +165,7 @@ class CborReader {
                         }
                         String k = key.stringValue();
                         filter.enter(j, k);
-                        Json val = read();
+                        Json val = readPrivate();
                         filter.exit(j, k);
                         if (val == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
@@ -181,7 +186,7 @@ class CborReader {
                 if (n instanceof BigInteger && ((BigInteger)n).bitLength() > 63) {
                     throw new IOException("Tag "+n+" with "+((BigInteger)n).bitLength()+" bits is unsupported at "+tell);
                 }
-                j = read();
+                j = readPrivate();
                 if (j == null) {
                     throw new EOFException();
                 } else if (j == BREAK) {
@@ -270,7 +275,7 @@ class CborReader {
         }
     }
 
-    private InputStream createIndefiniteBufferInputStream(CodingErrorAction action) throws IOException {
+    private InputStream createIndefiniteBufferInputStream(final CodingErrorAction action) throws IOException {
         return new FilterInputStream(in) {
             boolean eof;
             private InputStream current = new ByteArrayInputStream(new byte[0]);
@@ -328,6 +333,9 @@ class CborReader {
                 }
                 return n;
             }
+            @Override public boolean markSupported() {
+                return false;
+            }
             @Override public void close() {
             }
             @Override public String toString() {
@@ -348,7 +356,7 @@ class CborReader {
      * @param fastlen if len is less than this value, read it in as a buffer
      * @param action if not null the stream will be turned into a String
      */
-    static InputStream createFixedInputStream(InputStream in, long len, int fastlen, CodingErrorAction action) throws IOException {
+    static InputStream createFixedInputStream(InputStream in, final long len, int fastlen, final CodingErrorAction action) throws IOException {
         if (len < fastlen) {
             byte[] buf = new byte[(int)len];
             int i = 0;
@@ -369,9 +377,10 @@ class CborReader {
                     decoder.onMalformedInput(action);
                     s = decoder.decode(ByteBuffer.wrap(buf, 0, buf.length)).toString();
                 }
+                final String fs = s;
                 return new ByteArrayInputStream(buf, 0, buf.length) {
                     public String toString() {
-                        return s;
+                        return fs;
                     }
                 };
             }
@@ -415,6 +424,9 @@ class CborReader {
                     return super.skip(v);
                 }
                 @Override public void close() throws IOException {
+                }
+                @Override public boolean markSupported() {
+                    return false;
                 }
                 @Override public String toString() {
                     return action == null ? super.toString() : null;
