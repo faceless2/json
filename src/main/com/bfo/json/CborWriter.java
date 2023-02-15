@@ -176,6 +176,8 @@ class CborWriter {
             }
         } else if (j.isNull()) {
             out.write(0xf6);
+        } else if (j.isUndefined()) {
+            out.write(0xf7);
         } else {
             throw new IOException("Unknown object " + j);
         }

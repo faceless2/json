@@ -20,7 +20,7 @@ import java.io.*;
 public class JsonWriteOptions {
 
     private String floatformat = "%.8g", doubleformat = "%.16g";
-    private boolean pretty, allownan, sorted, nfc;
+    private boolean pretty, allownan, sorted, nfc, cborDiag;
     private Filter filter;
     private int maxArraySize = 0, maxStringLength = 0;
 
@@ -202,6 +202,28 @@ public class JsonWriteOptions {
      */
     public int getMaxStringLength() {
         return maxStringLength;
+    }
+
+    /**
+     * When dumping CBOR data, this flag can be set to use the "CBOR-Diag"
+     * format from RFC8949. The output for regular JSON files with this
+     * format is unaffected.
+     * @param cboarDiag whether to use the CBOD-Diag format
+     * @return this;
+     * @since 5
+     */
+    public JsonWriteOptions setCborDiag(boolean cborDiag) {
+        this.cborDiag = cborDiag;
+        return this;
+    }
+
+    /**
+     * Return the "cborDiag" flag as set by {@link #setCborDiag}
+     * @return the value
+     * @since 5
+     */
+    public boolean isCborDiag() {
+        return cborDiag;
     }
 
     /**

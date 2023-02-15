@@ -433,6 +433,16 @@ public class JsonReadOptions {
         }
 
         /**
+         * Create a new "undefined" object
+         * @return the new Json object
+         * @throws IOException if an error occurs during reading
+         * @since 5
+         */
+        public Json createUndefined() throws IOException {
+            return new Json(Json.UNDEFINED, null);
+        }
+
+        /**
          * Create a new "boolean" object
          * @param b the boolean
          * @return the new Json object

@@ -74,9 +74,13 @@ import java.nio.charset.*;
  *   IOException if found.
  *  </li>
  *  <li>
- *   CBOR suppors the "undef" value, and also allows for a number of undefined special types to be used without
- *   error. These will be loaded as null values, with a Tag set that identifies the type. There is no such
- *   conversion when writing; these values will be written as a tagged null, no the original special type.
+ *   CBOR supports the "undefined" value which is distinct from null. This can be created using the
+ *   {@link UNDEFINED} constant, and tested for with {@link #isUndefined} (since version 5)
+ *  </li>
+ *  <li>
+ *   CBOR allows for a number of undefined special types to be used without error. These will be loaded as
+ *   undefined values, with a Tag set that identifies the type. There is no such conversion when writing; these
+ *   values will be written as a tagged undefined, not the original special type.
  *  </li>
  * </ol>
  *
@@ -117,6 +121,12 @@ import java.nio.charset.*;
  */
 public class Json {
 
+    /**
+     * A constant object that can be passed into the Json constructor to create a Cbor "undefined" value
+     * @since 5
+     */
+    public static final Object UNDEFINED = new Object() { public String toString() { return "<undefined>"; } };
+    static final Object NULL = new Object() { public String toString() { return "<null>"; } };
     private static final int FLAG_STRICT = 1;
     private static final int FLAG_SIMPLESTRING = 2;
     private static final JsonWriteOptions DEFAULTWRITEOPTIONS = new JsonWriteOptions();
@@ -161,7 +171,9 @@ public class Json {
     @SuppressWarnings({"unchecked","rawtypes"})
     public Json(Object object, JsonFactory factory) {
         if (object == null) {
-            core = null;
+            core = NULL;
+        } else if (object == NULL || object == UNDEFINED) {
+            core = object;
         } else if (object instanceof Json) {
             core = ((Json)object).core;
         } else {
@@ -213,9 +225,9 @@ public class Json {
                     core = list;
                 }
             }
-            if (core == null) {
-                throw new IllegalArgumentException(object.getClass().getName());
-            }
+        }
+        if (core == null) {
+            throw new IllegalArgumentException(object.getClass().getName());
         }
     }
 
@@ -927,7 +939,7 @@ public class Json {
     }
 
     /**
-     * Return true if this object has a non-null descendant at the specified path.
+     * Return true if this object has a non-null/non-undefined descendant at the specified path.
      * @param path the path
      * @return true if this object is a list or map, it has the specified descendant and the descendant is not null
      */
@@ -957,13 +969,13 @@ public class Json {
                     json = ix >= 0 && ix < l.size() ? l.get(ix) : null;
                 } catch (NumberFormatException e) { }
             }
-            return json != null && !json.isNull();
+            return json != null && !json.isNull() && !json.isUndefined();
         }
         return false;
     }
 
     /**
-     * Return true if this object has a non-null child at the specified path.
+     * Return true if this object has a non-null/non-undefined child at the specified path.
      * Intended to identify if the array has a specified index, it will also work with maps.
      * @param path the path
      * @return true if this object is a list or map, it has the specified child and the child is not null
@@ -971,10 +983,15 @@ public class Json {
     public boolean has(int path) {
         if (isList()) {
             List<Json> l = _listValue();
-            return path >= 0 && path < l.size() && !l.get(path).isNull();
+            if (path >= 0 && path < l.size()) {
+                Json o = l.get(path);
+                return !o.isNull() && !o.isUndefined();
+            } else {
+                return false;
+            }
         } else if (isMap()) {
             Json j = _mapValue().get(Integer.toString(path));
-            return j != null && !j.isNull();
+            return j != null && !j.isNull() && !j.isUndefined();
         }
         return false;
     }
@@ -1382,7 +1399,7 @@ public class Json {
                     item.parentkey = key;
                 }
                 listeners = tlisteners;
-            } else if (!isNull()) {
+            } else if (!isNull() && !isUndefined()) {
                 notify(parent, null, this, null);
             }
             core = map;
@@ -1588,7 +1605,7 @@ public class Json {
     }
 
     /**
-     * Return the type of this node, which may be "number", "string", "boolean", "list", "map", "buffer" or "null"
+     * Return the type of this node, which may be "number", "string", "boolean", "list", "map", "buffer", "null" or (since v5) "undefined"
      * @return the object type
      */
     public String type() {
@@ -1606,6 +1623,8 @@ public class Json {
             return "buffer";
         } else if (isNull()) {
             return "null";
+        } else if (isUndefined()) {
+            return "undefined";
         } else {
             return "unknown-"+core.getClass().getName();        // Shouldn't happen
         }
@@ -1616,7 +1635,17 @@ public class Json {
      * @return true if the object is null
      */
     public boolean isNull() {
-        return core == null;
+        return core == NULL;
+    }
+
+    /**
+     * Return true if this node is undefined.
+     * Undefined is a CBOR concept; in JSON serialization, this will collapse to null
+     * @return true if the object is null
+     * @since 5
+     */
+    public boolean isUndefined() {
+        return core == UNDEFINED;
     }
 
     /**
@@ -1690,7 +1719,7 @@ public class Json {
      * @param json the json object that is the source of the intended value of this object
      */
     public void setValue(Json json) {
-        core = json == null ? null : json.core;
+        core = json == null ? NULL : json.core;
         setSimpleString(json != null && json.isSimpleString());
     }
 
@@ -1701,7 +1730,9 @@ public class Json {
      * @return the string value of this object
      */
     public String stringValue() {
-        if (core == null || core instanceof String) {
+        if (core == NULL || core == UNDEFINED) {
+            return null;
+        } else if (core instanceof String) {
             return (String)core;
         } else if (isBuffer()) {
             ByteBuffer buf = bufferValue();
@@ -1773,7 +1804,7 @@ public class Json {
      * @since 2
      */
     public ByteBuffer bufferValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof ByteBuffer) {
             return (ByteBuffer)core;
@@ -1880,7 +1911,7 @@ public class Json {
      * @return the number value of this object
      */
     public Number numberValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof Number) {
             return (Number)core;
@@ -2000,7 +2031,7 @@ public class Json {
      * @return the int value of this object
      */
     public int intValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else if (core instanceof Number) {
             return ((Number)core).intValue();
@@ -2072,7 +2103,7 @@ public class Json {
      * @return the long value of this object
      */
     public long longValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else if (core instanceof Number) {
             return ((Number)core).longValue();
@@ -2140,7 +2171,7 @@ public class Json {
      * @return the float value of this object
      */
     public float floatValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else {
             return numberValue().floatValue();
@@ -2184,7 +2215,7 @@ public class Json {
      * @return the double value of this object
      */
     public double doubleValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else {
             return numberValue().doubleValue();
@@ -2228,7 +2259,7 @@ public class Json {
      * @return the boolean value of this object
      */
     public boolean booleanValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else if (core instanceof Boolean) {
             return ((Boolean)core).booleanValue();
@@ -2288,7 +2319,7 @@ public class Json {
      * @return the read-only map value of this object
      */
     public Map<String,Json> mapValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof Map) {
             return Collections.<String,Json>unmodifiableMap(_mapValue());
@@ -2327,7 +2358,7 @@ public class Json {
      * @return the read-only list value of this object
      */
     public List<Json> listValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof List) {
             return Collections.<Json>unmodifiableList(_listValue());
@@ -2375,7 +2406,7 @@ public class Json {
      * @return a String, Number, Boolean, Map&lt;String,Object&gt;, List&lt;Object&gt; or null as described
      */
     public Object objectValue(JsonFactory factory) {
-        if (isNull()) {
+        if (isNull() || isUndefined()) {
             return null;
         }
         if (factory != null) {
@@ -2405,7 +2436,7 @@ public class Json {
      * Return a hashCode based on the {@link #value()}
      */
     public int hashCode() {
-        return core == null ? 0 : core.hashCode();
+        return core == NULL || core == UNDEFINED ? 0 : core.hashCode();
     }
 
     /**
@@ -2414,8 +2445,8 @@ public class Json {
     public boolean equals(Object o) {
         if (o instanceof Json) {
             Json j = (Json)o;
-            if (core == null) {
-                return j.core == null;
+            if (core == NULL || core == UNDEFINED) {
+                return j.core == core;
             } else if (core.getClass() == j.core.getClass()) {
                 return core.equals(j.core);
             } else if (core instanceof Number) {
@@ -2471,6 +2502,21 @@ public class Json {
             }
             */
             return sb.toString();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Return a Cbor representation of this Json object.
+     * @since 5
+     */
+    public ByteBuffer toCbor() {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        JsonWriteOptions j = new JsonWriteOptions();
+        try {
+            writeCbor(out, j);
+            return ByteBuffer.wrap(out.toByteArray());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -12,6 +12,7 @@ class JsonWriter {
     private final JsonWriteOptions options;
     private final JsonWriteOptions.Filter filter;
     private final Appendable stringWriter;
+    private final boolean cbordiag;
     private boolean simple;
 
     JsonWriter(Appendable out, final JsonWriteOptions options, final Json root) {
@@ -19,6 +20,7 @@ class JsonWriter {
         this.options = options;
         this.prefix = options.isPretty() ? new StringBuilder("\n") : null;
         this.filter = options.initializeFilter(root);
+        this.cbordiag = options.isCborDiag();
         this.stringWriter = new Appendable() {
              final int maxlen = options.getMaxStringLength();
              public Appendable append(char c) throws IOException {
@@ -35,12 +37,22 @@ class JsonWriter {
     }
 
     void write(Json j) throws IOException {
+        if (cbordiag && j != null && j.getTag() >= 0) {
+            out.append(Long.toString(j.getTag()));
+            out.append('(');
+        }
         if (j == null || j.isNull()) {
             out.append("null");
+        } else if (j.isUndefined()) {
+            out.append(cbordiag ? "undefined" : "null");
         } else if (j.isBoolean()) {
             out.append(j.booleanValue() ? "true" : "false");
         } else if (j.isBuffer()) {
-            out.append('"');
+            if (cbordiag) {
+                out.append("b64'");
+            } else {
+                out.append('"');
+            }
             int len = options.getMaxStringLength();
             if (len == 0) {
                 Base64OutputStream bout = new Base64OutputStream(out);
@@ -50,7 +62,11 @@ class JsonWriter {
                 ByteBuffer buf = j.bufferValue();
                 out.append("(" + buf.limit() + " bytes)");
             }
-            out.append('"');
+            if (cbordiag) {
+                out.append('\'');
+            } else {
+                out.append('"');
+            }
         } else if (j.isString()) {
             int len = options.getMaxStringLength();
             if (options.isNFC()) {
@@ -100,62 +116,79 @@ class JsonWriter {
             Number value = j.numberValue();
             StringBuilder temp = null;
             if (value instanceof Float) {
-                temp = new StringBuilder();
                 Float n = (Float)value;
                 if (n.isNaN() || n.isInfinite()) {
-                    if (options.isAllowNaN()) {
+                    if (cbordiag) {
+                        if (n.isNaN()) {
+                            out.append("NaN");
+                        } else if (n.floatValue() == Float.POSITIVE_INFINITY) {
+                            out.append("+Infinity");
+                        } else if (n.floatValue() == Float.NEGATIVE_INFINITY) {
+                            out.append("-Infinity");
+                        }
+                    } else if (options.isAllowNaN()) {
                         out.append("null");
-                        return;
                     } else {
                         throw new IllegalArgumentException("Infinite or NaN");
                     }
                 } else {
+                    temp = new StringBuilder();
                     new Formatter(temp, Locale.ENGLISH).format(options.getFloatFormat(), n);
                 }
             } else if (value instanceof Double) {
-                temp = new StringBuilder();
                 Double n = (Double)value;
                 if (n.isNaN() || n.isInfinite()) {
-                    if (options.isAllowNaN()) {
+                    if (cbordiag) {
+                        if (n.isNaN()) {
+                            out.append("NaN");
+                        } else if (n.floatValue() == Double.POSITIVE_INFINITY) {
+                            out.append("+Infinity");
+                        } else if (n.floatValue() == Double.NEGATIVE_INFINITY) {
+                            out.append("-Infinity");
+                        }
+                    } else if (options.isAllowNaN()) {
                         out.append("null");
-                        return;
                     } else {
                         throw new IllegalArgumentException("Infinite or NaN");
                     }
                 } else {
+                    temp = new StringBuilder();
                     new Formatter(temp, Locale.ENGLISH).format(options.getDoubleFormat(), n);
                 }
             } else {
                 out.append(value.toString());
-                return;
             }
-
-            // Trim superfluous zeros after decimal point
-            int l = temp.length();
-            for (int i=Math.max(0, l-6);i<l;i++) {
-                char c = temp.charAt(i);
-                if (c == 'e' || c == 'E') {
-                    l = i;
-                    break;
+            if (temp != null) {
+                // Trim superfluous zeros after decimal point
+                int l = temp.length();
+                for (int i=Math.max(0, l-6);i<l;i++) {
+                    char c = temp.charAt(i);
+                    if (c == 'e' || c == 'E') {
+                        l = i;
+                        break;
+                    }
+                }
+                for (int i=0;i<l;i++) {
+                    if (temp.charAt(i) == '.') {
+                        int k = l - 1;
+                        while (temp.charAt(k) == '0') {
+                            k--;
+                        }
+                        if (k == i) {
+                            k--;
+                        }
+                        out.append(temp, 0, k + 1);
+                        if (l != temp.length()) {
+                            out.append(temp, l, temp.length());
+                        }
+                        temp = null;
+                        break;
+                    }
+                }
+                if (temp != null) {
+                    out.append(temp);
                 }
             }
-            for (int i=0;i<l;i++) {
-                if (temp.charAt(i) == '.') {
-                    int k = l - 1;
-                    while (temp.charAt(k) == '0') {
-                        k--;
-                    }
-                    if (k == i) {
-                        k--;
-                    }
-                    out.append(temp, 0, k + 1);
-                    if (l != temp.length()) {
-                        out.append(temp, l, temp.length());
-                    }
-                    return;
-                }
-            }
-            out.append(temp);
         } else if (j.isList()) {
             List<Json> list = j._listValue();
             out.append("[");
@@ -227,6 +260,9 @@ class JsonWriter {
                out.append(prefix);
             }
             out.append("}");
+        }
+        if (cbordiag && j != null && j.getTag() >= 0) {
+            out.append(')');
         }
     }
 

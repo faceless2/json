@@ -218,8 +218,7 @@ class CborReader {
                         j = filter.createNull();
                         break;
                     case 23:
-                        j = filter.createNull();
-                        j.setTag(v);
+                        j = filter.createUndefined();
                         break;
                     case 25:
                         v = readNumber(v, false).intValue();
@@ -257,7 +256,7 @@ class CborReader {
                         if (options.isCborFailOnUnknownTypes()) {
                             throw new IOException("Undefined special type " + v + " at "+tell);
                         } else {
-                            j = filter.createNull();
+                            j = filter.createUndefined();
                             j.setTag(v);
                             break;
                         }

@@ -46,16 +46,16 @@ public class TestCbor {
         assert (j=read("fa7f800000")).toString().equals("null");
         assert (j=read("fa7fc00000")).toString().equals("null");
         assert (j=read("faff800000")).toString().equals("null");
-        assert (j=read("fb7ff0000000000000")).toString().equals("null");
-        assert (j=read("fb7ff8000000000000")).toString().equals("null");
-        assert (j=read("fbfff0000000000000")).toString().equals("null");
+        assert (j=read("fb7ff0000000000000")).toString().equals("null") : read("fb7ff0000000000000").toString();        // Infinity
+        assert (j=read("fb7ff8000000000000")).toString().equals("null");        // NaN
+        assert (j=read("fbfff0000000000000")).toString().equals("null");        // -Infinity
         assert (j=read("f4")).toString().equals("false");
         assert (j=read("f5")).toString().equals("true");
         assert (j=read("f6")).toString().equals("null");
-        assert (j=read("f7")).isNull() && j.getTag() == 23;     // undefined
-        assert (j=read("f0")).isNull() && j.getTag() == 16;     // simple(16)
-        assert (j=read("f818")).isNull() && j.getTag() == 24;   // simple(24)
-        assert (j=read("f8ff")).isNull() && j.getTag() == 255 : j.getTag();   // simple(255)
+        assert (j=read("f7")).isUndefined() && j.getTag() < 0;     // undefined
+        assert (j=read("f0")).isUndefined() && j.getTag() == 16;     // simple(16)
+        assert (j=read("f818")).isUndefined() && j.getTag() == 24;   // simple(24)
+        assert (j=read("f8ff")).isUndefined() && j.getTag() == 255 : j.getTag();   // simple(255)
         assert (j=read("c074323031332d30332d32315432303a30343a30305a")).toString().equals("\"2013-03-21T20:04:00Z\"") && j.getTag() == 0 : j;
         assert (j=read("c11a514b67b0")).toString().equals("1363896240") && j.getTag() == 1;
         assert (j=read("c1fb41d452d9ec200000")).toString().equals("1363896240.5") && j.getTag() == 1;

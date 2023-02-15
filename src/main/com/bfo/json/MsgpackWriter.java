@@ -277,7 +277,7 @@ class MsgpackWriter {
             } else {
                 out.write(0xc2);
             }
-        } else if (j.isNull()) {
+        } else if (j.isNull() || j.isUndefined()) {
             out.write(0xc0);
         } else {
             throw new IOException("Unknown object " + j);

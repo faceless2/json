@@ -118,7 +118,7 @@ public class JWT {
     /**
      * Verify the JWT.
      * @param key the key. A raw HMAC key, or DER/PEM encoded public key. Missing keys or keys of the wrong type will cause this method to return false.
-     * @param alg the algorithm name. If <code>null</code> it will default to {@link #getAlgorithm}.
+     * @param alg the algorithm name. If <code>null</code> it will default to {@link #getAlgorithm}. <b>Should always be specified</b> to avoid security risks.
      * @return true if the JWT is verified, false if it failed to verify.
      * @throws RuntimeException wrapping a GeneralSecurityException if there are cryptographic problems when verifying or if the key failed to decode.
      */
@@ -133,7 +133,7 @@ public class JWT {
     /**
      * Verify the JWT.
      * @param key the key. A {@link SecretKey}, {@link PublicKey}, or null if the algorithm is "none". Missing keys or keys of the wrong type will cause this method to return false; specifically, if the algorithm is "none" the key <i>must</i> be null.
-     * @param alg the algorithm name. If <code>null</code> it will default to {@link #getAlgorithm}.
+     * @param alg the algorithm name. If <code>null</code> it will default to {@link #getAlgorithm}. <b>Should always be specified</b> to avoid security risks.
      * @return true if the JWT is verified, false if it failed to verify.
      * @throws RuntimeException wrapping a GeneralSecurityException if there are cryptographic problems when verifying.
      */
