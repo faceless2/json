@@ -13,32 +13,35 @@ public class Test2 {
         assert json.toString().equals(dup.toString());
         assert json.get("a").toString().equals("{\"b\":[0,null,2]}");
         assert json.get("a").type().equals("map");
-        assert json.get("a.b").toString().equals("[0,null,2]");
-        assert json.get("a.b").type().equals("list");
-        assert json.get("a.b.0").type().equals("number");
-        assert json.get("a.b.1").type().equals("null");
-        assert json.get("a.b[0]").type().equals("number");
-        assert json.get("a.b[1]").type().equals("null");
+        assert json.getPath("a.b").toString().equals("[0,null,2]");
+        assert json.getPath("a.b") == json.get("a").get("b");
+        assert json.getPath("a.b").type().equals("list");
+        assert json.getPath("a.b.0").type().equals("number");
+        assert json.getPath("a.b.0") == json.get("a").get("b").get(0);
+        assert json.getPath("a.b.1").type().equals("null");
+        assert json.getPath("a.b[0]") == json.get("a").get("b").get(0);
+        assert json.getPath("a.b[0]").type().equals("number");
+        assert json.getPath("a.b[1]").type().equals("null");
         assert Json.read("true").type().equals("boolean");
         assert Json.read("-12").type().equals("number");
         assert Json.read("-12.345").type().equals("number");
-        assert json.get("a[b][0]").type().equals("number");
-        assert json.get("a[b][1]").type().equals("null");
+        assert json.getPath("a[b][0]").type().equals("number");
+        assert json.getPath("a[b][1]").type().equals("null");
         assert json.toString().equals("{\"a\":{\"b\":[0,null,2]}}") : json.toString();;
-        assert json.has("a.b[0]");
+        assert json.hasPath("a.b[0]");
         assert json.toString().equals("{\"a\":{\"b\":[0,null,2]}}") : json.toString();;
-        assert !json.has("a.b[1]");
+        assert !json.hasPath("a.b[1]");
         assert json.toString().equals("{\"a\":{\"b\":[0,null,2]}}") : json.toString();;
-        assert !json.has("a.b[4]");
+        assert !json.hasPath("a.b[4]");
         assert json.toString().equals("{\"a\":{\"b\":[0,null,2]}}") : json.toString();;
         assert json.get("a").parent() == json;
         assert json.toString().equals("{\"a\":{\"b\":[0,null,2]}}") : json.toString();;
-        assert json.get("a.b").parent() == json.get("a");
-        assert json.get("a.b[0]").parent() == json.get("a.b");
-        assert "a.b[0]".equals(json.find(json.get("a.b[0]"))) : json.find(json.get("a.b[0]"));
-        assert "a.b".equals(json.find(json.get("a.b"))) : json.find(json.get("a.b"));
+        assert json.getPath("a.b").parent() == json.get("a");
+        assert json.getPath("a.b[0]").parent() == json.getPath("a.b");
+        assert "a.b[0]".equals(json.find(json.getPath("a.b[0]"))) : json.find(json.getPath("a.b[0]"));
+        assert "a.b".equals(json.find(json.getPath("a.b"))) : json.find(json.getPath("a.b"));
         assert "a".equals(json.find(json.get("a"))) : json.find(json.get("a"));
-        assert "b[0]".equals(json.get("a").find(json.get("a.b[0]"))) : json.get("a").find(json.get("b[0]"));
+        assert "b[0]".equals(json.get("a").find(json.getPath("a.b[0]"))) : json.getPath("a").find(json.getPath("b[0]"));
         assert json.find(Json.read("{}")) == null;
         assert "".equals(json.find(json)) : json.find(json);
 
@@ -74,28 +77,28 @@ public class Test2 {
         assert json.evalAll("$..*").size() == 5 : json.evalAll("$..*");
         */
         Json q;
-        Json t = json.get("a.b[0]");
+        Json t = json.getPath("a.b[0]");
         Json tp = t.parent();
         assert t.type().equals("number") : t.type();
         assert t.intValue() == 0 : t.intValue();
-        assert t.parent() == json.get("a.b");
-        assert (q=json.put("a.b", 1)).toString().equals("[0,null,2]") : q.toString();
+        assert t.parent() == json.getPath("a.b");
+        assert (q=json.putPath("a.b", 1)).toString().equals("[0,null,2]") : q.toString();
         assert json.toString().equals("{\"a\":{\"b\":1}}") : json.toString();
-        assert json.get("a.b").parent() == json.get("a");
-        assert t != json.get("a.b[0]");
+        assert json.getPath("a.b").parent() == json.get("a");
+        assert t != json.getPath("a.b[0]");
         assert t.parent() == tp;
         assert tp.parent() == null;
-        assert (q=json.put("a[\"x.y\"]", 2)) == null : q.toString();
+        assert (q=json.putPath("a[\"x.y\"]", 2)) == null : q.toString();
         assert json.toString().equals("{\"a\":{\"b\":1,\"x.y\":2}}") : json.toString();
-        assert "a[\"x.y\"]".equals(json.find(json.get("a[\"x.y\"]"))) : json.find(json.get("a[\"x.y\"]"));
-        assert json.get("a.x.y") == null;
-        json.get("a").put("b.c.d", Json.read("123456789123456789"));
-        json.put("a.b", false);
-        json.put("a.b", false);
+        assert "a[\"x.y\"]".equals(json.find(json.getPath("a[\"x.y\"]"))) : json.find(json.getPath("a[\"x.y\"]"));
+        assert json.getPath("a.x.y") == null;
+        json.get("a").putPath("b.c.d", Json.read("123456789123456789"));
+        json.putPath("a.b", false);
+        json.putPath("a.b", false);
         json.put("a", Json.read("123456789123456789"));
         assert json.toString().equals("{\"a\":123456789123456789}") : json.toString();
         assert json.get("a").type().equals("number");
-        assert (q=json.put("a[3][3]", true)).toString().equals("123456789123456789") : q;
+        assert (q=json.putPath("a[3][3]", true)).toString().equals("123456789123456789") : q;
         assert json.toString().equals("{\"a\":[null,null,null,[null,null,null,true]]}") : json.toString();
         assert dup.toString().equals(origstring);
         JsonWriteOptions options = new JsonWriteOptions().setSorted(true);
@@ -103,12 +106,12 @@ public class Test2 {
         assert (json=Json.read("{\"a\":1, \"z\":2, \"n\":3, \"g\":4, \"t\":5, \"e\":6}")).write(sb, options).toString().equals("{\"a\":1,\"e\":6,\"g\":4,\"n\":3,\"t\":5,\"z\":2}") : sb.toString();
 
         json = Json.read("{}");
-        json.put("a.b.c", true);
-        json.get("a.b").remove("c");
-        assert(json.get("a.b").parent() == json.get("a"));
+        json.putPath("a.b.c", true);
+        json.getPath("a.b").remove("c");
+        assert(json.getPath("a.b").parent() == json.get("a"));
 
         json = Json.read("{\"a\":true}");
-        assert (q=json.put("b.a", json.get("a"))) == null : q;
+        assert (q=json.putPath("b.a", json.get("a"))) == null : q;
         assert json.toString().equals("{\"a\":true,\"b\":{\"a\":true}}") : json.toString();
 
         json = Json.read("{\"a\":\"100\"}");
@@ -148,31 +151,31 @@ public class Test2 {
 
         // Stupid keys
         json = Json.read("{\"a\":{\"x.y\":1}}");
-        assert json.get("a.x.y") == null;
-        assert json.get("a[\"x.y\"]") != null;
-        try { assert json.get("a[x.y]") == null; } catch (IllegalArgumentException e) {}
-        try { assert json.get("a.\"x.y\"") == null; } catch (IllegalArgumentException e) {}
-        try { json.put("a[]", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
-        try { json.put("a.", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
-        try { json.put(".a", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
+        assert json.getPath("a.x.y") == null;
+        assert json.getPath("a[\"x.y\"]") != null;
+        try { assert json.getPath("a[x.y]") == null; } catch (IllegalArgumentException e) {}
+        try { assert json.getPath("a.\"x.y\"") == null; } catch (IllegalArgumentException e) {}
+        try { json.putPath("a[]", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
+        try { json.putPath("a.", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
+        try { json.putPath(".a", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
 //        try { json.put("a[[]", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}    // valid?
-        try { json.put("a[", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
-        try { json.put("\"a", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
-        try { json.put("a\"", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
-        json.put("\"\"", false);
+        try { json.putPath("a[", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
+        try { json.putPath("\"a", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
+        try { json.putPath("a\"", 1); assert false : json.toString(); } catch (IllegalArgumentException e) {}
+        json.putPath("\"\"", false);
         assert json.toString().equals("{\"a\":{\"x.y\":1},\"\":false}") : json.toString();
-        json.put("\"\"\"", false);
+        json.putPath("\"\"\"", false);
         assert json.toString().equals("{\"a\":{\"x.y\":1},\"\":false,\"\\\"\":false}") : json.toString();
         json.put("\u0000", false);
         assert json.toString().equals("{\"a\":{\"x.y\":1},\"\":false,\"\\\"\":false,\"\\u0000\":false}") : json.toString();
-        json.put("\"\u0000\"", true);
+        json.putPath("\"\u0000\"", true);
         assert json.toString().equals("{\"a\":{\"x.y\":1},\"\":false,\"\\\"\":false,\"\\u0000\":true}") : json.toString();
 
         // Loops keys
         json = Json.read("{\"a\":{\"b\":{\"c\":1}}}");
         q = json.get("a").get("b").get("c");
-        try { q.put("d", json.get("a.b.c")); assert false : json.toString(); } catch (IllegalArgumentException e) {}      // Add to itself
-        try { q.put("d", json.get("a.b")); assert false : json.toString(); } catch (IllegalArgumentException e) {}        // Add parent to child
+        try { q.put("d", json.getPath("a.b.c")); assert false : json.toString(); } catch (IllegalArgumentException e) {}      // Add to itself
+        try { q.put("d", json.getPath("a.b")); assert false : json.toString(); } catch (IllegalArgumentException e) {}        // Add parent to child
         try { q.put("d", json.get("a")); assert false : json.toString(); } catch (IllegalArgumentException e) {}        // Add grandparent to child
         try { q.put("d", json); assert false : json.toString(); } catch (IllegalArgumentException e) {}        // Add great-grandparent to child
 
@@ -219,8 +222,8 @@ public class Test2 {
             }
         });
 
-        json.put("a.b[1]", 1);
-        json.put("a.b[3]", 3);
+        json.putPath("a.b[1]", 1);
+        json.putPath("a.b[3]", 3);
         json.get("a").put("c", Json.read("{\"d\":true,\"e\":false}"));
         json.get("a").put("b", false);
         json.get("a").remove("c");

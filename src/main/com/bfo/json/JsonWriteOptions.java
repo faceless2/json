@@ -20,7 +20,8 @@ import java.io.*;
 public class JsonWriteOptions {
 
     private String floatformat = "%.8g", doubleformat = "%.16g";
-    private boolean pretty, allownan, sorted, nfc, cborDiag;
+    private boolean pretty, allownan, sorted, nfc, base64standard;
+    private String cborDiag;
     private Filter filter;
     private int maxArraySize = 0, maxStringLength = 0;
 
@@ -196,6 +197,32 @@ public class JsonWriteOptions {
         return maxArraySize;
     }
 
+    /** 
+     * When encoding a "buffer" value in JSON, it will be encoded as Base64.
+     * By default the "URL- and filename-safe character set" defined in RFC4648
+     * is used, as this is required by JWT. However this method can be called
+     * to use the "standard" Base64 encoding (first defined in RFC1421)
+     * Prior to version 5 the default (and only option) was "standard.
+     * (note when reading, all Base64 variations are accepted)
+     * @param base64standard the flag
+     * @since 5
+     * @return this
+     */
+    public JsonWriteOptions setBase64Standard(boolean base64standard) {
+        this.base64standard = base64standard;
+        return this;
+    }
+     
+    /**
+     * Return the value of the "base64standard" flag as set by
+     * {@link #setBase64Standard}
+     * @return the flag
+     * @since 5
+     */
+    public boolean isBase64Standard() {
+        return base64standard;    
+    }
+
     /**
      * Return the "maxStringLength" field as set by {@link #setMaxStringLength}
      * @return the value
@@ -206,14 +233,17 @@ public class JsonWriteOptions {
 
     /**
      * When dumping CBOR data, this flag can be set to use the "CBOR-Diag"
-     * format from RFC8949. The output for regular JSON files with this
-     * format is unaffected.
-     * @param cboarDiag whether to use the CBOD-Diag format
-     * @return this;
+     * format from RFC8949. The output for regular JSON files with this format is unaffected.
+     * @param format "hex" or "HEX" to use the hex encoding for buffers, "base64" for the base-64 encoding for buffers, or null to not use "CBOR-Diag" format
+     * @return this
      * @since 5
      */
-    public JsonWriteOptions setCborDiag(boolean cborDiag) {
-        this.cborDiag = cborDiag;
+    public JsonWriteOptions setCborDiag(String format) {
+        if (format == null || format.equals("hex") || format.equals("HEX") || format.equals("base64")) {
+            this.cborDiag = format;
+        } else {
+            throw new IllegalArgumentException(format);
+        }
         return this;
     }
 
@@ -222,7 +252,7 @@ public class JsonWriteOptions {
      * @return the value
      * @since 5
      */
-    public boolean isCborDiag() {
+    public String getCborDiag() {
         return cborDiag;
     }
 
@@ -245,7 +275,7 @@ public class JsonWriteOptions {
          * @param child the value of the current entry in the map
          * @return child if the child is to be written, null if its not.
          */
-        public Json enter(String key, Json child) {
+        public Json enter(Object key, Json child) {
             return child;
         }
 
@@ -254,7 +284,7 @@ public class JsonWriteOptions {
          * @param key the key of the current entry in the map
          * @param child the value of the current entry in the map
          */
-        public void exit(String key, Json child) {
+        public void exit(Object key, Json child) {
         }
     }
 
@@ -274,7 +304,7 @@ public class JsonWriteOptions {
                 okdepth = Integer.MAX_VALUE;
             }
 
-            public Json enter(String key, Json child) {
+            public Json enter(Object key, Json child) {
                 depth++;
                 if (depth > okdepth) {
                     return child;
@@ -286,7 +316,7 @@ public class JsonWriteOptions {
                 }
             }
 
-            public void exit(String key, Json child) {
+            public void exit(Object key, Json child) {
                 if (depth-- == okdepth) {
                     okdepth = Integer.MAX_VALUE;
                 }
@@ -298,10 +328,10 @@ public class JsonWriteOptions {
         Filter filter = this.filter;
         if (filter == null) {
             filter = new Filter() {
-                public Json enter(String key, Json child) {
+                public Json enter(Object key, Json child) {
                     return child;
                 }
-                public void exit(String key, Json child) {
+                public void exit(Object key, Json child) {
                 }
                 public void initialize(Json ctx) {
                 }

@@ -41,7 +41,7 @@ class CborReader {
         Number n;
         Json j;
         List<Json> list;
-        Map<String,Json> map;
+        Map<Object,Json> map;
         long tell;
         switch (v>>5) {
             case 0:
@@ -130,11 +130,11 @@ class CborReader {
                         if (key == null) {
                             throw new EOFException();
                         }
-                        if (!key.isString() && options.isFailOnNonStringKeys()) {
-                            throw new IOException("Map key \"" + key + "\" is " + key.type() + " rather than string at " + tell);
-                        }
                         tell = in.tell();
-                        String k = key.stringValue();
+                        Object k = Json.fixKey(key, options.isFailOnNonStringKeys(), tell);
+                        if (!(k instanceof String)) {
+                            j.setNonStringKeys();
+                        }
                         filter.enter(j, k);
                         Json val = readPrivate();
                         filter.exit(j, k);
@@ -160,10 +160,10 @@ class CborReader {
                         } else if (key == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
                         }
-                        if (!key.isString() && options.isFailOnNonStringKeys()) {
-                            throw new IOException("Map key \"" + key + "\" is " + key.type() + " rather than string at " + tell);
+                        Object k = Json.fixKey(key, options.isFailOnNonStringKeys(), tell);
+                        if (!(k instanceof String)) {
+                            j.setNonStringKeys();
                         }
-                        String k = key.stringValue();
                         filter.enter(j, k);
                         Json val = readPrivate();
                         filter.exit(j, k);

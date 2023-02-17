@@ -31,6 +31,7 @@ public class JsonReadOptions {
     private boolean cborFailOnUnknownTypes;
     private boolean failOnNonStringKeys;
     private boolean nocontext;
+    private boolean cborDiag;
     private byte storeOptions;
     private int fastStringLength = 262144;
     private Filter filter;
@@ -204,6 +205,26 @@ public class JsonReadOptions {
         return (storeOptions & FLAG_LOOSEEMPTY) != 0;
     }
 
+    /**
+     * Set the parser to recognise the "CBOR-Diag" variation of Json
+     * @param cborDiag the flag
+     * @return this
+     * @since 5
+     */
+    public JsonReadOptions setCborDiag(boolean cborDiag) {
+        this.cborDiag = cborDiag;
+        return this;
+    }
+
+    /**
+     * Return the value of the "CBOR-Diag" flag as set by {@link #setCborDiag}
+     * @return the flag
+     * @since 5
+     */
+    public boolean isCborDiag() {
+        return cborDiag;
+    }
+
     byte storeOptions() {
         return storeOptions;
     }
@@ -375,7 +396,7 @@ public class JsonReadOptions {
          * @param key the key of the next entry in the map
          * @throws IOException if an error occurs during processing
          */
-        public void enter(Json parent, String key) throws IOException {
+        public void enter(Json parent, Object key) throws IOException {
         }
 
         /**
@@ -384,7 +405,7 @@ public class JsonReadOptions {
          * @param key the key of the entry just read in the map
          * @throws IOException if an error occurs during processing
          */
-        public void exit(Json parent, String key) throws IOException {
+        public void exit(Json parent, Object key) throws IOException {
         }
 
         /**
@@ -429,7 +450,7 @@ public class JsonReadOptions {
          * @throws IOException if an error occurs during reading
          */
         public Json createNull() throws IOException {
-            return new Json(null, null);
+            return new Json(Json.NULL, null);
         }
 
         /**

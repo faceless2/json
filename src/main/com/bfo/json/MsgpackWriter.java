@@ -45,111 +45,7 @@ class MsgpackWriter {
 
     void write(Json j) throws IOException {
         if (j.isNumber()) {
-            Number n = j.numberValue();
-            if (n instanceof BigDecimal) {      // No BigDecimal in MsgPack
-                n = Double.valueOf(n.doubleValue());
-            }
-            if (n instanceof BigInteger) {
-                BigInteger bi = (BigInteger)n;
-                int bl = bi.bitLength();
-                if (bl == 64 && bi.signum() > 0) {
-                    long l = bi.longValue();
-                    out.write(0xcf);
-                    out.write((int)(l>>56));
-                    out.write((int)(l>>48));
-                    out.write((int)(l>>40));
-                    out.write((int)(l>>32));
-                    out.write((int)(l>>24));
-                    out.write((int)(l>>16));
-                    out.write((int)(l>>8));
-                    out.write((int)l);
-                    return;
-                } else if (bl <= 64) {
-                    n = Long.valueOf(bi.longValue());
-                } else {
-                    throw new IllegalArgumentException("Cannot write BigInteger "+bi+" to Msgpack");
-                }
-            }
-            if (n instanceof Long) {
-                long l = n.longValue();
-                if (l < Integer.MIN_VALUE) {
-                    out.write(0xd3);
-                    out.write((int)(l>>56));
-                    out.write((int)(l>>48));
-                    out.write((int)(l>>40));
-                    out.write((int)(l>>32));
-                    out.write((int)(l>>24));
-                    out.write((int)(l>>16));
-                    out.write((int)(l>>8));
-                    out.write((int)l);
-                    return;
-                } else if (l > Integer.MAX_VALUE) {
-                    out.write(0xcf);
-                    out.write((int)(l>>56));
-                    out.write((int)(l>>48));
-                    out.write((int)(l>>40));
-                    out.write((int)(l>>32));
-                    out.write((int)(l>>24));
-                    out.write((int)(l>>16));
-                    out.write((int)(l>>8));
-                    out.write((int)l);
-                    return;
-                } else {
-                    n = Integer.valueOf((int)l);
-                }
-            }
-            if (n instanceof Integer || n instanceof Short || n instanceof Byte) {
-                int i = n.intValue();
-                if (i >= -32 && i < 127) {
-                    out.write(i);
-                } else if (i > 0) {
-                    if (i <= 0xFF) {
-                        out.write(0xcc);
-                        out.write(i);
-                    } else if (i <= 0xFFFF) {
-                        out.write(0xcd);
-                        out.write(i>>8);
-                        out.write(i);
-                    } else {
-                        out.write(0xce);
-                        out.write(i>>24);
-                        out.write(i>>16);
-                        out.write(i>>8);
-                        out.write(i);
-                    }
-                } else if (i >= -128) {
-                    out.write(0xd0);
-                    out.write(i);
-                } else if (i >= -32768) {
-                    out.write(0xd1);
-                    out.write(i>>8);
-                    out.write(i);
-                } else {
-                    out.write(0xd2);
-                    out.write(i>>24);
-                    out.write(i>>16);
-                    out.write(i>>8);
-                    out.write(i);
-                }
-            } else if (n instanceof Float) {
-                out.write(0xca);
-                int v = Float.floatToIntBits(n.floatValue());
-                out.write(v>>24);
-                out.write(v>>16);
-                out.write(v>>8);
-                out.write(v);
-            } else if (n instanceof Double) {
-                out.write(0xcb);
-                long v = Double.doubleToLongBits(n.doubleValue());
-                out.write((int)(v>>56));
-                out.write((int)(v>>48));
-                out.write((int)(v>>40));
-                out.write((int)(v>>32));
-                out.write((int)(v>>24));
-                out.write((int)(v>>16));
-                out.write((int)(v>>8));
-                out.write((int)v);
-            }
+            writeNumber(j.numberValue());
         } else if (j.isBuffer()) {
             int tag = (int)j.getTag();
             final ByteBuffer[] holder = new ByteBuffer[] { j.bufferValue() };
@@ -248,10 +144,16 @@ class MsgpackWriter {
                 write(j2);
             }
         } else if (j.isMap()) {
-            Map<String,Json> map = j._mapValue();
+            Map<Object,Json> map = j._mapValue();
             // todo how do we do filtering here? no indefinite length so not possible without temp buffer
             if (options.isSorted()) {
-                map = new TreeMap<String,Json>(map);
+                Map<Object,Json> m2 = new TreeMap<Object,Json>(new Comparator<Object>() {
+                    public int compare(Object o1, Object o2) {
+                        return o1 instanceof Number && o2 instanceof Number ? Double.valueOf(((Number)o1).doubleValue()).compareTo(((Number)o2).doubleValue()) : o1.toString().compareTo(o2.toString());
+                    }
+                });
+                m2.putAll(map);
+                map = m2;
             }
             int s = map.size();
             if (s <= 15) {
@@ -267,8 +169,8 @@ class MsgpackWriter {
                 out.write(s>>8);
                 out.write(s);
             }
-            for (Map.Entry<String,Json> e : map.entrySet()) {
-                stringWriter.append(e.getKey());
+            for (Map.Entry<Object,Json> e : map.entrySet()) {
+                writeMapKey(e.getKey());
                 write(e.getValue());
             }
         } else if (j.isBoolean()) {
@@ -281,6 +183,131 @@ class MsgpackWriter {
             out.write(0xc0);
         } else {
             throw new IOException("Unknown object " + j);
+        }
+    }
+
+    void writeNumber(Number n) throws IOException {
+        if (n instanceof BigDecimal) {      // No BigDecimal in MsgPack
+            n = Double.valueOf(n.doubleValue());
+        }
+        if (n instanceof BigInteger) {
+            BigInteger bi = (BigInteger)n;
+            int bl = bi.bitLength();
+            if (bl == 64 && bi.signum() > 0) {
+                long l = bi.longValue();
+                out.write(0xcf);
+                out.write((int)(l>>56));
+                out.write((int)(l>>48));
+                out.write((int)(l>>40));
+                out.write((int)(l>>32));
+                out.write((int)(l>>24));
+                out.write((int)(l>>16));
+                out.write((int)(l>>8));
+                out.write((int)l);
+                return;
+            } else if (bl <= 64) {
+                n = Long.valueOf(bi.longValue());
+            } else {
+                throw new IllegalArgumentException("Cannot write BigInteger "+bi+" to Msgpack");
+            }
+        }
+        if (n instanceof Long) {
+            long l = n.longValue();
+            if (l < Integer.MIN_VALUE) {
+                out.write(0xd3);
+                out.write((int)(l>>56));
+                out.write((int)(l>>48));
+                out.write((int)(l>>40));
+                out.write((int)(l>>32));
+                out.write((int)(l>>24));
+                out.write((int)(l>>16));
+                out.write((int)(l>>8));
+                out.write((int)l);
+                return;
+            } else if (l > Integer.MAX_VALUE) {
+                out.write(0xcf);
+                out.write((int)(l>>56));
+                out.write((int)(l>>48));
+                out.write((int)(l>>40));
+                out.write((int)(l>>32));
+                out.write((int)(l>>24));
+                out.write((int)(l>>16));
+                out.write((int)(l>>8));
+                out.write((int)l);
+                return;
+            } else {
+                n = Integer.valueOf((int)l);
+            }
+        }
+        if (n instanceof Integer || n instanceof Short || n instanceof Byte) {
+            int i = n.intValue();
+            if (i >= -32 && i < 127) {
+                out.write(i);
+            } else if (i > 0) {
+                if (i <= 0xFF) {
+                    out.write(0xcc);
+                    out.write(i);
+                } else if (i <= 0xFFFF) {
+                    out.write(0xcd);
+                    out.write(i>>8);
+                    out.write(i);
+                } else {
+                    out.write(0xce);
+                    out.write(i>>24);
+                    out.write(i>>16);
+                    out.write(i>>8);
+                    out.write(i);
+                }
+            } else if (i >= -128) {
+                out.write(0xd0);
+                out.write(i);
+            } else if (i >= -32768) {
+                out.write(0xd1);
+                out.write(i>>8);
+                out.write(i);
+            } else {
+                out.write(0xd2);
+                out.write(i>>24);
+                out.write(i>>16);
+                out.write(i>>8);
+                out.write(i);
+            }
+        } else if (n instanceof Float) {
+            out.write(0xca);
+            int v = Float.floatToIntBits(n.floatValue());
+            out.write(v>>24);
+            out.write(v>>16);
+            out.write(v>>8);
+            out.write(v);
+        } else if (n instanceof Double) {
+            out.write(0xcb);
+            long v = Double.doubleToLongBits(n.doubleValue());
+            out.write((int)(v>>56));
+            out.write((int)(v>>48));
+            out.write((int)(v>>40));
+            out.write((int)(v>>32));
+            out.write((int)(v>>24));
+            out.write((int)(v>>16));
+            out.write((int)(v>>8));
+            out.write((int)v);
+        }
+    }
+
+    private void writeMapKey(Object o) throws IOException {
+        if (o instanceof String) {
+            stringWriter.append((String)o);
+        } else if (o instanceof Number) {
+            writeNumber((Number)o);
+        } else if (o instanceof Boolean) {
+            writeNumber((Number)o);
+        } else if (o instanceof Boolean && ((Boolean)o).booleanValue()) {
+            out.write(0xc3);
+        } else if (o instanceof Boolean) {
+            out.write(0xc2);
+        } else if (o == Json.NULL || o == Json.UNDEFINED) {
+            out.write(0xc0);
+        } else {
+            throw new IOException("Unknown map key " + o);
         }
     }
 }

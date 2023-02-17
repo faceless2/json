@@ -68,7 +68,13 @@ public class JsonPathProviderBFO implements JsonProvider {
 
     @Override
     public Collection<String> getPropertyKeys(Object o) {
-        return ((Json)o).mapValue().keySet();
+        List<String> l = new ArrayList<String>();
+        for (Object key : ((Json)o).mapValue().keySet()) {
+            if (key instanceof String) {
+                l.add((String)key);
+            }
+        }
+        return l;
     }
 
     @Override

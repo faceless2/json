@@ -33,77 +33,7 @@ class CborWriter {
             writeNum(6, j.getTag(), out);
         }
         if (j.isNumber()) {
-            Number n = j.numberValue();
-            if (n instanceof BigDecimal) {      // No BigDecimal in CBOR
-                n = Double.valueOf(n.doubleValue());
-            }
-            if (n instanceof Long) {
-                long l = n.longValue();
-                if (l < 0) {
-                    writeNum(1, -l - 1, out);
-                } else {
-                    writeNum(0, l, out);
-                }
-            } else if (n instanceof Float) {
-                out.write(250);
-                int v = Float.floatToIntBits(n.floatValue());
-                out.write(v>>24);
-                out.write(v>>16);
-                out.write(v>>8);
-                out.write(v);
-            } else if (n instanceof Double) {
-                out.write(251);
-                long v = Double.doubleToLongBits(n.doubleValue());
-                out.write((int)(v>>56));
-                out.write((int)(v>>48));
-                out.write((int)(v>>40));
-                out.write((int)(v>>32));
-                out.write((int)(v>>24));
-                out.write((int)(v>>16));
-                out.write((int)(v>>8));
-                out.write((int)v);
-            } else if (n instanceof BigInteger) {
-                BigInteger bi = (BigInteger)n;
-                int bl = bi.bitLength();
-                if (bl < 64) {
-                    long l = bi.longValue();
-                    if (l < 0) {
-                        writeNum(1, -l - 1, out);
-                    } else {
-                        writeNum(0, l, out);
-                    }
-                } else if (bi.signum() < 0) {
-                    bi = bi.negate().subtract(BigInteger.valueOf(1));
-                    bl = bi.bitLength();
-                    byte[] b = bi.toByteArray();
-                    if (bl == 64) {
-                        out.write((1 << 5) | 27);
-                        out.write(b, 1, 8);
-                    } else {
-                        out.write(0xc3);
-                        writeNum(2, b.length, out);
-                        out.write(b);
-                    }
-                } else {
-                    bl = bi.bitLength();
-                    byte[] b = bi.toByteArray();
-                    if (bl == 64) {
-                        out.write(27);
-                        out.write(b, 1, 8);
-                    } else {
-                        out.write(0xc2);
-                        writeNum(2, b.length, out);
-                        out.write(b);
-                    }
-                }
-            } else {
-                int i = n.intValue();
-                if (i < 0) {
-                    writeNum(1, -i - 1, out);
-                } else {
-                    writeNum(0, i, out);
-                }
-            }
+            writeNumber(j.numberValue(), out);
         } else if (j.isBuffer()) {
             if (j.isIndefiniteBuffer()) {
                 // May have overriden writeBuffer - write as an indefinite length buffer
@@ -146,16 +76,22 @@ class CborWriter {
                 }
             }
         } else if (j.isMap()) {
-            Map<String,Json> map = j._mapValue();
+            Map<Object,Json> map = j._mapValue();
             if (options.isSorted()) {
-                map = new TreeMap<String,Json>(map);
+                Map<Object,Json> m = new TreeMap<Object,Json>(new Comparator<Object>() {
+                    public int compare(Object o1, Object o2) {
+                        return o1 instanceof Number && o2 instanceof Number ? Double.valueOf(((Number)o1).doubleValue()).compareTo(((Number)o2).doubleValue()) : o1.toString().compareTo(o2.toString());
+                    }
+                });
+                m.putAll(map);
+                map = m;
             }
             if (filtered) {
                 writeNum(5, -1, out);
-                for (Map.Entry<String,Json> e : map.entrySet()) {
+                for (Map.Entry<Object,Json> e : map.entrySet()) {
                     Json value = filter.enter(e.getKey(), e.getValue());
                     if (value != null) {
-                        stringWriter.append(e.getKey());
+                        writeMapKey(e.getKey());
                         write(value);
                     }
                     filter.exit(e.getKey(), e.getValue());
@@ -163,8 +99,8 @@ class CborWriter {
                 out.write(0xFF);
             } else {
                 writeNum(5, map.size(), out);
-                for (Map.Entry<String,Json> e : map.entrySet()) {
-                    stringWriter.append(e.getKey());
+                for (Map.Entry<Object,Json> e : map.entrySet()) {
+                    writeMapKey(e.getKey());
                     write(e.getValue());
                 }
             }
@@ -180,6 +116,97 @@ class CborWriter {
             out.write(0xf7);
         } else {
             throw new IOException("Unknown object " + j);
+        }
+    }
+
+    private void writeMapKey(Object o) throws IOException {
+        if (o instanceof String) {
+            stringWriter.append((String)o);
+        } else if (o instanceof Number) {
+            writeNumber((Number)o, out);
+        } else if (o instanceof Boolean && ((Boolean)o).booleanValue()) {
+            out.write(0xf5);
+        } else if (o instanceof Boolean) {
+            out.write(0xf4);
+        } else if (o == Json.NULL) {
+            out.write(0xf6);
+        } else if (o == Json.UNDEFINED) {
+            out.write(0xf7);
+        } else {
+            throw new IOException("Unknown key " + o);
+        }
+    }
+
+    private static void writeNumber(Number n, OutputStream out) throws IOException {
+        if (n instanceof BigDecimal) {      // No BigDecimal in CBOR
+            n = Double.valueOf(n.doubleValue());
+        }
+        if (n instanceof Long) {
+            long l = n.longValue();
+            if (l < 0) {
+                writeNum(1, -l - 1, out);
+            } else {
+                writeNum(0, l, out);
+            }
+        } else if (n instanceof Float) {
+            out.write(250);
+            int v = Float.floatToIntBits(n.floatValue());
+            out.write(v>>24);
+            out.write(v>>16);
+            out.write(v>>8);
+            out.write(v);
+        } else if (n instanceof Double) {
+            out.write(251);
+            long v = Double.doubleToLongBits(n.doubleValue());
+            out.write((int)(v>>56));
+            out.write((int)(v>>48));
+            out.write((int)(v>>40));
+            out.write((int)(v>>32));
+            out.write((int)(v>>24));
+            out.write((int)(v>>16));
+            out.write((int)(v>>8));
+            out.write((int)v);
+        } else if (n instanceof BigInteger) {
+            BigInteger bi = (BigInteger)n;
+            int bl = bi.bitLength();
+            if (bl < 64) {
+                long l = bi.longValue();
+                if (l < 0) {
+                    writeNum(1, -l - 1, out);
+                } else {
+                    writeNum(0, l, out);
+                }
+            } else if (bi.signum() < 0) {
+                bi = bi.negate().subtract(BigInteger.valueOf(1));
+                bl = bi.bitLength();
+                byte[] b = bi.toByteArray();
+                if (bl == 64) {
+                    out.write((1 << 5) | 27);
+                    out.write(b, 1, 8);
+                } else {
+                    out.write(0xc3);
+                    writeNum(2, b.length, out);
+                    out.write(b);
+                }
+            } else {
+                bl = bi.bitLength();
+                byte[] b = bi.toByteArray();
+                if (bl == 64) {
+                    out.write(27);
+                    out.write(b, 1, 8);
+                } else {
+                    out.write(0xc2);
+                    writeNum(2, b.length, out);
+                    out.write(b);
+                }
+            }
+        } else {
+            int i = n.intValue();
+            if (i < 0) {
+                writeNum(1, -i - 1, out);
+            } else {
+                writeNum(0, i, out);
+            }
         }
     }
 
