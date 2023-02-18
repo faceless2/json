@@ -16,18 +16,20 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * A basic COSE class.
+ * A basic COSE class. Currently supports COSE signatures only, not encryption.
  *
  * <h2>Examples</h2>
  * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
  * COSE cose = new COSE();
  * cose.setPayload(ByteBuffer.wrap("Hello, World".getBytes("UTF-8")));
- * cose.sign(privateKey);               // Sign using a private key, eg PS256
+ * cose.sign(privateKey);               // Sign using a private key, eg ES256
  * Json json = cose.get();
+ * json.writeCBOR(..., null);           // Save COSE
  *
+ * json = Json.readCBOR(..., null);     // Reload COSE
  * cose = new COSE(json);
  * String s = new String(cose.getPayload().array(), "UTF-8"); // Hello, World
- * jwt.verify(publicKey);               // Verify with the public key
+ * assert jwt.verify(publicKey) == 0;   // Verify with the public key
  * </pre>
  * @since 5
  */

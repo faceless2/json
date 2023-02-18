@@ -25,8 +25,8 @@ public class TestCOSE {
             if (j.hasPath("output.cbor_diag")) {
                 Json raw = read(j.getPath("output.cbor").stringValue());
                 Json raw2 = Json.read(new StringReader(j.getPath("output.cbor_diag").stringValue()), new JsonReadOptions().setCborDiag(true));
-                String s1 = raw.write(new StringBuilder(), new JsonWriteOptions().setCborDiag("hex")).toString();
-                String s2 = raw2 == null ? null : raw2.write(new StringBuilder(), new JsonWriteOptions().setCborDiag("hex")).toString();
+                String s1 = raw.toString(new JsonWriteOptions().setCborDiag("hex"));
+                String s2 = raw2 == null ? null : raw2.toString(new JsonWriteOptions().setCborDiag("hex"));
                 if (!s1.equals(s2)) {
                     assert false : "cbor_diag mismatch " + test + " " + s1 + " " + s2;
                 } else {

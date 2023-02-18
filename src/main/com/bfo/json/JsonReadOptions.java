@@ -29,7 +29,7 @@ public class JsonReadOptions {
     private boolean comments;
     private boolean bigDecimal;
     private boolean cborFailOnUnknownTypes;
-    private boolean failOnNonStringKeys;
+    private boolean failOnComplexKeys;
     private boolean nocontext;
     private boolean cborDiag;
     private byte storeOptions;
@@ -278,26 +278,27 @@ public class JsonReadOptions {
     }
 
     /**
-     * When reading CBOR/Msgpack and a map key is encountered that is not a String,
-     * fail rather than converting it silently to a String. This API (and Json) only
-     * allow map keys to be strings.
+     * When reading CBOR/Msgpack and a map key is encountered that is "complex",
+     * fail rather than converting it silently to a String. Complex types are currently
+     * anything other than string, number or boolean. Note thatn when serializing to JSON
+     * all key types will be converted to strings
      * @param flag the flag
      * @return this
-     * @since 3
+     * @since 5
      */
-    public JsonReadOptions setFailOnNonStringKeys(boolean flag) {
-        failOnNonStringKeys = flag;
+    public JsonReadOptions setFailOnComplexKeys(boolean flag) {
+        failOnComplexKeys = flag;
         return this;
     }
 
     /**
-     * Return the value of the "failOnNonStringKeys" flag, as set by
-     * {@link #setFailOnNonStringKeys}
-     * @since 3
+     * Return the value of the "failOnComplexKeys" flag, as set by
+     * {@link #setFailOnComplexKeys}
+     * @since 5
      * @return the flag
      */
-    public boolean isFailOnNonStringKeys() {
-        return failOnNonStringKeys;
+    public boolean isFailOnComplexKeys() {
+        return failOnComplexKeys;
     }
 
     /**

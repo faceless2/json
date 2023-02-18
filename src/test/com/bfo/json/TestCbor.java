@@ -98,17 +98,17 @@ public class TestCbor {
         // Next ones feature integer keys, from example at 
         assert (j=read("a10126")).get(1).intValue() == -7;
         assert (j=read("a10126")).get("1") == null;
-        assert (tostring=(j=read("D8628440A054546869732069732074686520636F6E74656E742E818343A10126A1044231315840E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A")).write(new StringBuilder(), new JsonWriteOptions().setCborDiag("HEX")).toString()).equals("98([h'',{},h'546869732069732074686520636F6E74656E742E',[[h'A10126',{4:h'3131'},h'E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A']]])") : tostring;
+        assert (tostring=(j=read("D8628440A054546869732069732074686520636F6E74656E742E818343A10126A1044231315840E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A")).toString(new JsonWriteOptions().setCborDiag("HEX"))).equals("98([h'',{},h'546869732069732074686520636F6E74656E742E',[[h'A10126',{4:h'3131'},h'E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A']]])") : tostring;
 
         System.out.println("----- END CBOR TESTS -----");
         System.out.println("----- BEGIN CBOR ROUNDTRIP TESTS -----");
         for (String s : INPUT) {
             j = read(s);
-            String s1 = j.write(new StringBuilder(), new JsonWriteOptions().setCborDiag("HEX")).toString();
+            String s1 = j.toString(new JsonWriteOptions().setCborDiag("HEX"));
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             j.writeCbor(out, null);
             j = Json.readCbor(new ByteArrayInputStream(out.toByteArray()), null);
-            String s2 = j.write(new StringBuilder(), new JsonWriteOptions().setCborDiag("HEX")).toString();
+            String s2 = j.toString(new JsonWriteOptions().setCborDiag("HEX"));
             assert s1.equals(s1) : s1 + " != " + s2;
         }
         System.out.println("----- END CBOR ROUNDTRIP TESTS -----");

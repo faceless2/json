@@ -280,7 +280,7 @@ class MsgpackReader {
             if (key == null) {
                 throw new EOFException();
             }
-            Object k = Json.fixKey(key, options.isFailOnNonStringKeys(), tell);
+            Object k = Json.fixKey(key, options.isFailOnComplexKeys(), tell);
             if (!(k instanceof String)) {
                 j.setNonStringKeys();
             }

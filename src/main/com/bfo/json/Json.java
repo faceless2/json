@@ -77,10 +77,10 @@ import java.nio.charset.*;
  *   support integer values greater than 64-bit; attempting to write these will throw an IOException.
  *  </li>
  *  <li>
- *   CBOR/Msgpack support complex key types in Maps, such as lists or other maps. If these are encountered
- *   with this API when reading, they will be converted to Strings by default, or
+ *   CBOR/Msgpack support complex key types in maps, such as lists or other maps. If these are encountered
+ *   with this API when reading, they will be converted to strings by default, or
  *   (if {@link JsonReadOptions#setFailOnComplexKeys} is set) throw an {@link IOException}.
- *   CBOR/Msgpack also supports duplicate keys in Maps - this abomination is not allowed in this
+ *   CBOR/Msgpack also supports duplicate keys in maps - this abomination is not allowed in this
  *   API, and the {@link #readCbor readCbor()} and {@link #readMsgpack readMsgpack()} methods will throw an
  *   {@link IOException} if found.
  *  </li>
@@ -2440,6 +2440,7 @@ public class Json {
     /**
      * Return a String representation of this Json object. Roughly equivalent
      * to calling <code>return {@link #write write}(new StringBuilder(), null).toString()</code>
+     * @return the serialized object
      */
     public String toString() {
         return toString(null);
@@ -2449,6 +2450,8 @@ public class Json {
      * Return a String representation of this Json object with the specified
      * serialization options. Equivalent
      * to calling <code>return {@link #write write}(new StringBuilder(), options).toString()</code>
+     * @param options the {@link JsonWriteOptions} to use for serializing, or null to use the default
+     * @return the serialized object
      * @since 5
      */
     public String toString(JsonWriteOptions options) {
@@ -2485,7 +2488,7 @@ public class Json {
 
     /**
      * Return a Cbor representation of this Json object with the specified options
-     * @param options the {@link JsonWriteOptions}, or null to use the default
+     * @param options the {@link JsonWriteOptions} to use for serializing, or null to use the default
      * @return the Cbor representation as an array-backed ByteBuffer
      * @since 5
      */

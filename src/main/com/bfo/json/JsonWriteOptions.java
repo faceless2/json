@@ -198,12 +198,15 @@ public class JsonWriteOptions {
     }
 
     /** 
+     * <p>
      * When encoding a "buffer" value in JSON, it will be encoded as Base64.
-     * By default the "URL- and filename-safe character set" defined in RFC4648
+     * By default the "<i>URL- and filename-safe character set</i>" defined in RFC4648
      * is used, as this is required by JWT. However this method can be called
-     * to use the "standard" Base64 encoding (first defined in RFC1421)
+     * to use the "standard" Base64 encoding, first defined in RFC1421.
      * Prior to version 5 the default (and only option) was "standard.
-     * (note when reading, all Base64 variations are accepted)
+     * </p><p>
+     * No equivalent read option exists - when reading, all Base64 variations are accepted
+     * </p>
      * @param base64standard the flag
      * @since 5
      * @return this

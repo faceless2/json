@@ -131,7 +131,7 @@ class CborReader {
                             throw new EOFException();
                         }
                         tell = in.tell();
-                        Object k = Json.fixKey(key, options.isFailOnNonStringKeys(), tell);
+                        Object k = Json.fixKey(key, options.isFailOnComplexKeys(), tell);
                         if (!(k instanceof String)) {
                             j.setNonStringKeys();
                         }
@@ -160,7 +160,7 @@ class CborReader {
                         } else if (key == BREAK) {
                             throw new IOException("Unexpected break at " + tell);
                         }
-                        Object k = Json.fixKey(key, options.isFailOnNonStringKeys(), tell);
+                        Object k = Json.fixKey(key, options.isFailOnComplexKeys(), tell);
                         if (!(k instanceof String)) {
                             j.setNonStringKeys();
                         }
