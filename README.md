@@ -23,7 +23,10 @@ and fuzzed input, to make sure errors are handled properly.
 
 ## Features
 * JSON, CBOR and Msgpack serialization are both available from the same object
+* non-string map keys since version 5, to support COSE. Non-string keys are convert to strings when serializing to JSON
 * Java Web Token (JWT) support class for reading/writing/signing/verifying.
+* COSE signed object support class for reading/writing/signing/verifying.
+* Java Web Keys (JWK) support EC, RSA and EdDSA public/private keys, and Hmac, AES-KW and AES-GCM-KW symmetric keys
 * JsonPath integration (optional)
 * Listeners and Events to monitor changes to the structure
 * Flexible typing; if you request the int value of a string it will try to convert it to an int. If you put a value with a String key on a list, it will convert to a map.
@@ -32,7 +35,7 @@ and fuzzed input, to make sure errors are handled properly.
 * Option of mapping Json to more complex Java objects is possible, but not included with the code. By default data is retrieved as  Maps, Lists and primitive types only
 
 ## Building and Documentation
-* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-4.jar](https://faceless2.github.io/json/dist/bfojson-4.jar)
+* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-5.jar](https://faceless2.github.io/json/dist/bfojson-5.jar)
 * The API docs will always be available at [https://faceless2.github.io/json/docs/](https://faceless2.github.io/json/docs/)
 * Or download with `git clone http://github.com/faceless2/json.git`. Type `ant`. Jar is in `dist`, docs are in `docs`
  
@@ -50,10 +53,9 @@ and fuzzed input, to make sure errors are handled properly.
   CBOR/Msgpack are read from an InputStream and written to an OutputStream.
   Errors encountered during reading are reported with context, line and column numbers (for JSON) or byte offset (for CBOR/Msgpack).
 
-* CBOR serialization offers three complexities that are not supported in this API:
-duplicate keys in maps, "special" types that are not defined, and non-string keys in Maps.
+* CBOR serialization offers two complexities that are not supported in this API:
+duplicate keys in maps and "special" types that are not defined.
 Duplicate keys encountered during reading throw an IOException,
-non-string keys will be converted to strings (by default) or throw an IOException if set in the options,
 and special types (which should really only
 be encountered while testing) are converted to a tagged null object. Tags are limited
 to 63 bits, and tags applied to Map keys are ignored.
@@ -64,8 +66,7 @@ A <code>JsonFactory</code> can easily be written to cover as many of these are n
 
 * Msgpack serialization is similar to CBOR, but a bit simpler. "extension types" are stored as
 Buffers, with the extension type stored as a tag from 0..255. Like CBOR, duplicate keys encountered
-during read will throw an IOException and non-string keys will be converted to strings (by default)
-or throw an IOException.
+during read will throw an IOException.
 
 * It's possible (since v4) to read and write indefinitely large strings and buffers - the [JsonReadOptions.Filter](https://faceless2.github.io/json/docs/api/com/bfo/json/JsonReadOptions.Filter.html) class can be used to divert content away to a File, for example. There use of intermediate buffers has been kept to an absolute minimum.
 
@@ -75,13 +76,13 @@ or throw an IOException.
 // The basics
 Json json = Json.read("{}"}; // Create a new map
 json.put("a", "apples"); // Add a string
-json.put("b.c", new Json("oranges")); // Add an intermediate map and another string
-json.put("b.c[1]", 3}; // Replace previous string with an array, add a null then a number.
-json.put("\"d.e\"", true); // Add a key containing a quote character
+json.putPath("b.c", new Json("oranges")); // Add an intermediate map and another string
+json.putPath("b.c[1]", 3}; // Replace previous string with an array, add a null then a number.
+json.putPath("\"d.e\"", true); // Add a key containing a quote character
 System.out.println(json); // {"a":"apples","b":{"c":[null,3]},"d.e":true}
 json.write(System.out, null); // The same as above, but doesn't serialize to a String first.
-System.out.println(json.get("b.c[1]").stringValue()); // "3"
-System.out.println(json.get("b.c[1]").intValue()); // 3
+System.out.println(json.getPath("b.c[1]").stringValue()); // "3"
+System.out.println(json.getPath("b.c[1]").intValue()); // 3
 System.out.println(json.get("b").get("c").get(1).intValue()); // 3
 
 // Types
@@ -101,9 +102,9 @@ System.out.println(json.get("d").booleanValue()); // true
 System.out.println(json.get("e").booleanValue()); // false
 json.put("e", Json.read("[]")); // Add a new list
 System.out.println(json.get("e").type()); // "list"
-json.put("e[0]", false);
+json.putPath("e[0]", false);
 System.out.println(json.get("e")); // [false] - e is a list
-json.put("e[\"a\"]", true); // this will convert e to a map
+json.putPath("e[\"a\"]", true); // this will convert e to a map
 System.out.println(json.get("e")); // {"0":false,"a":true}
 json.setValue(new Json("string")); // copy value from specified object
 System.out.println(json.value()); // "string"
@@ -145,10 +146,10 @@ json.addListener(new JsonListener() {
         }
     }
 });
-json.put("a.b", true);  // "Added a.b"
-json.get("a.b").put("c", true);  // "Added a.b.c"
-json.get("a.b").put("c", false);  // "Changed a.b.c" from true to false
-json.remove("a.b"); // "Removed a.b"
+json.putPath("a.b", true);  // "Added a.b"
+json.getPath("a.b").put("c", true);  // "Added a.b.c"
+json.getPath("a.b").put("c", false);  // "Changed a.b.c" from true to false
+json.removePath("a.b"); // "Removed a.b"
 
 // JsonPath
 json = Json.parse("{\"a\":{\"b\":{\"c\":[10,20,30,40]}}}");
@@ -178,5 +179,6 @@ jwt.getPayload().clear();            // Modify the payload
 assert !jwt.verify(pubkey, "ES256"); // Signature is no longer valid
 ```
 
+Compiles under Java 11 or later - the API supposed EdDSA keys (new in Java 15) via reflection.
 
 This code is written by the team at [bfo.com](https://bfo.com). If you like it, come and see what else we do.

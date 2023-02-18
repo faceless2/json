@@ -10,11 +10,11 @@ public class TestMsgpack {
     public static void main(String[] args) throws Exception {
         System.out.println("----- BEGIN MSGPACK TESTS -----");
         Json all = Json.read(new URL("https://raw.githubusercontent.com/kawanet/msgpack-test-suite/master/dist/msgpack-test-suite.json").openConnection().getInputStream(), null);
-        for (Map.Entry<String,Json> e : all.mapValue().entrySet()) {
+        for (Map.Entry<Object,Json> e : all.mapValue().entrySet()) {
             Json j = e.getValue();
             for (int i=0;i<j.size();i++) {
                 Json j2 = j.get(i);
-                String type = j2.mapValue().keySet().iterator().next();
+                Object type = j2.mapValue().keySet().iterator().next();
                 Json target = parseType(type, j2.get(type));
                 if (target != null) {
                     j2 = j2.get("msgpack");
@@ -117,7 +117,7 @@ public class TestMsgpack {
         return out;
     }
 
-    static Json parseType(String type, Json j) {
+    static Json parseType(Object type, Json j) {
         if (type.equals("nil")) {
             return j;
         } else if (type.equals("bool")) {

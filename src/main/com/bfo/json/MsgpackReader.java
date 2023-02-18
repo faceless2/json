@@ -273,16 +273,17 @@ class MsgpackReader {
     private Json readMap(int len) throws IOException {
         // Because passing a populated collection into Json() clones items
         Json j = filter.createMap();
-        Map<String,Json> map = j._mapValue();
+        Map<Object,Json> map = j._mapValue();
         while (len-- > 0) {
             long tell = in.tell();
             Json key = readPrivate();
             if (key == null) {
                 throw new EOFException();
-            } else if (!key.isString() && options.isFailOnNonStringKeys()) {
-                throw new IOException("Map key \"" + key + "\" is " + key.type() + " rather than string at " + tell);
             }
-            String k = key.isNull() ? "null" : key.stringValue();
+            Object k = Json.fixKey(key, options.isFailOnComplexKeys(), tell);
+            if (!(k instanceof String)) {
+                j.setNonStringKeys();
+            }
             filter.enter(j, k);
             Json val = readPrivate();
             filter.exit(j, k);

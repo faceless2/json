@@ -12,6 +12,7 @@ class JsonWriter {
     private final JsonWriteOptions options;
     private final JsonWriteOptions.Filter filter;
     private final Appendable stringWriter;
+    private final String cbordiag;
     private boolean simple;
 
     JsonWriter(Appendable out, final JsonWriteOptions options, final Json root) {
@@ -19,6 +20,7 @@ class JsonWriter {
         this.options = options;
         this.prefix = options.isPretty() ? new StringBuilder("\n") : null;
         this.filter = options.initializeFilter(root);
+        this.cbordiag = options.getCborDiag();
         this.stringWriter = new Appendable() {
              final int maxlen = options.getMaxStringLength();
              public Appendable append(char c) throws IOException {
@@ -35,22 +37,63 @@ class JsonWriter {
     }
 
     void write(Json j) throws IOException {
+        if (cbordiag != null && j != null && j.getTag() >= 0) {
+            out.append(Long.toString(j.getTag()));
+            out.append('(');
+        }
         if (j == null || j.isNull()) {
             out.append("null");
+        } else if (j.isUndefined()) {
+            out.append(cbordiag != null ? "undefined" : "null");
         } else if (j.isBoolean()) {
             out.append(j.booleanValue() ? "true" : "false");
         } else if (j.isBuffer()) {
-            out.append('"');
-            int len = options.getMaxStringLength();
-            if (len == 0) {
-                Base64OutputStream bout = new Base64OutputStream(out);
-                j.writeBuffer(bout);
-                bout.close();
+            if ("hex".equals(cbordiag) || "HEX".equals(cbordiag)) {
+                out.append("h'");
+                int len = options.getMaxStringLength();
+                if (len == 0) {
+                    final boolean upper = "HEX".equals(cbordiag);
+                    j.writeBuffer(new OutputStream() {
+                        public void write(byte[] buf, int off, int len) throws IOException {
+                            len += off;
+                            for (int i=off;i<len;i++) {
+                                write(buf[i]);
+                            }
+                        }
+                        public void write(int c) throws IOException {
+                            c &= 0xFF;
+                            if (c < 0x10) {
+                                out.append('0');
+                            }
+                            out.append(upper ? Integer.toHexString(c).toUpperCase() : Integer.toHexString(c));
+                        }
+                    });
+                } else {
+                    ByteBuffer buf = j.bufferValue();
+                    out.append("(" + buf.limit() + " bytes)");
+                }
+                out.append("'");
             } else {
-                ByteBuffer buf = j.bufferValue();
-                out.append("(" + buf.limit() + " bytes)");
+                if (cbordiag != null) {
+                    out.append("b64'");
+                } else {
+                    out.append('"');
+                }
+                int len = options.getMaxStringLength();
+                if (len == 0) {
+                    Base64OutputStream bout = new Base64OutputStream(out, options.isBase64Standard());
+                    j.writeBuffer(bout);
+                    bout.close();
+                } else {
+                    ByteBuffer buf = j.bufferValue();
+                    out.append("(" + buf.limit() + " bytes)");
+                }
+                if (cbordiag != null) {
+                    out.append('\'');
+                } else {
+                    out.append('"');
+                }
             }
-            out.append('"');
         } else if (j.isString()) {
             int len = options.getMaxStringLength();
             if (options.isNFC()) {
@@ -100,62 +143,79 @@ class JsonWriter {
             Number value = j.numberValue();
             StringBuilder temp = null;
             if (value instanceof Float) {
-                temp = new StringBuilder();
                 Float n = (Float)value;
                 if (n.isNaN() || n.isInfinite()) {
-                    if (options.isAllowNaN()) {
+                    if (cbordiag != null) {
+                        if (n.isNaN()) {
+                            out.append("NaN");
+                        } else if (n.floatValue() == Float.POSITIVE_INFINITY) {
+                            out.append("+Infinity");
+                        } else if (n.floatValue() == Float.NEGATIVE_INFINITY) {
+                            out.append("-Infinity");
+                        }
+                    } else if (options.isAllowNaN()) {
                         out.append("null");
-                        return;
                     } else {
                         throw new IllegalArgumentException("Infinite or NaN");
                     }
                 } else {
+                    temp = new StringBuilder();
                     new Formatter(temp, Locale.ENGLISH).format(options.getFloatFormat(), n);
                 }
             } else if (value instanceof Double) {
-                temp = new StringBuilder();
                 Double n = (Double)value;
                 if (n.isNaN() || n.isInfinite()) {
-                    if (options.isAllowNaN()) {
+                    if (cbordiag != null) {
+                        if (n.isNaN()) {
+                            out.append("NaN");
+                        } else if (n.floatValue() == Double.POSITIVE_INFINITY) {
+                            out.append("+Infinity");
+                        } else if (n.floatValue() == Double.NEGATIVE_INFINITY) {
+                            out.append("-Infinity");
+                        }
+                    } else if (options.isAllowNaN()) {
                         out.append("null");
-                        return;
                     } else {
                         throw new IllegalArgumentException("Infinite or NaN");
                     }
                 } else {
+                    temp = new StringBuilder();
                     new Formatter(temp, Locale.ENGLISH).format(options.getDoubleFormat(), n);
                 }
             } else {
                 out.append(value.toString());
-                return;
             }
-
-            // Trim superfluous zeros after decimal point
-            int l = temp.length();
-            for (int i=Math.max(0, l-6);i<l;i++) {
-                char c = temp.charAt(i);
-                if (c == 'e' || c == 'E') {
-                    l = i;
-                    break;
+            if (temp != null) {
+                // Trim superfluous zeros after decimal point
+                int l = temp.length();
+                for (int i=Math.max(0, l-6);i<l;i++) {
+                    char c = temp.charAt(i);
+                    if (c == 'e' || c == 'E') {
+                        l = i;
+                        break;
+                    }
+                }
+                for (int i=0;i<l;i++) {
+                    if (temp.charAt(i) == '.') {
+                        int k = l - 1;
+                        while (temp.charAt(k) == '0') {
+                            k--;
+                        }
+                        if (k == i) {
+                            k--;
+                        }
+                        out.append(temp, 0, k + 1);
+                        if (l != temp.length()) {
+                            out.append(temp, l, temp.length());
+                        }
+                        temp = null;
+                        break;
+                    }
+                }
+                if (temp != null) {
+                    out.append(temp);
                 }
             }
-            for (int i=0;i<l;i++) {
-                if (temp.charAt(i) == '.') {
-                    int k = l - 1;
-                    while (temp.charAt(k) == '0') {
-                        k--;
-                    }
-                    if (k == i) {
-                        k--;
-                    }
-                    out.append(temp, 0, k + 1);
-                    if (l != temp.length()) {
-                        out.append(temp, l, temp.length());
-                    }
-                    return;
-                }
-            }
-            out.append(temp);
         } else if (j.isList()) {
             List<Json> list = j._listValue();
             out.append("[");
@@ -189,9 +249,22 @@ class JsonWriter {
             }
             out.append("]");
         } else if (j.isMap()) {
-            Map<String,Json> map = j._mapValue();
+            Map<Object,Json> map = j._mapValue();
             if (options.isSorted()) {
-                map = new TreeMap<String,Json>(map);
+                Map<Object,Json> m = new TreeMap<Object,Json>();
+                for (Map.Entry<Object,Json> e : map.entrySet()) {
+                    m.put(e.getKey().toString(), e.getValue());
+                }
+                map = m;
+            } else if (j.isNonStringKeys() && cbordiag == null) {
+                Map<Object,Json> m = new LinkedHashMap<Object,Json>();
+                for (Map.Entry<Object,Json> e : map.entrySet()) {
+                    String key = e.getKey().toString();
+                    if (!m.containsKey(key)) {
+                        m.put(key, e.getValue());
+                    }
+                }
+                map = m;
             }
             out.append("{");
             if (prefix != null) {
@@ -199,8 +272,8 @@ class JsonWriter {
                 out.append(prefix);
             }
             boolean first = true;
-            for (Map.Entry<String,Json> e : map.entrySet()) {
-                String key = e.getKey();
+            for (Map.Entry<Object,Json> e : map.entrySet()) {
+                Object key = e.getKey();
                 Json ovalue = e.getValue();
                 Json value = filter.enter(key, ovalue);
                 if (value != null) {
@@ -212,10 +285,14 @@ class JsonWriter {
                             out.append(prefix);
                         }
                     }
-                    if (options.isNFC()) {
-                        writeString(Normalizer.normalize(key, Normalizer.Form.NFC), 0, out);
+                    if (key instanceof String) {
+                        if (options.isNFC()) {
+                            writeString(Normalizer.normalize((String)key, Normalizer.Form.NFC), 0, out);
+                        } else {
+                            writeString((String)key, 0, out);
+                        }
                     } else {
-                        writeString(key, 0, out);
+                        write(new Json(key, null));
                     }
                     out.append(':');
                     write(value);
@@ -227,6 +304,9 @@ class JsonWriter {
                out.append(prefix);
             }
             out.append("}");
+        }
+        if (cbordiag != null && j != null && j.getTag() >= 0) {
+            out.append(')');
         }
     }
 

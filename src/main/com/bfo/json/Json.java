@@ -15,18 +15,26 @@ import java.nio.charset.*;
  * on this object. The various {@link #isNumber isNNN} methods can be used to determine the current type,
  * or you can just call {@link #stringValue}, {@link #intValue} etc to attempt to retrieve a typed value.
  *
- * <h2>Paths</h2>
+ * <h2>Keys and Paths</h2>
  * <p>
- * Paths passed into {@link #put put}, {@link #get get} and {@link #has has}
- * may be Strings or integers. Integers would normally be used to access an
- * item in a List, but if the parent object is a Map the path will be used
- * as a string.
+ * {@link #put put}, {@link #get get}, {@link #has has} and {@link #remove remove} all accept a <i>key</i>,
+ * which is an index into this object (a normal "map" or "list" key).
+ * For lists it must be an Integer, and for maps it can theoretically be any type of object, but is currently
+ * limited in to <code>String</code>, <code>Number</code> or <code>Boolean</code>.
+ * Non-String keys are only preserved when serialising to CBOR, and will be converted
+ * to Strings when the object is serialised to JSON or Msgpack.
  * </p><p>
- * Paths specified as strings may be compound paths, eg <code>a.b</code>, <code>a.b[2]</code>. If
- * a part of the path contains a dot or square bracket it can be quoted and
- * referenced inside square brackets, eg <code>a.b["dotted.key"]</code>. For speed, values supplied
- * between two quotes simply have their quotes removed; they are not unescaped. So <code>json.put("\"\"\", true)</code>
- * will create the structure <code>{"\\"":true}</code>
+ * {@link #putPath putPath}, {@link #getPath getPath}, {@link #hasPath hasPath} and {@link #removePath removePath}
+ * all accept a <i>path</i>, which is a String identifying a <b>descendent</b>. 
+ * These may be compound paths, eg <code>a.b</code>, <code>a.b[2]</code>. If a part of the path contains a dot or
+ * square bracket it can be quoted and referenced inside square brackets, eg <code>a.b["dotted.key"]</code>.
+ * For speed, values supplied between two quotes simply have their quotes removed; they are not unescaped.
+ * So <code>json.put("\"\"\", true)</code> will create the structure <code>{"\\"":true}</code>.
+ * Paths that traverse lists are always converted to integers, and paths that traverse maps are converted to strings.
+ * </p><p>
+ *  <b>Note</b>: prior to version 5, 
+ * {@link #put put}, {@link #get get}, {@link #has has} and {@link #remove remove} accepted a <i>path</i>, as
+ * non-String keys could not be stored. 
  * </p>
  *
  * <h2>Serialization</h2>
@@ -48,7 +56,9 @@ import java.nio.charset.*;
  *  <li>
  *   Unlike JSON, CBOR/Msgpack suppors binary data, which we read as a {@link ByteBuffer} - these can be identified
  *   with the {@link #isBuffer isBuffer()} method. When serializing a ByteBuffer to JSON, it will be Base-64 encoded
- *   with no padding, as recommended in RFC7049
+ *   with no padding, as recommended in RFC7049. By default the "URL- and filename-safe" variation of BAse64 will
+ *   be used when writing (see {@link JsonWriteOptions#setBase64Standard}). When reading, all Base64 variations
+ *   can be parsed.
  *  </li>
  *  <li>
  *   JSON does not support NaN or infinite floating point values. When serializing these values to JSON,
@@ -67,16 +77,21 @@ import java.nio.charset.*;
  *   support integer values greater than 64-bit; attempting to write these will throw an IOException.
  *  </li>
  *  <li>
- *   CBOR/Msgpack support keys in Maps that are not Strings. If these are encountered with this API when reading,
- *   they will be converted to Strings by default, or (if {@link JsonReadOptions#setFailOnNonStringKeys} is set)
- *   throw an IOExcepiton. CBOR/Msgpack also supports duplicate keys in Maps - this is not allowed in this
+ *   CBOR/Msgpack support complex key types in maps, such as lists or other maps. If these are encountered
+ *   with this API when reading, they will be converted to strings by default, or
+ *   (if {@link JsonReadOptions#setFailOnComplexKeys} is set) throw an {@link IOException}.
+ *   CBOR/Msgpack also supports duplicate keys in maps - this abomination is not allowed in this
  *   API, and the {@link #readCbor readCbor()} and {@link #readMsgpack readMsgpack()} methods will throw an
- *   IOException if found.
+ *   {@link IOException} if found.
  *  </li>
  *  <li>
- *   CBOR suppors the "undef" value, and also allows for a number of undefined special types to be used without
- *   error. These will be loaded as null values, with a Tag set that identifies the type. There is no such
- *   conversion when writing; these values will be written as a tagged null, no the original special type.
+ *   CBOR supports the "undefined" value which is distinct from null. This can be created using the
+ *   {@link UNDEFINED} constant, and tested for with {@link #isUndefined} (since version 5)
+ *  </li>
+ *  <li>
+ *   CBOR allows for a number of undefined special types to be used without error. These will be loaded as
+ *   undefined values, with a Tag set that identifies the type. There is no such conversion when writing; these
+ *   values will be written as a tagged undefined, not the original special type.
  *  </li>
  * </ol>
  *
@@ -97,19 +112,20 @@ import java.nio.charset.*;
  * <h2>Examples</h2>
  * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
  * Json json = Json.read("{}");
- * json.put("a.b[0]", 0);
- * assert json.get("a.b[0]").type().equals("number");
- * assert json.get("a.b[0]").isNumber();
- * assert json.get("a.b[0]").intValue() == 0;
+ * json.putPath("a.b[0]", 0);
+ * assert json.get("a").get("b") == json.getPath("a.b");
+ * assert json.getPath("a.b[0]").type().equals("number");
+ * assert json.getPath("a.b[0]").isNumber();
+ * assert json.getPath("a.b[0]").intValue() == 0;
  * assert json.get("a").type().equals("map");
- * json.put("a.b[2]", 1);
+ * json.putPath("a.b[2]", 1);
  * assert json.toString().equals("{\"a\":{\"b\":[0,null,2]}}");
- * json.put("a.b", true);
+ * json.putPath("a.b", true);
  * assert json.toString().equals("{\"a\":{\"b\":true}}");
  * json.write(System.out, null);
  * Json json2 = Json.read("[]");
- * json2.put("0", 0);
- * json2.put("2", 2);
+ * json2.put(0, 0);
+ * json2.put(2, 2);
  * assert json2.toString().equals("[0,null,2]");
  * json2.put("a", "a");
  * assert json2.toString().equals("{\"0\":0,\"2\":2,\"a\":\"a"}");
@@ -117,8 +133,16 @@ import java.nio.charset.*;
  */
 public class Json {
 
+    /**
+     * A constant object that can be passed into the Json constructor to create a Cbor "undefined" value
+     * @since 5
+     */
+    public static final Object UNDEFINED = new Object() { public String toString() { return "<undefined>"; } };
+    static final Object NULL = new Object() { public String toString() { return "<null>"; } };
+
     private static final int FLAG_STRICT = 1;
     private static final int FLAG_SIMPLESTRING = 2;
+    private static final int FLAG_NONSTRINGKEY = 4;
     private static final JsonWriteOptions DEFAULTWRITEOPTIONS = new JsonWriteOptions();
     private static final JsonReadOptions DEFAULTREADOPTIONS = new JsonReadOptions();
 
@@ -138,9 +162,9 @@ public class Json {
      * {@link Map} or {@link Collection}; if a Map or Collection, the collection is
      * copied rather than referenced, and the values must also meet this criteria.
      * A ByteBuffer (or byte[]) is not a native Json type, but is used for CBOR.
-     * The buffer is <i>not</i> copied.
+     * The buffer is <i>not</i> copied, it is stored by reference.
      * </p><p>
-     * An alternative method for creating a Json object representing an empty
+     * An fast alternative method for creating a Json object representing an empty
      * map or list is to call {@link #read Json.read("{}")} or {@link #read Json.read("[]")}
      * </p>
      * @param object the object
@@ -161,7 +185,9 @@ public class Json {
     @SuppressWarnings({"unchecked","rawtypes"})
     public Json(Object object, JsonFactory factory) {
         if (object == null) {
-            core = null;
+            core = NULL;
+        } else if (object == NULL || object == UNDEFINED) {
+            core = object;
         } else if (object instanceof Json) {
             core = ((Json)object).core;
         } else {
@@ -183,13 +209,21 @@ public class Json {
                 } else if (object instanceof Number) {
                     core = object;
                 } else if (object instanceof Map) {
-                    Map<String,Json> map = new LinkedHashMap<String,Json>();
+                    Map<Object,Json> map = new LinkedHashMap<Object,Json>();
                     for (Iterator<Map.Entry> i = ((Map)object).entrySet().iterator();i.hasNext();) {
                         Map.Entry e = i.next();
-                        String key = e.getKey().toString();
+                        Object key = e.getKey();
                         Json child = new Json(e.getValue(), factory);
                         child.parent = this;
                         child.parentkey = key;
+                        try {
+                            key = fixKey(key, false, 0);
+                        } catch (IOException e2) {
+                            // can't happen
+                        }
+                        if (!(key instanceof String)) {
+                            setNonStringKeys();
+                        }
                         map.put(key, child);
                     }
                     core = map;
@@ -213,14 +247,40 @@ public class Json {
                     core = list;
                 }
             }
-            if (core == null) {
-                throw new IllegalArgumentException(object.getClass().getName());
-            }
+        }
+        if (core == null) {
+            throw new IllegalArgumentException(object.getClass().getName());
         }
     }
 
     private boolean isStrict() {
         return (flags & FLAG_STRICT) != 0;
+    }
+
+    boolean isNonStringKeys() {
+        return (flags & FLAG_NONSTRINGKEY) != 0;
+    }
+
+    static Object fixKey(Object key, boolean failOnNonStrings, long tell) throws IOException {
+        Object o = key instanceof Json ? ((Json)key).core : key;
+        if (o == null) {
+            return NULL;
+        } else if (o instanceof Boolean || o instanceof Number || o == NULL || o == UNDEFINED) {
+            return o;
+        } else if (o instanceof String) {
+            return o;
+        } else if (o instanceof CharSequence) {
+            return o.toString();
+        } else if (failOnNonStrings) {
+            throw new IOException("Map key \"" + key + "\" is " + ((Json)key).type() + " rather than string at " + tell);
+        } else {
+            return o.toString();
+        }
+    }
+
+    Json setNonStringKeys() {
+        flags |= FLAG_NONSTRINGKEY;
+        return this;
     }
 
     Json setStrict(boolean strict) {
@@ -613,7 +673,9 @@ public class Json {
     }
 
     /**
-     * Create and return a deep copy of this Json tree
+     * Create and return a deep copy of this Json tree.
+     * Note that ByteBuffers values will <i>not</i> be cloned,
+     * and the returned item will have no listeners
      * @return a deep copy of this item
      */
     public Json duplicate() {
@@ -621,9 +683,13 @@ public class Json {
         if (isMap()) {
             json = new Json(null);
             json.setFactory(getFactory());
-            Map<String,Json> map = new LinkedHashMap<String,Json>(((Map)core).size());
-            for (Map.Entry<String,Json> e : mapValue().entrySet()) {
-                map.put(e.getKey(), e.getValue().duplicate());
+            Map<Object,Json> map = new LinkedHashMap<Object,Json>(((Map)core).size());
+            for (Map.Entry<Object,Json> e : mapValue().entrySet()) {
+                Object o = e.getKey();
+                if (!(o instanceof String)) {
+                    json.setNonStringKeys();
+                }
+                map.put(o, e.getValue().duplicate());
             }
             json.core = map;
         } else if (isList()) {
@@ -639,6 +705,7 @@ public class Json {
         } else {
             json = new Json(core);
         }
+        json.tag = tag;
         json.flags = flags;
         return json;
     }
@@ -665,9 +732,11 @@ public class Json {
 
     static void notify(Json parent, Object parentkey, Json oldvalue, Json newvalue) {
         if (newvalue == null) {
-            oldvalue.fireEvent(new JsonEvent(oldvalue, null));
-            oldvalue.parent = null;
-            oldvalue.parentkey = null;
+            if (oldvalue != null) {
+                oldvalue.fireEvent(new JsonEvent(oldvalue, null));
+                oldvalue.parent = null;
+                oldvalue.parentkey = null;
+            }
         } else {
             if (oldvalue != null) {
                 oldvalue.parent = null;
@@ -687,7 +756,7 @@ public class Json {
      * this object, this method returns null.
      * </p><p>
      * Specifically, if this method returns not null then it is the case that
-     * <code>this.get(this.find(node)) == node</code>.
+     * <code>this.getPath(this.find(node)) == node</code>.
      * </p>
      * <p>
      * <i>Implementation note: this method is implemented by traversing
@@ -696,6 +765,7 @@ public class Json {
      * </p>
      * @param descendant the presumed descendant of this object to find in the tree
      * @return the path from this node to the descendant object
+     * @since 5 (was called "find" prior to that)
      */
     public String find(Json descendant) {
         if (descendant == null) {
@@ -749,7 +819,203 @@ public class Json {
     }
 
     /**
-     * Put the specified value into this object or one of its descendants.
+     * Given a quoted String, eg "test" in the path, return test (without quotes)
+     */
+    private static String readQuotedPath(String path) {
+        // Several ways we could do this. First, we could do full string parsing,
+        // which is not great as the keys we're being given have been supplied
+        // in the Java code, they're not encoded. Actually forcing someone to
+        // escape all their quotes etc. is a pain.
+        //
+        // That means we allow """ to mean a solitary quote:no escaping, whatever
+        // is between begin/end quotes is verbatim.
+        return path.substring(1, path.length() - 1);
+    }
+
+    /**
+     * Put the specified value into this object with the specified key.
+     * Although the key can be any value, it will collapse to a String when serialised as JSON.
+     * If the object is not a Json, it will be converted with the factory set by {@link #setFactory setFactory()}, if any.
+     * @param key the key - if this object is a list and the key is a non-negative integer, it will be used as the list index. Otherwise this object will be converted to a map. Must not be null.
+     * @param value the value to insert, which must not be this or an ancestor of this
+     * @return the object that was previously found at that path, which may be null
+     */
+    public Json put(Object key, Object value) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        Json object;
+        if (value == null) {
+            object = new Json(null, null);
+        } else if (value instanceof Json) {
+            object = (Json)value;
+            Json t = this;
+            while (t != null) {
+                if (t == value) {
+                    throw new IllegalArgumentException("value is this or an ancestor");
+                }
+                t = t.parent;
+            }
+        } else {
+            object = new Json(value);
+        }
+        if (!isMap()) {
+            if (isList()) {
+                if (key instanceof Number && !(key instanceof Float && key instanceof Double)) {
+                    long l = ((Number)key).longValue();
+                    if (l >= 0 && l <= Integer.MAX_VALUE) {
+                        int index = (int)l;
+                        return buildlist(index, _listValue(), this, object);
+                    }
+                }
+                convertToMap();
+            } else {
+                convertToMap();
+            }
+        }
+        try {
+            key = fixKey(key, false, 0);
+        } catch (IOException e) {
+            // can't happen
+        }
+        if (!(key instanceof String)) {
+            setNonStringKeys();
+        }
+        Map<Object,Json> m = _mapValue();
+        Json oldvalue = m.put(key, object);
+        notify(this, key, oldvalue, object);
+        return oldvalue;
+    }
+
+    /**
+     * Return the specified child of this object, or null
+     * if no value exists at the specified key
+     * @param key the key, which should be an integer (for lists) or any value for maps
+     * @return the Json object at that path or null if none exists
+     */
+    public Json get(Object key) {
+        if (isMap()) {
+            Map<Object,Json> map = _mapValue();
+            return map.get(key);
+        } else if (isList()) {
+            if (key instanceof Number && !(key instanceof Float && key instanceof Double)) {
+                long l = ((Number)key).longValue();
+                if (l >= 0 && l <= Integer.MAX_VALUE) {
+                    int index = (int)l;
+                    List<Json> list = _listValue();
+                    if (index >= 0 && index < list.size()) {
+                        return list.get(index);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * If object is a Json object, return true if this object is a list or map, and contains that value.
+     * Otherwise return true if this object is a list or map and contains a non-null/non-undefined object at that entry.
+     * @param object the object
+     * @return true if this is a list or map and the object is either a Json and present in this object as a value, or is used as a key for a non-null/non-undefined value
+     * @since 5
+     */
+    public boolean has(Object object) {
+        if (object instanceof Json) {
+            if (isList()) {
+                List<Json> list = _listValue();
+                for (int i=0;i<list.size();i++) {
+                    if (list.get(i) == object) {
+                        return true;
+                    }
+                }
+            } else if (isMap()) {
+                Map<Object,Json> map = _mapValue();
+                for (Iterator<Map.Entry<Object,Json>> i = map.entrySet().iterator();i.hasNext();) {
+                    Map.Entry<Object,Json> e = i.next();
+                    if (e.getValue() == object) {
+                        return true;
+                    }
+                }
+            }
+        } else if (isList()) {
+            if (object instanceof Number && !(object instanceof Float && object instanceof Double)) {
+                long l = ((Number)object).longValue();
+                if (l >= 0 && l <= Integer.MAX_VALUE) {
+                    int index = (int)l;
+                    List<Json> list = _listValue();
+                    if (index >= 0 && index < list.size()) {
+                        Json oldvalue = list.get(index);
+                        if (!oldvalue.isNull() && !oldvalue.isUndefined()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        } else if (isMap()) {
+            Map<Object,Json> map = _mapValue();
+            Json oldvalue = map.get(object);
+            return oldvalue != null && !oldvalue.isNull() && !oldvalue.isUndefined();
+        }
+        return false;
+    }
+
+    /**
+     * Remove the item at the specified path from this object or one of its descendants.
+     * Or, if object is a {@link Json}, remove that value from this list or map.
+     * If called on an object that is not a list or map, this method has no effect.
+     * @param object if a Json object, the value to remove, otherwise the key to remove from this object.
+     * @return the object that was removed, or null if nothing was removed
+     * @since 5
+     */
+    public Json remove(Object object) {
+        if (object instanceof Json) {
+            if (isList()) {
+                List<Json> list = _listValue();
+                for (int i=0;i<list.size();i++) {
+                    if (list.get(i) == object) {
+                        notify(this, Integer.valueOf(i), (Json)object, null);
+                        list.remove(i);
+                        return (Json)object;
+                    }
+                }
+            } else if (isMap()) {
+                Map<Object,Json> map = _mapValue();
+                for (Iterator<Map.Entry<Object,Json>> i = map.entrySet().iterator();i.hasNext();) {
+                    Map.Entry<Object,Json> e = i.next();
+                    if (e.getValue() == object) {
+                        notify(this, e.getKey(), (Json)object, null);
+                        i.remove();
+                        return (Json)object;
+                    }
+                }
+            }
+        } else if (isList()) {
+            if (object instanceof Number && !(object instanceof Float && object instanceof Double)) {
+                long l = ((Number)object).longValue();
+                if (l >= 0 && l <= Integer.MAX_VALUE) {
+                    int index = (int)l;
+                    List<Json> list = _listValue();
+                    if (index >= 0 && index < list.size()) {
+                        Json oldvalue = list.get(index);
+                        notify(this, Integer.valueOf(index), oldvalue, null);
+                        list.remove(index);
+                        return oldvalue;
+                    }
+                }
+            }
+        } else if (isMap()) {
+            Map<Object,Json> map = _mapValue();
+            Json oldvalue = map.get(object);
+            notify(this, object, oldvalue, null);
+            map.remove(object);
+            return oldvalue;
+        }
+        return null;
+    }
+
+    /**
+     * Put the specified value into this object or one of its descendants
+     * by parsing the specified path.
      * If the path specifies a compound key than any intermediate descendants
      * are created as required. If the path specifies an existing object then
      * the old object (which may be a subtree) is removed and returned.
@@ -757,16 +1023,16 @@ public class Json {
      * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
      * @param value the value to insert, which must not be this or an ancestor of this
      * @return the object that was previously found at that path, which may be null
+     * @since 5 - prior that that revision was called "put"
      */
-    public Json put(String path, Object value) {
+    public Json putPath(String path, Object value) {
         if (path == null) {
             throw new IllegalArgumentException("path is null");
         }
-        if (value == null) {
-            value = new Json(null);
-        }
         Json object;
-        if (value instanceof Json) {
+        if (value == null) {
+            object = new Json(null);
+        } else if (value instanceof Json) {
             object = (Json)value;
             Json t = this;
             while (t != null) {
@@ -791,7 +1057,7 @@ public class Json {
         if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"' && isMap()) {
             // Shortcut
             path = readQuotedPath(path);
-            Map<String,Json> m = _mapValue();
+            Map<Object,Json> m = _mapValue();
             Json oldvalue = m.get(path);
             m.put(path, object);
             notify(this, path, oldvalue, object);
@@ -801,191 +1067,12 @@ public class Json {
     }
 
     /**
-     * Given a quoted String, eg "test" in the path, return test (without quotes)
-     */
-    private static String readQuotedPath(String path) {
-        // Several ways we could do this. First, we could do full string parsing,
-        // which is not great as the keys we're being given have been supplied
-        // in the Java code, they're not encoded. Actually forcing someone to
-        // escape all their quotes etc. is a pain.
-        //
-        // That means we allow """ to mean a solitary quote:no escaping, whatever
-        // is between begin/end quotes is verbatim.
-        return path.substring(1, path.length() - 1);
-    }
-
-    /**
-     * Put the specified value into this object with the specified path.
-     * Intended for use on arrays, this will also work with Maps that contain a key with this value.
-     * The object will be converted with the factory set by {@link #setFactory setFactory()}, if any.
-     * @param path the key - if a non-negative integer and this item is a list, the item will be inserted into the list at that point
-     * @param value the value to insert, which must not be null, this or an ancestor of this
-     * @return the object that was previously found at that path, which may be null
-     */
-    public Json put(int path, Object value) {
-        if (isList() && path >= 0) {
-            if (value == null) {
-                throw new IllegalArgumentException("value is null");
-            }
-            Json object;
-            if (value instanceof Json) {
-                object = (Json)value;
-                Json t = this;
-                while (t != null) {
-                    if (t == value) {
-                        throw new IllegalArgumentException("value is this or an ancestor");
-                    }
-                    t = t.parent;
-                }
-            } else {
-                object = new Json(value);
-            }
-            return buildlist(path, _listValue(), this, object);
-        } else {
-            convertToMap();
-            return put(Integer.toString(path), value);
-        }
-    }
-
-    /**
-     * Remove the item at the specified path from this object or one of its descendants.
-     * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
-     * @return the object that was removed, or null if nothing was removed
-     */
-    public Json remove(String path) {
-        Json json = traverse(path, null);
-        if (json != null) {
-            boolean removed = false;
-            Json parent = json.parent();
-            if (parent == null) {
-                // Should not be possible - ???
-            } else if (parent.isList()) {
-                int ix = ((Integer)json.getParentKey()).intValue();
-                List<Json> list = _listValue();
-                Json oldvalue = list.get(ix);
-                notify(parent, Integer.valueOf(ix), oldvalue, null);
-                list.remove(ix);
-                removed = true;
-            } else if (parent.isMap()) {
-                Map<String,Json> map = _mapValue();
-                String key = (String)json.getParentKey();
-                Json oldvalue = map.get(key);
-                notify(parent, key, oldvalue, null);
-                map.remove(key);
-                removed = true;
-            }
-        }
-        return json;
-    }
-
-    /**
-     * Remove the specified child from this object.
-     * Objects are compared with == not equals(). Calling this
-     * method on a primitive type Json returns null.
-     * @param json the object to remove
-     * @return the parameter "json" if it was removed, or null otherwise
-     */
-    public Json remove(Json json) {
-        if (isList()) {
-            List<Json> list = _listValue();
-            for (int i=0;i<list.size();i++) {
-                if (list.get(i) == json) {
-                    notify(this, Integer.valueOf(i), json, null);
-                    list.remove(i);
-                    return json;
-                }
-            }
-        } else if (isMap()) {
-            Map<String,Json> map = _mapValue();
-            for (Iterator<Map.Entry<String,Json>> i = map.entrySet().iterator();i.hasNext();) {
-                Map.Entry<String,Json> e = i.next();
-                if (e.getValue() == json) {
-                    notify(this, e.getKey(), json, null);
-                    i.remove();
-                    return json;
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Remove the specified item from this object.
-     * Intended for use on arrays, this will also work with Maps that contain a key with this value.
-     * Calling this method on a primitive type Json will return null.
-     * @param path the key
-     * @return the removed object, or null of no object was removed
-     */
-    public Json remove(int path) {
-        if (isList()) {
-            List<Json> l = _listValue();
-            return path >= 0 && path < l.size() ? l.remove(path) : null;
-        } else if (isMap()) {
-            return _mapValue().remove(Integer.toString(path));
-        }
-        return null;
-    }
-
-    /**
-     * Return true if this object has a non-null descendant at the specified path.
-     * @param path the path
-     * @return true if this object is a list or map, it has the specified descendant and the descendant is not null
-     */
-    public boolean has(String path) {
-        if (isList() || isMap()) {
-            boolean full = false;
-            if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"') {
-                path = readQuotedPath(path);
-            } else {
-                for (int i=0;i<path.length();i++) {
-                    char c = path.charAt(i);
-                    if (c == '.' || c == '[' || c == ']') {
-                        full = true;
-                        break;
-                    }
-                }
-            }
-            Json json = null;
-            if (full) {
-                json = traverse(path, null);
-            } else if (isMap()) {
-                json = _mapValue().get(path);
-            } else if (isList()) {
-                try {
-                    int ix = Integer.parseInt(path);
-                    List<Json> l = _listValue();
-                    json = ix >= 0 && ix < l.size() ? l.get(ix) : null;
-                } catch (NumberFormatException e) { }
-            }
-            return json != null && !json.isNull();
-        }
-        return false;
-    }
-
-    /**
-     * Return true if this object has a non-null child at the specified path.
-     * Intended to identify if the array has a specified index, it will also work with maps.
-     * @param path the path
-     * @return true if this object is a list or map, it has the specified child and the child is not null
-     */
-    public boolean has(int path) {
-        if (isList()) {
-            List<Json> l = _listValue();
-            return path >= 0 && path < l.size() && !l.get(path).isNull();
-        } else if (isMap()) {
-            Json j = _mapValue().get(Integer.toString(path));
-            return j != null && !j.isNull();
-        }
-        return false;
-    }
-
-    /**
      * Return the specified descendant of this object, or null
      * if no value exists at the specified path.
      * @param path the path, which must not be null
      * @return the Json object at that path or null if none exists
      */
-    public Json get(String path) {
+    public Json getPath(String path) {
         if (path == null) {
             throw new IllegalArgumentException("path is null");
         }
@@ -1018,20 +1105,71 @@ public class Json {
     }
 
     /**
-     * Return the specified child of this object, or null
-     * if no value exists at the specified path.
+     * Return true if this object has a non-null/non-undefined descendant at the specified path.
      * @param path the path
-     * @return the object at the specified path, or null if none exists.
+     * @return true if this object is a list or map, it has the specified descendant and the descendant is not null
      */
-    public Json get(int path) {
-        if (isList()) {
-            List<Json> l = _listValue();
-            return path >= 0 && path < l.size() ? l.get(path) : null;
-        } else if (isMap()) {
-            return _mapValue().get(Integer.toString(path));
-        } else {
-            return null;
+    public boolean hasPath(String path) {
+        if (isList() || isMap()) {
+            boolean full = false;
+            if (path.length() >= 2 && path.charAt(0) == '"' && path.charAt(path.length() - 1) == '"') {
+                path = readQuotedPath(path);
+            } else {
+                for (int i=0;i<path.length();i++) {
+                    char c = path.charAt(i);
+                    if (c == '.' || c == '[' || c == ']') {
+                        full = true;
+                        break;
+                    }
+                }
+            }
+            Json json = null;
+            if (full) {
+                json = traverse(path, null);
+            } else if (isMap()) {
+                json = _mapValue().get(path);
+            } else if (isList()) {
+                try {
+                    int ix = Integer.parseInt(path);
+                    List<Json> l = _listValue();
+                    json = ix >= 0 && ix < l.size() ? l.get(ix) : null;
+                } catch (NumberFormatException e) { }
+            }
+            return json != null && !json.isNull() && !json.isUndefined();
         }
+        return false;
+    }
+
+    /**
+     * Remove the item at the specified path from this object or one of its descendants.
+     * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
+     * @return the object that was removed, or null if nothing was removed
+     * @since 5 was called remove() prior to version 5
+     */
+    public Json removePath(String path) {
+        Json json = traverse(path, null);
+        if (json != null) {
+            boolean removed = false;
+            Json parent = json.parent();
+            if (parent == null) {
+                // Should not be possible - ???
+            } else if (parent.isList()) {
+                int ix = ((Integer)json.getParentKey()).intValue();
+                List<Json> list = _listValue();
+                Json oldvalue = list.get(ix);
+                notify(parent, Integer.valueOf(ix), oldvalue, null);
+                list.remove(ix);
+                removed = true;
+            } else if (parent.isMap()) {
+                Map<Object,Json> map = _mapValue();
+                Object key = (Object)json.getParentKey();
+                Json oldvalue = map.get(key);
+                notify(parent, key, oldvalue, null);
+                map.remove(key);
+                removed = true;
+            }
+        }
+        return json;
     }
 
     /**
@@ -1080,172 +1218,105 @@ public class Json {
     }
 
     /**
-     * Return true if the specified descendant of this object is of type "null".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isNull()</code>.
-     * It is <b>not the same</b> as the path being missing.
-     * @param path the path
-     * @return true if the descendant exists and is null
+     * Return true if the specified child of this object is of type "null".
+     * Equivalent to <code>get(key) != null &amp;&amp; get(key).isNull()</code>.
+     * It is <b>not the same</b> as the key being missing.
+     * @param key the key
+     * @return true if the child exists and is null
      */
-    public boolean isNull(String path) {
-        Json j = get(path);
+    public boolean isNull(Object key) {
+        Json j = get(key);
         return j != null && j.isNull();
     }
 
     /**
-     * Return true if the specified descendant of this object is of type "null".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isNull()</code>.
-     * It is <b>not the same</b> as the path being missing.
-     * @param path the path
-     * @return true if the descendant exists and is null
+     * Return true if the specified child of this object is of type "undefined".
+     * Equivalent to <code>get(key) != null &amp;&amp; get(key).isUndefined()</code>.
+     * It is <b>not the same</b> as the key being missing.
+     * @param key the key
+     * @return true if the child exists and is undefined
      */
-    public boolean isNull(int path) {
-        Json j = get(path);
-        return j != null && j.isNull();
+    public boolean isUndefined(Object key) {
+        Json j = get(key);
+        return j != null && j.isUndefined();
     }
 
     /**
-     * Return true if the specified descendant of this object is of type "buffer".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isBuffer()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a string
+     * Return true if the specified child of this object is of type "buffer".
+     * Equivalent to <code>get(key) != null &amp;&amp; get(key).isBuffer()</code>.
+     * @param key the key
+     * @return true if the child exists and is a buffer
      */
-    public boolean isBuffer(String path) {
-        Json j = get(path);
+    public boolean isBuffer(Object key) {
+        Json j = get(key);
         return j != null && j.isBuffer();
     }
 
     /**
-     * Return true if the specified descendant of this object is of type "buffer".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isBuffer()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a buffer
+     * Return true if the specified child of this object is of type "string".
+     * Equivalent to <code>get(key) != null &amp;&amp; get(key).isString()</code>.
+     * @param key the key
+     * @return true if the child exists and is a string
      */
-    public boolean isBuffer(int path) {
-        Json j = get(path);
-        return j != null && j.isBuffer();
-    }
-
-    /**
-     * Return true if the specified descendant of this object is of type "string".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isString()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a string
-     */
-    public boolean isString(String path) {
-        Json j = get(path);
+    public boolean isString(Object key) {
+        Json j = get(key);
         return j != null && j.isString();
     }
 
     /**
-     * Return true if the specified descendant of this object is of type "string".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isString()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a string
+     * Return true if the specified child of this object is of type "number".
+     * Equivalent to <code>get(key) != null &amp;&amp; get(key).isNumber()</code>
+     * @param key the key
+     * @return true if the child exists and is a number
      */
-    public boolean isString(int path) {
-        Json j = get(path);
-        return j != null && j.isString();
-    }
-
-    /**
-     * Return true if the specified descendant of this object is of type "number".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isNumber()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a number
-     */
-    public boolean isNumber(String path) {
-        Json j = get(path);
+    public boolean isNumber(Object key) {
+        Json j = get(key);
         return j != null && j.isNumber();
     }
 
     /**
-     * Return true if the specified descendant of this object is of type "number".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isNumber()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a number
+     * Return true if the specified child of this object is of type "boolean".
+     * Equivalent to <code>get(key) != null &amp;&amp; get(key).isBoolean()</code>
+     * @param key the key
+     * @return true if the child exists and is a boolean
      */
-    public boolean isNumber(int path) {
-        Json j = get(path);
-        return j != null && j.isNumber();
-    }
-
-    /**
-     * Return true if the specified descendant of this object is of type "boolean".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isBoolean()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a boolean
-     */
-    public boolean isBoolean(String path) {
-        Json j = get(path);
+    public boolean isBoolean(Object key) {
+        Json j = get(key);
         return j != null && j.isBoolean();
     }
 
     /**
-     * Return true if the specified descendant of this object is of type "boolean".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isBoolean()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a boolean
+     * Return true if the specified child of this object is of type "list".
+     * Equivalent to <code>get(key) != null &amp;&amp; get(key).isList()</code>
+     * @param key the key
+     * @return true if the child exists and is a list
      */
-    public boolean isBoolean(int path) {
-        Json j = get(path);
-        return j != null && j.isBoolean();
-    }
-
-    /**
-     * Return true if the specified descendant of this object is of type "list".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isList()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a list
-     */
-    public boolean isList(String path) {
-        Json j = get(path);
+    public boolean isList(Object key) {
+        Json j = get(key);
         return j != null && j.isList();
     }
 
     /**
-     * Return true if the specified descendant of this object is of type "list".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isList()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a list
+     * Return true if the specified wchild of this object is of type "map".
+     * Equivalent to <code>get(key) != null &amp;&amp; get(key).isMap()</code>
+     * @param key the key
+     * @return true if the child exists and is a map
      */
-    public boolean isList(int path) {
-        Json j = get(path);
-        return j != null && j.isList();
-    }
-
-    /**
-     * Return true if the specified descendant of this object is of type "map".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isMap()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a map
-     */
-    public boolean isMap(String path) {
-        Json j = get(path);
+    public boolean isMap(Object key) {
+        Json j = get(key);
         return j != null && j.isMap();
     }
-
-    /**
-     * Return true if the specified descendant of this object is of type "map".
-     * Equivalent to <code>has(path) &amp;&amp; get(path).isMap()</code>
-     * @param path the path
-     * @return true if the descendant exists and is a map
-     */
-    public boolean isMap(int path) {
-        Json j = get(path);
-        return j != null && j.isMap();
-    }
-
-
 
     /**
      * Return an Iterator that will descend through every leaf node under this
-     * object in a depth-first traveral. The returned keys are relative to this node's path
-     * and start with a '.'. If this is called on a leaf nodes, it returns an empty iterator
+     * object in a depth-first traveral. The returned keys are converter to Strings; they are
+     * relative to this node's path and will always return non-null if passed into {@link #getPath}.
+     * If this is called on a leaf nodes, it returns an empty iterator
      * @return an Iterator as described
      */
     public Iterator<Map.Entry<String,Json>> leafIterator() {
         if (!isMap() && !isList()) {
-            return Collections.<Map.Entry<String,Json>>emptyIterator();
+            return Collections.<String,Json>emptyMap().entrySet().iterator();
         }
         return new Iterator<Map.Entry<String,Json>>() {
             List<Iterator<?>> stack;
@@ -1358,7 +1429,11 @@ public class Json {
                         sb.append(']');
                     }
                 }
-                return new AbstractMap.SimpleImmutableEntry<String,Json>(sb.toString(), last);
+                String s = sb.toString();
+                if (s.startsWith(".")) {
+                    s = s.substring(1);
+                }
+                return new AbstractMap.SimpleImmutableEntry<String,Json>(s, last);
             }
 
             public void remove() {
@@ -1369,20 +1444,21 @@ public class Json {
 
     private void convertToMap() {
         if (!isMap()) {
-            Map<String,Json> map = new LinkedHashMap<String,Json>();
+            Map<Object,Json> map = new LinkedHashMap<Object,Json>();
             if (isList()) {
                 List<Json> list = _listValue();
                 List<JsonListener> tlisteners = listeners;
                 listeners = null;
                 for (int i=0;i<list.size();i++) {
                     Json item = list.get(i);
-                    String key = Integer.toString(i);
+                    Object key = Integer.valueOf(i);
                     map.put(key, item);
                     item.parent = this;
                     item.parentkey = key;
+                    setNonStringKeys();
                 }
                 listeners = tlisteners;
-            } else if (!isNull()) {
+            } else if (!isNull() && !isUndefined()) {
                 notify(parent, null, this, null);
             }
             core = map;
@@ -1507,8 +1583,13 @@ public class Json {
                         ctx.convertToMap();
                     }
                     if (ctx.isMap()) {
-                        Map<String,Json> map = ctx._mapValue();
-                        newctx = map.get(key);
+                        Map<Object,Json> map = ctx._mapValue();
+                        for (Map.Entry<Object,Json> e : map.entrySet()) {
+                            if (key.equals(e.getKey().toString())) {
+                                newctx = e.getValue();
+                                break;
+                            }
+                        }
                         if (finalchild != null && (newctx == null || last)) {
                             Json t = map.put(key, newctx = last ? finalchild : new Json(null));
                             if (output == null) {
@@ -1555,8 +1636,13 @@ public class Json {
                         ctx.convertToMap();
                     }
                     if (ctx.isMap()) {
-                        Map<String,Json> map = ctx._mapValue();
-                        newctx = map.get(key);
+                        Map<Object,Json> map = ctx._mapValue();
+                        for (Map.Entry<Object,Json> e : map.entrySet()) {
+                            if (key.equals(e.getKey().toString())) {
+                                newctx = e.getValue();
+                                break;
+                            }
+                        }
                         if (finalchild != null && (newctx == null || last)) {
                             Json t = map.put(key, newctx = last ? finalchild : new Json(null));
                             if (output == null) {
@@ -1588,7 +1674,7 @@ public class Json {
     }
 
     /**
-     * Return the type of this node, which may be "number", "string", "boolean", "list", "map", "buffer" or "null"
+     * Return the type of this node, which may be "number", "string", "boolean", "list", "map", "buffer", "null" or (since v5) "undefined"
      * @return the object type
      */
     public String type() {
@@ -1606,6 +1692,8 @@ public class Json {
             return "buffer";
         } else if (isNull()) {
             return "null";
+        } else if (isUndefined()) {
+            return "undefined";
         } else {
             return "unknown-"+core.getClass().getName();        // Shouldn't happen
         }
@@ -1616,7 +1704,17 @@ public class Json {
      * @return true if the object is null
      */
     public boolean isNull() {
-        return core == null;
+        return core == NULL;
+    }
+
+    /**
+     * Return true if this node is undefined.
+     * Undefined is a CBOR concept; in JSON serialization, this will collapse to null
+     * @return true if the object is null
+     * @since 5
+     */
+    public boolean isUndefined() {
+        return core == UNDEFINED;
     }
 
     /**
@@ -1690,7 +1788,7 @@ public class Json {
      * @param json the json object that is the source of the intended value of this object
      */
     public void setValue(Json json) {
-        core = json == null ? null : json.core;
+        core = json == null ? NULL : json.core;
         setSimpleString(json != null && json.isSimpleString());
     }
 
@@ -1701,13 +1799,15 @@ public class Json {
      * @return the string value of this object
      */
     public String stringValue() {
-        if (core == null || core instanceof String) {
+        if (core == NULL || core == UNDEFINED) {
+            return null;
+        } else if (core instanceof String) {
             return (String)core;
         } else if (isBuffer()) {
             ByteBuffer buf = bufferValue();
             StringBuilder sb = new StringBuilder(buf.remaining() * 4 / 3 + 2);
             try {
-                Base64OutputStream out = new Base64OutputStream(sb);
+                Base64OutputStream out = new Base64OutputStream(sb, false);
                 writeBuffer(out);
                 out.close();
             } catch (IOException e) {
@@ -1720,26 +1820,14 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #stringValue} method on it, otherwise return null
      * @return the string value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public String stringValue(String path) {
-        Json j = get(path);
-        return j == null ? null : j.stringValue();
-    }
-
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #stringValue} method on it, otherwise return null
-     * @return the string value of that object
-     * @param path the path
-     * @since 4
-     */
-    public String stringValue(int path) {
-        Json j = get(path);
+    public String stringValue(Object key) {
+        Json j = get(key);
         return j == null ? null : j.stringValue();
     }
 
@@ -1753,10 +1841,14 @@ public class Json {
 
     private static final int BASE64[] = new int[256];
     static {
-        String s = new String(Base64OutputStream.BASE64);
+        String s = new String(Base64OutputStream.BASE64_NORMAL);
         for (int i=0;i<256;i++) {
             BASE64[i] = s.indexOf(Character.toString((char)i));
         }
+        // So we can read any variation
+        BASE64['-'] = BASE64['+'];
+        BASE64['_'] = BASE64['/'];
+        // BASE64[','] = BASE64['/'];    RFC3501 which no-one uses
     }
 
     /**
@@ -1769,14 +1861,14 @@ public class Json {
      * </ul>
      * @see JsonReadOptions
      * @throws ClassCastException if none of these conditions are met
-     * @return the buffer value of this object
+     * @return the buffer value of this object, which will always have position=0
      * @since 2
      */
     public ByteBuffer bufferValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof ByteBuffer) {
-            return (ByteBuffer)core;
+            return ((ByteBuffer)core).position(0);
         } else if (core instanceof CharSequence) {
             CharSequence value = (CharSequence)core;
             int ilen = value.length();
@@ -1843,26 +1935,14 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #bufferValue} method on it, otherwise return null
      * @return the buffer value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public ByteBuffer bufferValue(String path) {
-        Json j = get(path);
-        return j == null ? null : j.bufferValue();
-    }
-
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #bufferValue} method on it, otherwise return null
-     * @return the buffer value of that object
-     * @param path the path
-     * @since 4
-     */
-    public ByteBuffer bufferValue(int path) {
-        Json j = get(path);
+    public ByteBuffer bufferValue(Object key) {
+        Json j = get(key);
         return j == null ? null : j.bufferValue();
     }
 
@@ -1880,7 +1960,7 @@ public class Json {
      * @return the number value of this object
      */
     public Number numberValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof Number) {
             return (Number)core;
@@ -1964,26 +2044,14 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #intValue} method on it, otherwise return null
      * @return the number value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public Number numberValue(String path) {
-        Json j = get(path);
-        return j == null ? null : j.numberValue();
-    }
-
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #numberValue} method on it, otherwise return null
-     * @return the number value of that object
-     * @param path the path
-     * @since 4
-     */
-    public Number numberValue(int path) {
-        Json j = get(path);
+    public Number numberValue(Object key) {
+        Json j = get(key);
         return j == null ? null : j.numberValue();
     }
 
@@ -2000,7 +2068,7 @@ public class Json {
      * @return the int value of this object
      */
     public int intValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else if (core instanceof Number) {
             return ((Number)core).intValue();
@@ -2036,26 +2104,14 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #intValue} method on it, otherwise return 0
      * @return the int value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public int intValue(String path) {
-        Json j = get(path);
-        return j == null ? 0 : j.intValue();
-    }
-
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #intValue} method on it, otherwise return 0
-     * @return the int value of that object
-     * @param path the path
-     * @since 4
-     */
-    public int intValue(int path) {
-        Json j = get(path);
+    public int intValue(Object key) {
+        Json j = get(key);
         return j == null ? 0 : j.intValue();
     }
 
@@ -2072,7 +2128,7 @@ public class Json {
      * @return the long value of this object
      */
     public long longValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else if (core instanceof Number) {
             return ((Number)core).longValue();
@@ -2104,26 +2160,14 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #longValue} method on it, otherwise return 0
      * @return the long value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public long longValue(String path) {
-        Json j = get(path);
-        return j == null ? 0 : j.intValue();
-    }
-
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #longValue} method on it, otherwise return 0
-     * @return the long value of that object
-     * @param path the path
-     * @since 4
-     */
-    public long longValue(int path) {
-        Json j = get(path);
+    public long longValue(Object key) {
+        Json j = get(key);
         return j == null ? 0 : j.intValue();
     }
 
@@ -2140,7 +2184,7 @@ public class Json {
      * @return the float value of this object
      */
     public float floatValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else {
             return numberValue().floatValue();
@@ -2148,26 +2192,14 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #floatValue} method on it, otherwise return 0
      * @return the float value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public float floatValue(String path) {
-        Json j = get(path);
-        return j == null ? 0 : j.floatValue();
-    }
-
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #floatValue} method on it, otherwise return 0
-     * @return the float value of that object
-     * @param path the path
-     * @since 4
-     */
-    public float floatValue(int path) {
-        Json j = get(path);
+    public float floatValue(Object key) {
+        Json j = get(key);
         return j == null ? 0 : j.floatValue();
     }
 
@@ -2184,7 +2216,7 @@ public class Json {
      * @return the double value of this object
      */
     public double doubleValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else {
             return numberValue().doubleValue();
@@ -2192,26 +2224,14 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #doubleValue} method on it, otherwise return 0
      * @return the double value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public double doubleValue(String path) {
-        Json j = get(path);
-        return j == null ? 0 : j.doubleValue();
-    }
-
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #doubleValue} method on it, otherwise return 0
-     * @return the double value of that object
-     * @param path the path
-     * @since 4
-     */
-    public double doubleValue(int path) {
-        Json j = get(path);
+    public double doubleValue(Object key) {
+        Json j = get(key);
         return j == null ? 0 : j.doubleValue();
     }
 
@@ -2228,7 +2248,7 @@ public class Json {
      * @return the boolean value of this object
      */
     public boolean booleanValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             throw new ClassCastException("Value is null");
         } else if (core instanceof Boolean) {
             return ((Boolean)core).booleanValue();
@@ -2251,31 +2271,19 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #booleanValue} method on it, otherwise return false
      * @return the boolean value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public boolean booleanValue(String path) {
-        Json j = get(path);
+    public boolean booleanValue(Object key) {
+        Json j = get(key);
         return j == null ? false : j.booleanValue();
     }
 
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #booleanValue} method on it, otherwise return false
-     * @return the boolean value of that object
-     * @param path the path
-     * @since 4
-     */
-    public boolean booleanValue(int path) {
-        Json j = get(path);
-        return j == null ? false : j.booleanValue();
-    }
-
-    @SuppressWarnings("unchecked") Map<String,Json> _mapValue() {
-        return (Map<String,Json>)core;
+    @SuppressWarnings("unchecked") Map<Object,Json> _mapValue() {
+        return (Map<Object,Json>)core;
     }
 
     @SuppressWarnings("unchecked") List<Json> _listValue() {
@@ -2287,11 +2295,11 @@ public class Json {
      * @throws ClassCastException if the node is not a map.
      * @return the read-only map value of this object
      */
-    public Map<String,Json> mapValue() {
-        if (core == null) {
+    public Map<Object,Json> mapValue() {
+        if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof Map) {
-            return Collections.<String,Json>unmodifiableMap(_mapValue());
+            return Collections.<Object,Json>unmodifiableMap(_mapValue());
         } else {
             throw new ClassCastException("Value is a " + type());
         }
@@ -2301,23 +2309,11 @@ public class Json {
      * If the specified descendant of this object exists call
      * the {@link #mapValue} method on it, otherwise return null
      * @return the read-only map value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public Map<String,Json> mapValue(String path) {
-        Json j = get(path);
-        return j == null ? null : j.mapValue();
-    }
-
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #mapValue} method on it, otherwise return null
-     * @return the read-only map value of that object
-     * @param path the path
-     * @since 4
-     */
-    public Map<String,Json> mapValue(int path) {
-        Json j = get(path);
+    public Map<Object,Json> mapValue(Object key) {
+        Json j = get(key);
         return j == null ? null : j.mapValue();
     }
 
@@ -2327,7 +2323,7 @@ public class Json {
      * @return the read-only list value of this object
      */
     public List<Json> listValue() {
-        if (core == null) {
+        if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof List) {
             return Collections.<Json>unmodifiableList(_listValue());
@@ -2337,26 +2333,14 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified wchild of this object exists call
      * the {@link #listValue} method on it, otherwise return null
      * @return the read-only list value of that object
-     * @param path the path
+     * @param key the key
      * @since 4
      */
-    public List<Json> listValue(String path) {
-        Json j = get(path);
-        return j == null ? null : j.listValue();
-    }
-
-    /**
-     * If the specified descendant of this object exists call
-     * the {@link #listValue} method on it, otherwise return null
-     * @return the read-only list value of that object
-     * @param path the path
-     * @since 4
-     */
-    public List<Json> listValue(int path) {
-        Json j = get(path);
+    public List<Json> listValue(Object key) {
+        Json j = get(key);
         return j == null ? null : j.listValue();
     }
 
@@ -2377,6 +2361,8 @@ public class Json {
     public Object objectValue(JsonFactory factory) {
         if (isNull()) {
             return null;
+        } else if (isUndefined()) {
+            return UNDEFINED;
         }
         if (factory != null) {
             Object o = factory.fromJson(this);
@@ -2385,8 +2371,8 @@ public class Json {
             }
         }
         if (isMap()) {
-            Map<String,Object> out = new LinkedHashMap<String,Object>(_mapValue());
-            for (Map.Entry<String,Object> e : out.entrySet()) {
+            Map<Object,Object> out = new LinkedHashMap<Object,Object>(_mapValue());
+            for (Map.Entry<Object,Object> e : out.entrySet()) {
                 e.setValue(((Json)e.getValue()).objectValue(factory));
             }
             return out;
@@ -2405,7 +2391,7 @@ public class Json {
      * Return a hashCode based on the {@link #value()}
      */
     public int hashCode() {
-        return core == null ? 0 : core.hashCode();
+        return core == NULL || core == UNDEFINED ? 0 : core.hashCode();
     }
 
     /**
@@ -2414,8 +2400,8 @@ public class Json {
     public boolean equals(Object o) {
         if (o instanceof Json) {
             Json j = (Json)o;
-            if (core == null) {
-                return j.core == null;
+            if (core == NULL || core == UNDEFINED) {
+                return j.core == core;
             } else if (core.getClass() == j.core.getClass()) {
                 return core.equals(j.core);
             } else if (core instanceof Number) {
@@ -2427,7 +2413,7 @@ public class Json {
                     BigDecimal b2 = n2 instanceof BigDecimal ? (BigDecimal)n2 : n2 instanceof Float || n2 instanceof Double ? BigDecimal.valueOf(n2.doubleValue()) : n2 instanceof BigInteger ? new BigDecimal((BigInteger)n2) : BigDecimal.valueOf(n2.longValue());
                     return b1.compareTo(b2) == 0;
                 }
-            } else if (core instanceof CharSequence) {
+            } else if (core instanceof CharSequence && j.core instanceof CharSequence) {
                 CharSequence c1 = (CharSequence)core;
                 CharSequence c2 = (CharSequence)j.core;
                 int s = c1.length();
@@ -2452,11 +2438,26 @@ public class Json {
     }
 
     /**
-     * Return a String representation of this Json object. Equivalent
+     * Return a String representation of this Json object. Roughly equivalent
      * to calling <code>return {@link #write write}(new StringBuilder(), null).toString()</code>
+     * @return the serialized object
      */
     public String toString() {
-        JsonWriteOptions j = new JsonWriteOptions().setAllowNaN(true);
+        return toString(null);
+    }
+
+    /**
+     * Return a String representation of this Json object with the specified
+     * serialization options. Equivalent
+     * to calling <code>return {@link #write write}(new StringBuilder(), options).toString()</code>
+     * @param options the {@link JsonWriteOptions} to use for serializing, or null to use the default
+     * @return the serialized object
+     * @since 5
+     */
+    public String toString(JsonWriteOptions options) {
+        if (options == null) {
+            options = new JsonWriteOptions().setAllowNaN(true);
+        }
         try {
             StringBuilder sb = new StringBuilder();
             /*
@@ -2464,13 +2465,41 @@ public class Json {
                 sb.append(getTag() + "(");
             }
             */
-            write(sb, j);
+            write(sb, options);
             /*
             if (getTag() >= 0) {
                 sb.append(")");
             }
             */
             return sb.toString();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Return a Cbor representation of this Json object.
+     * @return the Cbor representation as an array-backed ByteBuffer
+     * @since 5
+     */
+    public ByteBuffer toCbor() {
+        return toCbor(new JsonWriteOptions());
+    }
+
+    /**
+     * Return a Cbor representation of this Json object with the specified options
+     * @param options the {@link JsonWriteOptions} to use for serializing, or null to use the default
+     * @return the Cbor representation as an array-backed ByteBuffer
+     * @since 5
+     */
+    public ByteBuffer toCbor(JsonWriteOptions options) {
+        if (options == null) {
+            options = new JsonWriteOptions();
+        }
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            writeCbor(out, options);
+            return ByteBuffer.wrap(out.toByteArray());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

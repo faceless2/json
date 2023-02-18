@@ -8,13 +8,16 @@ import java.io.*;
  */
 class Base64OutputStream extends OutputStream {
 
-    static final char[] BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray();
+    static final char[] BASE64_NORMAL  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray();      // Traditional
+    static final char[] BASE64_RFC4648 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".toCharArray();      // Used by JWT
 
     private final Appendable out;
+    private final char[] base64;
     private int v, count;
 
-    Base64OutputStream(Appendable a) {
+    Base64OutputStream(Appendable a, boolean base64standard) {
         this.out = a;
+        this.base64 = base64standard ? BASE64_NORMAL : BASE64_RFC4648;
     }
 
     @Override public void write(int c) throws IOException {
@@ -30,10 +33,10 @@ class Base64OutputStream extends OutputStream {
                 break;
             case 2:
                 v = (v<<8) | c;
-                out.append(BASE64[(v>>18) & 0x3F]);
-                out.append(BASE64[(v>>12) & 0x3F]);
-                out.append(BASE64[(v>>6)  & 0x3F]);
-                out.append(BASE64[v       & 0x3F]);
+                out.append(base64[(v>>18) & 0x3F]);
+                out.append(base64[(v>>12) & 0x3F]);
+                out.append(base64[(v>>6)  & 0x3F]);
+                out.append(base64[v       & 0x3F]);
                 count = 0;
         }
     }
@@ -42,10 +45,10 @@ class Base64OutputStream extends OutputStream {
         len += off;
         while (off + 2 < len) {
             int v = ((buf[off++]&0xFF)<<16) | ((buf[off++]&0xFF)<<8) | (buf[off++]&0xFF);
-            out.append(BASE64[(v>>18) & 0x3F]);
-            out.append(BASE64[(v>>12) & 0x3F]);
-            out.append(BASE64[(v>>6)  & 0x3F]);
-            out.append(BASE64[v       & 0x3F]);
+            out.append(base64[(v>>18) & 0x3F]);
+            out.append(base64[(v>>12) & 0x3F]);
+            out.append(base64[(v>>6)  & 0x3F]);
+            out.append(base64[v       & 0x3F]);
         }
         while (off < len) {
             write(buf[off++]);
@@ -54,12 +57,12 @@ class Base64OutputStream extends OutputStream {
 
     @Override public void close() throws IOException {
         if (count == 1) {
-            out.append(BASE64[(v>>2) & 0x3F]);
-            out.append(BASE64[(v<<4) & 0x3F]);
+            out.append(base64[(v>>2) & 0x3F]);
+            out.append(base64[(v<<4) & 0x3F]);
         } else if (count == 2) {
-            out.append(BASE64[(v>>10) & 0x3F]);
-            out.append(BASE64[(v>>4)  & 0x3F]);
-            out.append(BASE64[(v<<2)  & 0x3F]);
+            out.append(base64[(v>>10) & 0x3F]);
+            out.append(base64[(v>>4)  & 0x3F]);
+            out.append(base64[(v<<2)  & 0x3F]);
         }
         count = 0;
     }

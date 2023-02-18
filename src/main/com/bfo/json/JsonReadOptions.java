@@ -29,8 +29,9 @@ public class JsonReadOptions {
     private boolean comments;
     private boolean bigDecimal;
     private boolean cborFailOnUnknownTypes;
-    private boolean failOnNonStringKeys;
+    private boolean failOnComplexKeys;
     private boolean nocontext;
+    private boolean cborDiag;
     private byte storeOptions;
     private int fastStringLength = 262144;
     private Filter filter;
@@ -204,6 +205,26 @@ public class JsonReadOptions {
         return (storeOptions & FLAG_LOOSEEMPTY) != 0;
     }
 
+    /**
+     * Set the parser to recognise the "CBOR-Diag" variation of Json
+     * @param cborDiag the flag
+     * @return this
+     * @since 5
+     */
+    public JsonReadOptions setCborDiag(boolean cborDiag) {
+        this.cborDiag = cborDiag;
+        return this;
+    }
+
+    /**
+     * Return the value of the "CBOR-Diag" flag as set by {@link #setCborDiag}
+     * @return the flag
+     * @since 5
+     */
+    public boolean isCborDiag() {
+        return cborDiag;
+    }
+
     byte storeOptions() {
         return storeOptions;
     }
@@ -257,26 +278,27 @@ public class JsonReadOptions {
     }
 
     /**
-     * When reading CBOR/Msgpack and a map key is encountered that is not a String,
-     * fail rather than converting it silently to a String. This API (and Json) only
-     * allow map keys to be strings.
+     * When reading CBOR/Msgpack and a map key is encountered that is "complex",
+     * fail rather than converting it silently to a String. Complex types are currently
+     * anything other than string, number or boolean. Note thatn when serializing to JSON
+     * all key types will be converted to strings
      * @param flag the flag
      * @return this
-     * @since 3
+     * @since 5
      */
-    public JsonReadOptions setFailOnNonStringKeys(boolean flag) {
-        failOnNonStringKeys = flag;
+    public JsonReadOptions setFailOnComplexKeys(boolean flag) {
+        failOnComplexKeys = flag;
         return this;
     }
 
     /**
-     * Return the value of the "failOnNonStringKeys" flag, as set by
-     * {@link #setFailOnNonStringKeys}
-     * @since 3
+     * Return the value of the "failOnComplexKeys" flag, as set by
+     * {@link #setFailOnComplexKeys}
+     * @since 5
      * @return the flag
      */
-    public boolean isFailOnNonStringKeys() {
-        return failOnNonStringKeys;
+    public boolean isFailOnComplexKeys() {
+        return failOnComplexKeys;
     }
 
     /**
@@ -375,7 +397,7 @@ public class JsonReadOptions {
          * @param key the key of the next entry in the map
          * @throws IOException if an error occurs during processing
          */
-        public void enter(Json parent, String key) throws IOException {
+        public void enter(Json parent, Object key) throws IOException {
         }
 
         /**
@@ -384,7 +406,7 @@ public class JsonReadOptions {
          * @param key the key of the entry just read in the map
          * @throws IOException if an error occurs during processing
          */
-        public void exit(Json parent, String key) throws IOException {
+        public void exit(Json parent, Object key) throws IOException {
         }
 
         /**
@@ -429,7 +451,17 @@ public class JsonReadOptions {
          * @throws IOException if an error occurs during reading
          */
         public Json createNull() throws IOException {
-            return new Json(null, null);
+            return new Json(Json.NULL, null);
+        }
+
+        /**
+         * Create a new "undefined" object
+         * @return the new Json object
+         * @throws IOException if an error occurs during reading
+         * @since 5
+         */
+        public Json createUndefined() throws IOException {
+            return new Json(Json.UNDEFINED, null);
         }
 
         /**
