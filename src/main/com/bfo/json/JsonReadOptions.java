@@ -410,24 +410,6 @@ public class JsonReadOptions {
         }
 
         /**
-         * Called before reading each entry in a List.
-         * @param parent the current list
-         * @param key the key of the next entry in the list
-         * @throws IOException if an error occurs during processing
-         */
-        public void enter(Json parent, int key) throws IOException {
-        }
-
-        /**
-         * Called after reading each entry in a List.
-         * @param parent the current list
-         * @param key the key of the entry just read in the list
-         * @throws IOException if an error occurs during processing
-         */
-        public void exit(Json parent, int key) throws IOException {
-        }
-
-        /**
          * Create a new "map" object
          * @return the new Json object
          * @throws IOException if an error occurs during reading
