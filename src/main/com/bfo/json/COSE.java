@@ -421,7 +421,7 @@ public class COSE {
                 String algorithm = keys.get(key);
                 JWK jwk = new JWK(key);
                 jwk.put("alg", algorithm);
-                protectedAtts.put(1, jwk.toCOSEKey().get(3));   // Set "alg" (key 1 in header) based on "alg" (key 3 in COSE key)
+                protectedAtts.put(1, jwk.toCOSEKey().get(3));   // Set "alg" (key 1 in header) based on "alg" (key 3 in COSE key). Copy don't move!
                 byte[] signature = signSignature("Signature1", protectedAtts, protectedAtts, externalProtectedAtts, payload, key, algorithm, provider);
                 cose = Json.read("[]");
                 cose.put(0, new Json(protectedAtts.isEmpty() ? ByteBuffer.wrap(new byte[0]) : protectedAtts.toCbor()));
