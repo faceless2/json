@@ -179,6 +179,6 @@ jwt.getPayload().clear();            // Modify the payload
 assert !jwt.verify(pubkey, "ES256"); // Signature is no longer valid
 ```
 
-Compiles under Java 11 or later - the API supposed EdDSA keys (new in Java 15) via reflection.
+Compiles under Java 11 or later - the API supports EdDSA keys (new in Java 15) via reflection.
 
 This code is written by the team at [bfo.com](https://bfo.com). If you like it, come and see what else we do.
