@@ -101,7 +101,12 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="com/bfo/json/COSE.html#%3Cinit%3E()" class="member-name-link">COSE()</a> - Constructor for class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>
-<div class="block">Create a new COSE</div>
+<div class="block">Create a new, uninitialized COSE object</div>
+</dd>
+<dt><a href="com/bfo/json/COSE.html#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">COSE(Json)</a> - Constructor for class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
+<dd>
+<div class="block">Create a new COSE from one that has already been read, eg
+ <code>COSE cose = new COSE(Json.readCbor(..., null))</code></div>
 </dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#createArray()" class="member-name-link">createArray()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
@@ -230,10 +235,6 @@ loadScripts(document, 'script');</script>
 </dl>
 <h2 class="title" id="I:G">G</h2>
 <dl class="index">
-<dt><a href="com/bfo/json/COSE.html#get()" class="member-name-link">get()</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
-<dd>
-<div class="block">Return the COSE object as a Json.</div>
-</dd>
 <dt><a href="com/bfo/json/Json.html#get(java.lang.Object)" class="member-name-link">get(Object)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Return the specified child of this object, or null
@@ -251,10 +252,6 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return the Signature algorithm used for the specified signature - 0 for the first signature, 1 for the second etc.</div>
 </dd>
-<dt><a href="com/bfo/json/COSE.html#getApplicationProtectedAttributes()" class="member-name-link">getApplicationProtectedAttributes()</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
-<dd>
-<div class="block">Return the application protected attributes, as set by <a href="com/bfo/json/COSE.html#setApplicationProtectedAttributes(com.bfo.json.Json)"><code>COSE.setApplicationProtectedAttributes(com.bfo.json.Json)</code></a></div>
-</dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#getArrayIndex(java.lang.Object,int)" class="member-name-link">getArrayIndex(Object, int)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#getArrayIndex(java.lang.Object,int,boolean)" class="member-name-link">getArrayIndex(Object, int, boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
@@ -268,6 +265,12 @@ loadScripts(document, 'script');</script>
 <div class="block">Return the CodingErrorAction set by <a href="com/bfo/json/JsonReadOptions.html#setCborStringCodingErrorAction(java.nio.charset.CodingErrorAction)"><code>JsonReadOptions.setCborStringCodingErrorAction(java.nio.charset.CodingErrorAction)</code></a>
  is incorrect, the specified action will be performed.</div>
 </dd>
+<dt><a href="com/bfo/json/COSE.html#getCertificates()" class="member-name-link">getCertificates()</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
+<dd>
+<div class="block">If the COSE object contains X.509 Certificates in the header, as defined by 
+ <a href="https://datatracker.ietf.org/doc/html/rfc9360">RFC9360</a>, then
+ return the list.</div>
+</dd>
 <dt><a href="com/bfo/json/JWK.html#getCertificates()" class="member-name-link">getCertificates()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWK.html" title="class in com.bfo.json">JWK</a></dt>
 <dd>
 <div class="block">Return the list of X.509 certificates specified in the JWK,
@@ -278,6 +281,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/JsonWriteOptions.html#getDoubleFormat()" class="member-name-link">getDoubleFormat()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></dt>
 <dd>
 <div class="block">Return the float format as set by <a href="com/bfo/json/JsonWriteOptions.html#setDoubleFormat(java.lang.String)"><code>JsonWriteOptions.setDoubleFormat(java.lang.String)</code></a></div>
+</dd>
+<dt><a href="com/bfo/json/COSE.html#getExternalProtectedAttributes()" class="member-name-link">getExternalProtectedAttributes()</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
+<dd>
+<div class="block">Return the external protected attributes, as set by <a href="com/bfo/json/COSE.html#setExternalProtectedAttributes(com.bfo.json.Json)"><code>COSE.setExternalProtectedAttributes(com.bfo.json.Json)</code></a></div>
 </dd>
 <dt><a href="com/bfo/json/Json.html#getFactory()" class="member-name-link">getFactory()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
@@ -483,6 +490,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return the value of the "nocontext" flag as set by <a href="com/bfo/json/JsonReadOptions.html#setContextFree(boolean)"><code>JsonReadOptions.setContextFree(boolean)</code></a></div>
 </dd>
+<dt><a href="com/bfo/json/COSE.html#isDetached()" class="member-name-link">isDetached()</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
+<dd>
+<div class="block">Return true if the payload was set to "detached".</div>
+</dd>
 <dt><a href="com/bfo/json/Json.html#isEmpty()" class="member-name-link">isEmpty()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Return true if this node is a number, string, buffer, boolean, null or an empty map or list.</div>
@@ -491,6 +502,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return the value of the "failOnComplexKeys" flag, as set by
  <a href="com/bfo/json/JsonReadOptions.html#setFailOnComplexKeys(boolean)"><code>JsonReadOptions.setFailOnComplexKeys(boolean)</code></a></div>
+</dd>
+<dt><a href="com/bfo/json/COSE.html#isInitialized()" class="member-name-link">isInitialized()</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
+<dd>
+<div class="block">Return true if this COSE object is initialized.</div>
 </dd>
 <dt><a href="com/bfo/json/Json.html#isList()" class="member-name-link">isList()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
@@ -802,10 +817,6 @@ loadScripts(document, 'script');</script>
 </dl>
 <h2 class="title" id="I:S">S</h2>
 <dl class="index">
-<dt><a href="com/bfo/json/COSE.html#set(com.bfo.json.Json)" class="member-name-link">set(Json)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
-<dd>
-<div class="block">Set the COSE object, which can then be verified</div>
-</dd>
 <dt><a href="com/bfo/json/JsonReadOptions.html#setAllowComments(boolean)" class="member-name-link">setAllowComments(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
 <dd>
 <div class="block">Whether to allow comments in the JSON input, eg <code>["a"]/&#x2a;comment&#x2a;/</code>.</div>
@@ -821,10 +832,6 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/JsonReadOptions.html#setAllowUnquotedKey(boolean)" class="member-name-link">setAllowUnquotedKey(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
 <dd>
 <div class="block">Whether to allow unquotedKey keys in the JSON input.</div>
-</dd>
-<dt><a href="com/bfo/json/COSE.html#setApplicationProtectedAttributes(com.bfo.json.Json)" class="member-name-link">setApplicationProtectedAttributes(Json)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
-<dd>
-<div class="block">Set the application protected attributes on this object, which may be null.</div>
 </dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#setArrayIndex(java.lang.Object,int,java.lang.Object)" class="member-name-link">setArrayIndex(Object, int, Object)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
@@ -858,6 +865,10 @@ loadScripts(document, 'script');</script>
 <div class="block">When reading CBOR/Msgpack, if a String is encountered where the UTF-8 encoding
  is incorrect, the specified action will be performed.</div>
 </dd>
+<dt><a href="com/bfo/json/COSE.html#setCertificates(java.util.List)" class="member-name-link">setCertificates(List&lt;X509Certificate&gt;)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
+<dd>
+<div class="block">Set a list of X.509 Certificates to be included in the COSE header, or null.</div>
+</dd>
 <dt><a href="com/bfo/json/JWK.html#setCertificates(java.util.List,java.lang.String)" class="member-name-link">setCertificates(List&lt;X509Certificate&gt;, String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWK.html" title="class in com.bfo.json">JWK</a></dt>
 <dd>
 <div class="block">Set the list of X.509 certificates specified in the JWK,
@@ -871,6 +882,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/JsonWriteOptions.html#setDoubleFormat(java.lang.String)" class="member-name-link">setDoubleFormat(String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></dt>
 <dd>
 <div class="block">The String format to use when formatting a double.</div>
+</dd>
+<dt><a href="com/bfo/json/COSE.html#setExternalProtectedAttributes(com.bfo.json.Json)" class="member-name-link">setExternalProtectedAttributes(Json)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
+<dd>
+<div class="block">Set the external protected attributes on this object, which may be null.</div>
 </dd>
 <dt><a href="com/bfo/json/Json.html#setFactory(com.bfo.json.JsonFactory)" class="member-name-link">setFactory(JsonFactory)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
@@ -935,7 +950,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Set the key operations</div>
 </dd>
-<dt><a href="com/bfo/json/COSE.html#setPayload(java.nio.ByteBuffer)" class="member-name-link">setPayload(ByteBuffer)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
+<dt><a href="com/bfo/json/COSE.html#setPayload(java.nio.ByteBuffer,boolean)" class="member-name-link">setPayload(ByteBuffer, boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>
 <div class="block">Set the payload to sign.</div>
 </dd>
@@ -1088,7 +1103,7 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="com/bfo/json/COSE.html#verify(java.security.PublicKey)" class="member-name-link">verify(PublicKey)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>
-<div class="block">Verify a COSE that has previously been set with <a href="com/bfo/json/COSE.html#set(com.bfo.json.Json)"><code>COSE.set(com.bfo.json.Json)</code></a> or <a href="com/bfo/json/COSE.html#sign(java.security.Key,java.lang.String)"><code>COSE.sign(java.security.Key, java.lang.String)</code></a></div>
+<div class="block">Verify a COSE that is <a href="com/bfo/json/COSE.html#isInitialized()"><code>initialized</code></a></div>
 </dd>
 </dl>
 <h2 class="title" id="I:W">W</h2>

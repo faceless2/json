@@ -45,7 +45,7 @@ loadScripts(document, 'script');</script>
 <ul class="sub-nav-list">
 <li>Summary:&nbsp;</li>
 <li>Nested&nbsp;|&nbsp;</li>
-<li>Field&nbsp;|&nbsp;</li>
+<li><a href="#field-summary">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor-summary">Constr</a>&nbsp;|&nbsp;</li>
 <li><a href="#method-summary">Method</a></li>
 </ul>
@@ -72,12 +72,14 @@ loadScripts(document, 'script');</script>
 <h1 title="Class COSE" class="title">Class COSE</h1>
 </div>
 <div class="inheritance" title="Inheritance Tree"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">java.lang.Object</a>
+<div class="inheritance"><a href="Json.html" title="class in com.bfo.json">com.bfo.json.Json</a>
 <div class="inheritance">com.bfo.json.COSE</div>
+</div>
 </div>
 <section class="class-description" id="class-description">
 <hr>
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">COSE</span>
-<span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
+<span class="extends-implements">extends <a href="Json.html" title="class in com.bfo.json">Json</a></span></div>
 <div class="block">A basic COSE class. Currently supports COSE signatures only, not encryption.
 
  <h2>Examples</h2>
@@ -85,8 +87,7 @@ loadScripts(document, 'script');</script>
  COSE cose = new COSE();
  cose.setPayload(ByteBuffer.wrap("Hello, World".getBytes("UTF-8")));
  cose.sign(privateKey);               // Sign using a private key, eg ES256
- Json json = cose.get();
- json.writeCBOR(..., null);           // Save COSE
+ cose.writeCBOR(..., null);           // Save COSE
 
  json = Json.readCBOR(..., null);     // Reload COSE
  cose = new COSE(json);
@@ -100,6 +101,15 @@ loadScripts(document, 'script');</script>
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- =========== FIELD SUMMARY =========== -->
+<li>
+<section class="field-summary" id="field-summary">
+<h2>Field Summary</h2>
+<div class="inherited-list">
+<h3 id="fields-inherited-from-class-com.bfo.json.Json">Fields inherited from class&nbsp;com.bfo.json.<a href="Json.html" title="class in com.bfo.json">Json</a></h3>
+<code><a href="Json.html#UNDEFINED">UNDEFINED</a></code></div>
+</section>
+</li>
 <!-- ======== CONSTRUCTOR SUMMARY ======== -->
 <li>
 <section class="constructor-summary" id="constructor-summary">
@@ -110,7 +120,12 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E()" class="member-name-link">COSE</a>()</code></div>
 <div class="col-last even-row-color">
-<div class="block">Create a new COSE</div>
+<div class="block">Create a new, uninitialized COSE object</div>
+</div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">COSE</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;cose)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Create a new COSE from one that has already been read, eg
+ <code>COSE cose = new COSE(Json.readCbor(..., null))</code></div>
 </div>
 </div>
 </section>
@@ -126,20 +141,22 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Json.html" title="class in com.bfo.json">Json</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#get()" class="member-name-link">get</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getAlgorithm(int)" class="member-name-link">getAlgorithm</a><wbr>(int&nbsp;signature)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Return the COSE object as a Json.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getAlgorithm(int)" class="member-name-link">getAlgorithm</a><wbr>(int&nbsp;signature)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Return the Signature algorithm used for the specified signature - 0 for the first signature, 1 for the second etc.</div>
 </div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/cert/X509Certificate.html" title="class or interface in java.security.cert" class="external-link">X509Certificate</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getCertificates()" class="member-name-link">getCertificates</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">If the COSE object contains X.509 Certificates in the header, as defined by 
+ <a href="https://datatracker.ietf.org/doc/html/rfc9360">RFC9360</a>, then
+ return the list.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Json.html" title="class in com.bfo.json">Json</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getApplicationProtectedAttributes()" class="member-name-link">getApplicationProtectedAttributes</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getExternalProtectedAttributes()" class="member-name-link">getExternalProtectedAttributes</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Return the application protected attributes, as set by <a href="#setApplicationProtectedAttributes(com.bfo.json.Json)"><code>setApplicationProtectedAttributes(com.bfo.json.Json)</code></a></div>
+<div class="block">Return the external protected attributes, as set by <a href="#setExternalProtectedAttributes(com.bfo.json.Json)"><code>setExternalProtectedAttributes(com.bfo.json.Json)</code></a></div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getNumSignatures()" class="member-name-link">getNumSignatures</a>()</code></div>
@@ -166,18 +183,29 @@ loadScripts(document, 'script');</script>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Return the unprotected attributes, which may be null</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="COSE.html" title="class in com.bfo.json">COSE</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#set(com.bfo.json.Json)" class="member-name-link">set</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;cose)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isDetached()" class="member-name-link">isDetached</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Set the COSE object, which can then be verified</div>
+<div class="block">Return true if the payload was set to "detached".</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isInitialized()" class="member-name-link">isInitialized</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return true if this COSE object is initialized.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="COSE.html" title="class in com.bfo.json">COSE</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setCertificates(java.util.List)" class="member-name-link">setCertificates</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/cert/X509Certificate.html" title="class or interface in java.security.cert" class="external-link">X509Certificate</a>&gt;&nbsp;certs)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set a list of X.509 Certificates to be included in the COSE header, or null.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="COSE.html" title="class in com.bfo.json">COSE</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setApplicationProtectedAttributes(com.bfo.json.Json)" class="member-name-link">setApplicationProtectedAttributes</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;atts)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setExternalProtectedAttributes(com.bfo.json.Json)" class="member-name-link">setExternalProtectedAttributes</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;atts)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Set the application protected attributes on this object, which may be null.</div>
+<div class="block">Set the external protected attributes on this object, which may be null.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="COSE.html" title="class in com.bfo.json">COSE</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setPayload(java.nio.ByteBuffer)" class="member-name-link">setPayload</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/ByteBuffer.html" title="class or interface in java.nio" class="external-link">ByteBuffer</a>&nbsp;payload)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setPayload(java.nio.ByteBuffer,boolean)" class="member-name-link">setPayload</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/ByteBuffer.html" title="class or interface in java.nio" class="external-link">ByteBuffer</a>&nbsp;payload,
+ boolean&nbsp;detached)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Set the payload to sign.</div>
 </div>
@@ -210,14 +238,17 @@ loadScripts(document, 'script');</script>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(java.security.PublicKey)" class="member-name-link">verify</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/PublicKey.html" title="class or interface in java.security" class="external-link">PublicKey</a>&nbsp;key)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Verify a COSE that has previously been set with <a href="#set(com.bfo.json.Json)"><code>set(com.bfo.json.Json)</code></a> or <a href="#sign(java.security.Key,java.lang.String)"><code>sign(java.security.Key, java.lang.String)</code></a></div>
+<div class="block">Verify a COSE that is <a href="#isInitialized()"><code>initialized</code></a></div>
 </div>
 </div>
 </div>
 </div>
 <div class="inherited-list">
+<h3 id="methods-inherited-from-class-com.bfo.json.Json">Methods inherited from class&nbsp;com.bfo.json.<a href="Json.html" title="class in com.bfo.json">Json</a></h3>
+<code><a href="Json.html#addListener(com.bfo.json.JsonListener)">addListener</a>, <a href="Json.html#booleanValue()">booleanValue</a>, <a href="Json.html#booleanValue(java.lang.Object)">booleanValue</a>, <a href="Json.html#bufferValue()">bufferValue</a>, <a href="Json.html#bufferValue(java.lang.Object)">bufferValue</a>, <a href="Json.html#doubleValue()">doubleValue</a>, <a href="Json.html#doubleValue(java.lang.Object)">doubleValue</a>, <a href="Json.html#duplicate()">duplicate</a>, <a href="Json.html#equals(java.lang.Object)">equals</a>, <a href="Json.html#eval(java.lang.String)">eval</a>, <a href="Json.html#evalAll(java.lang.String)">evalAll</a>, <a href="Json.html#find(com.bfo.json.Json)">find</a>, <a href="Json.html#floatValue()">floatValue</a>, <a href="Json.html#floatValue(java.lang.Object)">floatValue</a>, <a href="Json.html#get(java.lang.Object)">get</a>, <a href="Json.html#getFactory()">getFactory</a>, <a href="Json.html#getListeners()">getListeners</a>, <a href="Json.html#getPath(java.lang.String)">getPath</a>, <a href="Json.html#getTag()">getTag</a>, <a href="Json.html#has(java.lang.Object)">has</a>, <a href="Json.html#hashCode()">hashCode</a>, <a href="Json.html#hasPath(java.lang.String)">hasPath</a>, <a href="Json.html#intValue()">intValue</a>, <a href="Json.html#intValue(java.lang.Object)">intValue</a>, <a href="Json.html#isBoolean()">isBoolean</a>, <a href="Json.html#isBoolean(java.lang.Object)">isBoolean</a>, <a href="Json.html#isBuffer()">isBuffer</a>, <a href="Json.html#isBuffer(java.lang.Object)">isBuffer</a>, <a href="Json.html#isEmpty()">isEmpty</a>, <a href="Json.html#isList()">isList</a>, <a href="Json.html#isList(java.lang.Object)">isList</a>, <a href="Json.html#isMap()">isMap</a>, <a href="Json.html#isMap(java.lang.Object)">isMap</a>, <a href="Json.html#isNull()">isNull</a>, <a href="Json.html#isNull(java.lang.Object)">isNull</a>, <a href="Json.html#isNumber()">isNumber</a>, <a href="Json.html#isNumber(java.lang.Object)">isNumber</a>, <a href="Json.html#isString()">isString</a>, <a href="Json.html#isString(java.lang.Object)">isString</a>, <a href="Json.html#isUndefined()">isUndefined</a>, <a href="Json.html#isUndefined(java.lang.Object)">isUndefined</a>, <a href="Json.html#leafIterator()">leafIterator</a>, <a href="Json.html#listValue()">listValue</a>, <a href="Json.html#listValue(java.lang.Object)">listValue</a>, <a href="Json.html#longValue()">longValue</a>, <a href="Json.html#longValue(java.lang.Object)">longValue</a>, <a href="Json.html#mapValue()">mapValue</a>, <a href="Json.html#mapValue(java.lang.Object)">mapValue</a>, <a href="Json.html#numberValue()">numberValue</a>, <a href="Json.html#numberValue(java.lang.Object)">numberValue</a>, <a href="Json.html#objectValue(com.bfo.json.JsonFactory)">objectValue</a>, <a href="Json.html#parent()">parent</a>, <a href="Json.html#put(java.lang.Object,java.lang.Object)">put</a>, <a href="Json.html#putPath(java.lang.String,java.lang.Object)">putPath</a>, <a href="Json.html#read(java.io.InputStream,com.bfo.json.JsonReadOptions)">read</a>, <a href="Json.html#read(java.io.Reader,com.bfo.json.JsonReadOptions)">read</a>, <a href="Json.html#read(java.lang.CharSequence)">read</a>, <a href="Json.html#readCbor(java.io.InputStream,com.bfo.json.JsonReadOptions)">readCbor</a>, <a href="Json.html#readCbor(java.nio.ByteBuffer,com.bfo.json.JsonReadOptions)">readCbor</a>, <a href="Json.html#readMsgpack(java.io.InputStream,com.bfo.json.JsonReadOptions)">readMsgpack</a>, <a href="Json.html#readMsgpack(java.nio.ByteBuffer,com.bfo.json.JsonReadOptions)">readMsgpack</a>, <a href="Json.html#remove(java.lang.Object)">remove</a>, <a href="Json.html#removeListener(com.bfo.json.JsonListener)">removeListener</a>, <a href="Json.html#removePath(java.lang.String)">removePath</a>, <a href="Json.html#setFactory(com.bfo.json.JsonFactory)">setFactory</a>, <a href="Json.html#setTag(long)">setTag</a>, <a href="Json.html#setValue(com.bfo.json.Json)">setValue</a>, <a href="Json.html#size()">size</a>, <a href="Json.html#stringValue()">stringValue</a>, <a href="Json.html#stringValue(java.lang.Object)">stringValue</a>, <a href="Json.html#toCbor()">toCbor</a>, <a href="Json.html#toCbor(com.bfo.json.JsonWriteOptions)">toCbor</a>, <a href="Json.html#toString()">toString</a>, <a href="Json.html#toString(com.bfo.json.JsonWriteOptions)">toString</a>, <a href="Json.html#type()">type</a>, <a href="Json.html#value()">value</a>, <a href="Json.html#write(java.lang.Appendable,com.bfo.json.JsonWriteOptions)">write</a>, <a href="Json.html#writeCbor(java.io.OutputStream,com.bfo.json.JsonWriteOptions)">writeCbor</a>, <a href="Json.html#writeMsgpack(java.io.OutputStream,com.bfo.json.JsonWriteOptions)">writeMsgpack</a></code></div>
+<div class="inherited-list">
 <h3 id="methods-inherited-from-class-java.lang.Object">Methods inherited from class&nbsp;java.lang.<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></h3>
-<code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#equals(java.lang.Object)" title="class or interface in java.lang" class="external-link">equals</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#getClass()" title="class or interface in java.lang" class="external-link">getClass</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#hashCode()" title="class or interface in java.lang" class="external-link">hashCode</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#notify()" title="class or interface in java.lang" class="external-link">notify</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#notifyAll()" title="class or interface in java.lang" class="external-link">notifyAll</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#toString()" title="class or interface in java.lang" class="external-link">toString</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#wait()" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#wait(long)" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#wait(long,int)" title="class or interface in java.lang" class="external-link">wait</a></code></div>
+<code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#getClass()" title="class or interface in java.lang" class="external-link">getClass</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#notify()" title="class or interface in java.lang" class="external-link">notify</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#notifyAll()" title="class or interface in java.lang" class="external-link">notifyAll</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#wait()" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#wait(long)" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html#wait(long,int)" title="class or interface in java.lang" class="external-link">wait</a></code></div>
 </section>
 </li>
 </ul>
@@ -233,7 +264,19 @@ loadScripts(document, 'script');</script>
 <section class="detail" id="&lt;init&gt;()">
 <h3>COSE</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">COSE</span>()</div>
-<div class="block">Create a new COSE</div>
+<div class="block">Create a new, uninitialized COSE object</div>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(com.bfo.json.Json)">
+<h3>COSE</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">COSE</span><wbr><span class="parameters">(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;cose)</span></div>
+<div class="block">Create a new COSE from one that has already been read, eg
+ <code>COSE cose = new COSE(Json.readCbor(..., null))</code></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>cose</code> - the object</dd>
+</dl>
 </section>
 </li>
 </ul>
@@ -269,28 +312,15 @@ loadScripts(document, 'script');</script>
 </section>
 </li>
 <li>
-<section class="detail" id="get()">
-<h3>get</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Json.html" title="class in com.bfo.json">Json</a></span>&nbsp;<span class="element-name">get</span>()</div>
-<div class="block">Return the COSE object as a Json.
- If it has not been initialized, either by calling <a href="#set(com.bfo.json.Json)"><code>set(com.bfo.json.Json)</code></a> or by
- calling the various other set methods then <a href="#sign(java.security.Key,java.lang.String)"><code>sign(java.security.Key, java.lang.String)</code></a>, this will return null</div>
+<section class="detail" id="isInitialized()">
+<h3>isInitialized</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isInitialized</span>()</div>
+<div class="block">Return true if this COSE object is initialized.
+ Initialized objects are typically passed into the constructor,
+ or created by a call to <a href="#sign(java.security.Key,java.lang.String)"><code>sign(java.security.Key, java.lang.String)</code></a></div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd>the COSE object as a json</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="set(com.bfo.json.Json)">
-<h3>set</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="COSE.html" title="class in com.bfo.json">COSE</a></span>&nbsp;<span class="element-name">set</span><wbr><span class="parameters">(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;cose)</span></div>
-<div class="block">Set the COSE object, which can then be verified</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>cose</code> - the COSE object</dd>
-<dt>Returns:</dt>
-<dd>this</dd>
+<dd>true if this object is initialized</dd>
 </dl>
 </section>
 </li>
@@ -308,13 +338,27 @@ loadScripts(document, 'script');</script>
 </section>
 </li>
 <li>
-<section class="detail" id="setPayload(java.nio.ByteBuffer)">
+<section class="detail" id="isDetached()">
+<h3>isDetached</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isDetached</span>()</div>
+<div class="block">Return true if the payload was set to "detached".</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>if the payload is detached</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setPayload(java.nio.ByteBuffer,boolean)">
 <h3>setPayload</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="COSE.html" title="class in com.bfo.json">COSE</a></span>&nbsp;<span class="element-name">setPayload</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/ByteBuffer.html" title="class or interface in java.nio" class="external-link">ByteBuffer</a>&nbsp;payload)</span></div>
-<div class="block">Set the payload to sign.</div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="COSE.html" title="class in com.bfo.json">COSE</a></span>&nbsp;<span class="element-name">setPayload</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/ByteBuffer.html" title="class or interface in java.nio" class="external-link">ByteBuffer</a>&nbsp;payload,
+ boolean&nbsp;detached)</span></div>
+<div class="block">Set the payload to sign. When verifying an existing COSE object where <a href="#isDetached()"><code>isDetached()</code></a> is true,
+ this method must be called <i>before verify</i> to set the payload to verify.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>payload</code> - the payload</dd>
+<dd><code>detached</code> - if true, the payload will be "detached" - it will not be stored in the COSE structure. If false, it will be embedded.</dd>
 <dt>Returns:</dt>
 <dd>this</dd>
 <dt>Throws:</dt>
@@ -338,7 +382,8 @@ loadScripts(document, 'script');</script>
 <h3>setUnprotectedAttributes</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="COSE.html" title="class in com.bfo.json">COSE</a></span>&nbsp;<span class="element-name">setUnprotectedAttributes</span><wbr><span class="parameters">(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;atts)</span></div>
 <div class="block">Set the unprotected attributes on this object.
- This can be called any time.</div>
+ This can be called any time.
+ Calling this method will reset the list of certificates returned from <a href="#getCertificates()"><code>getCertificates()</code></a></div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>atts</code> - the attributes, or null</dd>
@@ -374,10 +419,10 @@ loadScripts(document, 'script');</script>
 </section>
 </li>
 <li>
-<section class="detail" id="getApplicationProtectedAttributes()">
-<h3>getApplicationProtectedAttributes</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Json.html" title="class in com.bfo.json">Json</a></span>&nbsp;<span class="element-name">getApplicationProtectedAttributes</span>()</div>
-<div class="block">Return the application protected attributes, as set by <a href="#setApplicationProtectedAttributes(com.bfo.json.Json)"><code>setApplicationProtectedAttributes(com.bfo.json.Json)</code></a></div>
+<section class="detail" id="getExternalProtectedAttributes()">
+<h3>getExternalProtectedAttributes</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Json.html" title="class in com.bfo.json">Json</a></span>&nbsp;<span class="element-name">getExternalProtectedAttributes</span>()</div>
+<div class="block">Return the external protected attributes, as set by <a href="#setExternalProtectedAttributes(com.bfo.json.Json)"><code>setExternalProtectedAttributes(com.bfo.json.Json)</code></a></div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the attributes</dd>
@@ -385,10 +430,10 @@ loadScripts(document, 'script');</script>
 </section>
 </li>
 <li>
-<section class="detail" id="setApplicationProtectedAttributes(com.bfo.json.Json)">
-<h3>setApplicationProtectedAttributes</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="COSE.html" title="class in com.bfo.json">COSE</a></span>&nbsp;<span class="element-name">setApplicationProtectedAttributes</span><wbr><span class="parameters">(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;atts)</span></div>
-<div class="block">Set the application protected attributes on this object, which may be null.
+<section class="detail" id="setExternalProtectedAttributes(com.bfo.json.Json)">
+<h3>setExternalProtectedAttributes</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="COSE.html" title="class in com.bfo.json">COSE</a></span>&nbsp;<span class="element-name">setExternalProtectedAttributes</span><wbr><span class="parameters">(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;atts)</span></div>
+<div class="block">Set the external protected attributes on this object, which may be null.
  This can be called any time.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
@@ -428,10 +473,44 @@ loadScripts(document, 'script');</script>
 </section>
 </li>
 <li>
+<section class="detail" id="getCertificates()">
+<h3>getCertificates</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/cert/X509Certificate.html" title="class or interface in java.security.cert" class="external-link">X509Certificate</a>&gt;</span>&nbsp;<span class="element-name">getCertificates</span>()</div>
+<div class="block">If the COSE object contains X.509 Certificates in the header, as defined by 
+ <a href="https://datatracker.ietf.org/doc/html/rfc9360">RFC9360</a>, then
+ return the list. If the certificate is referenced by URL, it will be downloaded.
+ RFC9630 implies the certificates can be stored as protected or unprotected attributes,
+ or even a combination. This method will check all possibilities and combine into
+ a single list.
+ The return value will be cached until reset (by calling either <a href="#setCertificates(java.util.List)"><code>setCertificates</code></a> or <a href="#setUnprotectedAttributes(com.bfo.json.Json)"><code>setUnprotectedAttributes(com.bfo.json.Json)</code></a>.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the list of certificates, or an empty list if none are specified.</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setCertificates(java.util.List)">
+<h3>setCertificates</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="COSE.html" title="class in com.bfo.json">COSE</a></span>&nbsp;<span class="element-name">setCertificates</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/cert/X509Certificate.html" title="class or interface in java.security.cert" class="external-link">X509Certificate</a>&gt;&nbsp;certs)</span></div>
+<div class="block">Set a list of X.509 Certificates to be included in the COSE header, or null.
+ Certificates will be merged into the unprotected attributes on save; for more control,
+ they can be set manually in the protected/unproteected attribute list.
+ This can be called any time.
+ Calling this method will reset the list of certificates returned from <a href="#getCertificates()"><code>getCertificates()</code></a></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>certs</code> - the list of X.509 certificates, or null</dd>
+<dt>Returns:</dt>
+<dd>this</dd>
+</dl>
+</section>
+</li>
+<li>
 <section class="detail" id="verify(java.security.PublicKey)">
 <h3>verify</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">verify</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/PublicKey.html" title="class or interface in java.security" class="external-link">PublicKey</a>&nbsp;key)</span></div>
-<div class="block">Verify a COSE that has previously been set with <a href="#set(com.bfo.json.Json)"><code>set(com.bfo.json.Json)</code></a> or <a href="#sign(java.security.Key,java.lang.String)"><code>sign(java.security.Key, java.lang.String)</code></a></div>
+<div class="block">Verify a COSE that is <a href="#isInitialized()"><code>initialized</code></a></div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>key</code> - the key. Should be a <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/PublicKey.html" title="class or interface in java.security" class="external-link"><code>PublicKey</code></a></dd>
@@ -448,7 +527,7 @@ loadScripts(document, 'script');</script>
 <h3>sign</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="COSE.html" title="class in com.bfo.json">COSE</a></span>&nbsp;<span class="element-name">sign</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Key.html" title="class or interface in java.security" class="external-link">Key</a>&nbsp;key,
  <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;algorithm)</span></div>
-<div class="block">Sign the COSE. The payload must have been set with <a href="#setPayload(java.nio.ByteBuffer)"><code>setPayload(java.nio.ByteBuffer)</code></a>.</div>
+<div class="block">Sign the COSE. The payload must have been set with <a href="#setPayload(java.nio.ByteBuffer,boolean)"><code>setPayload(java.nio.ByteBuffer, boolean)</code></a>.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>key</code> - the key - should be a <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/PrivateKey.html" title="class or interface in java.security" class="external-link"><code>PrivateKey</code></a></dd>
@@ -465,7 +544,7 @@ loadScripts(document, 'script');</script>
 <section class="detail" id="sign(java.util.Map)">
 <h3>sign</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="COSE.html" title="class in com.bfo.json">COSE</a></span>&nbsp;<span class="element-name">sign</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Key.html" title="class or interface in java.security" class="external-link">Key</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;keysAndAlgorithms)</span></div>
-<div class="block">Sign the COSE with multiple signatures. The payload must have been set with <a href="#setPayload(java.nio.ByteBuffer)"><code>setPayload(java.nio.ByteBuffer)</code></a>.</div>
+<div class="block">Sign the COSE with multiple signatures. The payload must have been set with <a href="#setPayload(java.nio.ByteBuffer,boolean)"><code>setPayload(java.nio.ByteBuffer, boolean)</code></a>.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>keysAndAlgorithms</code> - a Map of [key,algorithm name] to sign with. Currently anything other than Private keys will be ignored. Algorithms may be null, if they are the recommended algorithm for each Key type will be used.</dd>

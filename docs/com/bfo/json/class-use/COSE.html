@@ -61,17 +61,18 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code><a href="../COSE.html" title="class in com.bfo.json">COSE</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">COSE.</span><code><a href="../COSE.html#set(com.bfo.json.Json)" class="member-name-link">set</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;cose)</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">COSE.</span><code><a href="../COSE.html#setCertificates(java.util.List)" class="member-name-link">setCertificates</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/cert/X509Certificate.html" title="class or interface in java.security.cert" class="external-link">X509Certificate</a>&gt;&nbsp;certs)</code></div>
 <div class="col-last even-row-color">
-<div class="block">Set the COSE object, which can then be verified</div>
+<div class="block">Set a list of X.509 Certificates to be included in the COSE header, or null.</div>
 </div>
 <div class="col-first odd-row-color"><code><a href="../COSE.html" title="class in com.bfo.json">COSE</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">COSE.</span><code><a href="../COSE.html#setApplicationProtectedAttributes(com.bfo.json.Json)" class="member-name-link">setApplicationProtectedAttributes</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;atts)</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">COSE.</span><code><a href="../COSE.html#setExternalProtectedAttributes(com.bfo.json.Json)" class="member-name-link">setExternalProtectedAttributes</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;atts)</code></div>
 <div class="col-last odd-row-color">
-<div class="block">Set the application protected attributes on this object, which may be null.</div>
+<div class="block">Set the external protected attributes on this object, which may be null.</div>
 </div>
 <div class="col-first even-row-color"><code><a href="../COSE.html" title="class in com.bfo.json">COSE</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">COSE.</span><code><a href="../COSE.html#setPayload(java.nio.ByteBuffer)" class="member-name-link">setPayload</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/ByteBuffer.html" title="class or interface in java.nio" class="external-link">ByteBuffer</a>&nbsp;payload)</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">COSE.</span><code><a href="../COSE.html#setPayload(java.nio.ByteBuffer,boolean)" class="member-name-link">setPayload</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/nio/ByteBuffer.html" title="class or interface in java.nio" class="external-link">ByteBuffer</a>&nbsp;payload,
+ boolean&nbsp;detached)</code></div>
 <div class="col-last even-row-color">
 <div class="block">Set the payload to sign.</div>
 </div>
