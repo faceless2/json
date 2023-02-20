@@ -189,22 +189,10 @@ loadScripts(document, 'script');</script>
 <div class="block">Create a new "undefined" object</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#enter(com.bfo.json.Json,int)" class="member-name-link">enter</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
- int&nbsp;key)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Called before reading each entry in a List.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#enter(com.bfo.json.Json,java.lang.Object)" class="member-name-link">enter</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#enter(com.bfo.json.Json,java.lang.Object)" class="member-name-link">enter</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
  <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&nbsp;key)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Called before reading each entry in a Map.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#exit(com.bfo.json.Json,int)" class="member-name-link">exit</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
- int&nbsp;key)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Called after reading each entry in a List.</div>
+<div class="block">Called before reading each entry in a Map.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#exit(com.bfo.json.Json,java.lang.Object)" class="member-name-link">exit</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
@@ -301,38 +289,6 @@ loadScripts(document, 'script');</script>
 <dt>Parameters:</dt>
 <dd><code>parent</code> - the current map</dd>
 <dd><code>key</code> - the key of the entry just read in the map</dd>
-<dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - if an error occurs during processing</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="enter(com.bfo.json.Json,int)">
-<h3>enter</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">enter</span><wbr><span class="parameters">(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
- int&nbsp;key)</span>
-           throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
-<div class="block">Called before reading each entry in a List.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>parent</code> - the current list</dd>
-<dd><code>key</code> - the key of the next entry in the list</dd>
-<dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - if an error occurs during processing</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="exit(com.bfo.json.Json,int)">
-<h3>exit</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">exit</span><wbr><span class="parameters">(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;parent,
- int&nbsp;key)</span>
-          throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
-<div class="block">Called after reading each entry in a List.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>parent</code> - the current list</dd>
-<dd><code>key</code> - the key of the entry just read in the list</dd>
 <dt>Throws:</dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - if an error occurs during processing</dd>
 </dl>
