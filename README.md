@@ -60,15 +60,15 @@ and special types (which should really only
 be encountered while testing) are converted to a tagged null object. Tags are limited
 to 63 bits, and tags applied to Map keys are ignored.
 
-* CBOR serialization will convert tag types 2 and 3 on a "buffer" to BigInteger, as described in RFC7049
+* CBOR serialization will convert tag types 2 and 3 on a "buffer" to BigInteger, as described in RFC7049.
 But other tags used to distinguish Dates, non-UTF8 strings, URLs etc. are not applied.
 A <code>JsonFactory</code> can easily be written to cover as many of these are needed.
 
-* Msgpack serialization is similar to CBOR, but a bit simpler. "extension types" are stored as
+* Msgpack serialization is similar to CBOR, but simpler. "extension types" are stored as
 Buffers, with the extension type stored as a tag from 0..255. Like CBOR, duplicate keys encountered
 during read will throw an IOException.
 
-* It's possible (since v4) to read and write indefinitely large strings and buffers - the [JsonReadOptions.Filter](https://faceless2.github.io/json/docs/api/com/bfo/json/JsonReadOptions.Filter.html) class can be used to divert content away to a File, for example. There use of intermediate buffers has been kept to an absolute minimum.
+* It's possible (since v4) to read and write indefinitely large strings and buffers - the [JsonReadOptions.Filter](https://faceless2.github.io/json/docs/api/com/bfo/json/JsonReadOptions.Filter.html) class can be used to divert content away to a File, for example. The use of intermediate buffers has been kept to an absolute minimum.
 
 
 ## Examples
