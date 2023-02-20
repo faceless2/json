@@ -64,7 +64,8 @@ public class COSE {
 
     private Json cose;
     private ByteBuffer payload;
-    private Json unprotectedAtts, protectedAtts, applicationProtectedAtts;
+    private boolean detached;
+    private Json unprotectedAtts, protectedAtts, externalProtectedAtts;
     private Provider provider;
 
     /**
@@ -120,10 +121,18 @@ public class COSE {
         if (payload != null) {
             return payload;
         } else if (cose != null) {
-            return cose.get(2).bufferValue();
+            return cose.isNull(2) ? null : cose.get(2).bufferValue();
         } else {
             throw new IllegalStateException("Not initialized");
         }
+    }
+
+    /**
+     * Return true if the payload was set to "detached".
+     * 
+     */
+    public boolean isDetached() {
+        return (cose != null && cose.isNull(2)) || detached;
     }
 
     /**
@@ -132,11 +141,15 @@ public class COSE {
      * @return this
      * @throws IllegalStateException if the COSE object has already been set
      */
-    public COSE setPayload(ByteBuffer payload) {
-        if (cose != null) {
+    public COSE setPayload(ByteBuffer payload, boolean detached) {
+        if (detached && (cose == null || isDetached())) {
+            this.payload = payload;
+            this.detached = true;
+        } else if (cose != null) {
             throw new IllegalStateException("Already initialized");
         } else {
             this.payload = payload;
+            this.detached = false;
         }
         return this;
     }
@@ -202,21 +215,21 @@ public class COSE {
     }
 
     /**
-     * Return the application protected attributes, as set by {@link #setApplicationProtectedAttributes}
+     * Return the external protected attributes, as set by {@link #setExternalProtectedAttributes}
      * @return the attributes
      */
-    public Json getApplicationProtectedAttributes() {
-        return applicationProtectedAtts;
+    public Json getExternalProtectedAttributes() {
+        return externalProtectedAtts;
     }
 
     /**
-     * Set the application protected attributes on this object, which may be null.
+     * Set the external protected attributes on this object, which may be null.
      * This can be called any time.
      * @param atts the attributes, or null
      * @return this
      */
-    public COSE setApplicationProtectedAttributes(Json atts) {
-        applicationProtectedAtts = atts;
+    public COSE setExternalProtectedAttributes(Json atts) {
+        externalProtectedAtts = atts;
         return this;
     }
 
@@ -290,8 +303,12 @@ public class COSE {
                     ByteBuffer protectedAtts = cose.get(0).bufferValue();
                     ByteBuffer sigProtectedAtts = single ? protectedAtts : sigs.get(i).get(0).bufferValue();
                     ByteBuffer signature = single ? cose.get(3).bufferValue() : sigs.get(i).get(2).bufferValue();
+                    ByteBuffer payload = getPayload();;
+                    if (payload == null) {
+                        throw new IllegalStateException("Payload is detached, must call {@link #setPayload setPayload(payload, true)} before verifying");
+                    }
                     String type = single ? "Signature1" : "Signature";
-                    if (verifySignature(type, protectedAtts, sigProtectedAtts, applicationProtectedAtts, cose.get(2).bufferValue(), signature, (PublicKey)key, provider)) {
+                    if (verifySignature(type, protectedAtts, sigProtectedAtts, externalProtectedAtts, payload, signature, (PublicKey)key, provider)) {
                         return i;
                     }
 
@@ -309,13 +326,13 @@ public class COSE {
      * @param type one of Signature, Signature1 or CounterSignature
      * @param prot the main protected attributes
      * @param sigProtectedAtts the signature protected attributes (for Signature1, sigProtectedAtts == prot)
-     * @param appprot the application protected attributes, or null
+     * @param appprot the external protected attributes, or null
      * @param payload the payload
      * @param signature the siganture bytes
      * @param key the key to verify
      * @param provider the Provider
      */
-    private static boolean verifySignature(String type, ByteBuffer protectedAtts, ByteBuffer sigProtectedAtts, Json applicationProtectedAtts, ByteBuffer payload, ByteBuffer signature, PublicKey key, Provider provider) throws IOException {
+    private static boolean verifySignature(String type, ByteBuffer protectedAtts, ByteBuffer sigProtectedAtts, Json externalProtectedAtts, ByteBuffer payload, ByteBuffer signature, PublicKey key, Provider provider) throws IOException {
         Json protectedAttsMap = Json.readCbor(sigProtectedAtts, null);
         String alg = JWK.fromCOSEAlgorithm(protectedAttsMap.get(1)).stringValue();    // "alg" is key 1 in header. This gives us (eg) "ES256"
         Signature sig ;
@@ -333,7 +350,7 @@ public class COSE {
             if (protectedAtts != sigProtectedAtts) {
                 sigStructure.put(j++, new Json(sigProtectedAtts));    // Signer protected attributes
             }
-            sigStructure.put(j++, new Json(applicationProtectedAtts == null ? ByteBuffer.wrap(new byte[0]) : applicationProtectedAtts.toCbor()));
+            sigStructure.put(j++, new Json(externalProtectedAtts == null ? ByteBuffer.wrap(new byte[0]) : externalProtectedAtts.toCbor()));
             sigStructure.put(j++, new Json(payload));           // payload
             byte[] tbs = sigStructure.toCbor().array();
             byte[] signatureBytes = signature.array();
@@ -405,11 +422,11 @@ public class COSE {
                 JWK jwk = new JWK(key);
                 jwk.put("alg", algorithm);
                 protectedAtts.put(1, jwk.toCOSEKey().get(3));   // Set "alg" (key 1 in header) based on "alg" (key 3 in COSE key)
-                byte[] signature = signSignature("Signature1", protectedAtts, protectedAtts, applicationProtectedAtts, payload, key, algorithm, provider);
+                byte[] signature = signSignature("Signature1", protectedAtts, protectedAtts, externalProtectedAtts, payload, key, algorithm, provider);
                 cose = Json.read("[]");
                 cose.put(0, new Json(protectedAtts.isEmpty() ? ByteBuffer.wrap(new byte[0]) : protectedAtts.toCbor()));
                 cose.put(1, unprotectedAtts);
-                cose.put(2, new Json(payload));
+                cose.put(2, new Json(detached ? null : payload));
                 cose.put(3, new Json(signature));
                 cose.setTag(TAG_COSE_SIGN1);
             } else {
@@ -421,7 +438,7 @@ public class COSE {
                     Json sigProtectedAtts = Json.read("{}");
                     Json sigUnprotectedAtts = Json.read("{}");      // TODO?
                     sigProtectedAtts.put(1, jwk.toCOSEKey().get(3));   // Set "alg" (key 1 in header) based on "alg" (key 3 in COSE key)
-                    byte[] signature = signSignature("Signature", protectedAtts, sigProtectedAtts, applicationProtectedAtts, payload, key, algorithm, provider);
+                    byte[] signature = signSignature("Signature", protectedAtts, sigProtectedAtts, externalProtectedAtts, payload, key, algorithm, provider);
                     Json sig = Json.read("[]");
                     sig.put(0, new Json(sigProtectedAtts.isEmpty() ? ByteBuffer.wrap(new byte[0]) : sigProtectedAtts.toCbor()));
                     sig.put(1, sigUnprotectedAtts);
@@ -431,7 +448,7 @@ public class COSE {
                 cose = Json.read("[]");
                 cose.put(0, new Json(protectedAtts.isEmpty() ? ByteBuffer.wrap(new byte[0]) : protectedAtts.toCbor()));
                 cose.put(1, unprotectedAtts);
-                cose.put(2, new Json(payload));
+                cose.put(2, new Json(detached ? null : payload));
                 cose.put(3, sigs);
                 cose.setTag(TAG_COSE_SIGN);
             }
@@ -442,7 +459,7 @@ public class COSE {
         return this;
     }
 
-    private static byte[] signSignature(String type, Json protectedAtts, Json sigProtectedAtts, Json applicationProtectedAtts, ByteBuffer payload, PrivateKey key, String algorithm, Provider provider) {
+    private static byte[] signSignature(String type, Json protectedAtts, Json sigProtectedAtts, Json externalProtectedAtts, ByteBuffer payload, PrivateKey key, String algorithm, Provider provider) {
         if (sigProtectedAtts == null) {
             sigProtectedAtts = protectedAtts;
         }
@@ -466,7 +483,7 @@ public class COSE {
             if (protectedAtts != sigProtectedAtts) {
                 sigStructure.put(j++, new Json(sigProtectedAtts.isEmpty() ? ByteBuffer.wrap(new byte[0]) : sigProtectedAtts.toCbor()));
             }
-            sigStructure.put(j++, new Json(applicationProtectedAtts == null || applicationProtectedAtts.isEmpty() ? ByteBuffer.wrap(new byte[0]) : applicationProtectedAtts.toCbor()));
+            sigStructure.put(j++, new Json(externalProtectedAtts == null || externalProtectedAtts.isEmpty() ? ByteBuffer.wrap(new byte[0]) : externalProtectedAtts.toCbor()));
             sigStructure.put(j++, new Json(payload));           // payload
             byte[] tbs = sigStructure.toCbor().array();
             // System.out.println("sigS="+sigStructure+ " sigProtectedAtts="+sigProtectedAtts+" TBS="+JWT.hex(tbs));

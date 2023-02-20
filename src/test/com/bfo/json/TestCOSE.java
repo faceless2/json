@@ -77,7 +77,7 @@ public class TestCOSE {
             }
             COSE cose2 = new COSE();
             ByteBuffer pl = cose.getPayload();
-            cose2.setPayload(cose.getPayload());
+            cose2.setPayload(cose.getPayload(), false);
             cose2.setUnprotectedAttributes(cose.getUnprotectedAttributes());
             Json j2 = cose2.sign(allkeys).get();
 
@@ -110,7 +110,7 @@ public class TestCOSE {
                 assert !jwk.getKeys().isEmpty();
                 if (jwk.getPrivateKey() != null && jwk.getPublicKey() != null) {
                     ByteBuffer payload = new Json("Hello, World".getBytes("UTF-8")).bufferValue();
-                    COSE cose = new COSE().setPayload(payload);
+                    COSE cose = new COSE().setPayload(payload, false);
                     if (jwk.getAlgorithm() != null && jwk.getAlgorithm().startsWith("RS")) {
                         continue;
                     }
