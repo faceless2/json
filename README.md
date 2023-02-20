@@ -46,7 +46,7 @@ and fuzzed input, to make sure errors are handled properly.
 
 * Json in the wild has many variations - comments are embedded, maps have unquoted keys, and so on. By default the API will adhere closely to RFC8259 when reading or writing, although this can be changed. Again see JsonReadOptions.
 
-* When reading Json numbers, they will be mapping to ints, longs, BigIntegers and double as appropriate. If BigDecimal support is required, this can be turned on in JsonReadOptions
+* When reading Json numbers, they will be mapped to ints, longs, BigIntegers and double as necessary. If BigDecimal support is required, this can be turned on in JsonReadOptions
 
 * Json is read from Readers and written to Appendable.
   You can read from an InputStream too, in which case it will look for a BOM at the start of the stream.
@@ -60,15 +60,15 @@ and special types (which should really only
 be encountered while testing) are converted to a tagged null object. Tags are limited
 to 63 bits, and tags applied to Map keys are ignored.
 
-* CBOR serialization will convert tag types 2 and 3 on a "buffer" to BigInteger, as described in RFC7049
+* CBOR serialization will convert tag types 2 and 3 on a "buffer" to BigInteger, as described in RFC7049.
 But other tags used to distinguish Dates, non-UTF8 strings, URLs etc. are not applied.
 A <code>JsonFactory</code> can easily be written to cover as many of these are needed.
 
-* Msgpack serialization is similar to CBOR, but a bit simpler. "extension types" are stored as
+* Msgpack serialization is similar to CBOR, but simpler. "extension types" are stored as
 Buffers, with the extension type stored as a tag from 0..255. Like CBOR, duplicate keys encountered
 during read will throw an IOException.
 
-* It's possible (since v4) to read and write indefinitely large strings and buffers - the [JsonReadOptions.Filter](https://faceless2.github.io/json/docs/api/com/bfo/json/JsonReadOptions.Filter.html) class can be used to divert content away to a File, for example. There use of intermediate buffers has been kept to an absolute minimum.
+* It's possible (since v4) to read and write indefinitely large strings and buffers - the [JsonReadOptions.Filter](https://faceless2.github.io/json/docs/api/com/bfo/json/JsonReadOptions.Filter.html) class can be used to divert content away to a File, for example. The use of intermediate buffers has been kept to an absolute minimum.
 
 
 ## Examples
@@ -179,6 +179,6 @@ jwt.getPayload().clear();            // Modify the payload
 assert !jwt.verify(pubkey, "ES256"); // Signature is no longer valid
 ```
 
-Compiles under Java 11 or later - the API supposed EdDSA keys (new in Java 15) via reflection.
+Compiles under Java 11 or later - the API supports EdDSA keys (new in Java 15) via reflection.
 
 This code is written by the team at [bfo.com](https://bfo.com). If you like it, come and see what else we do.
