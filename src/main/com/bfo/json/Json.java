@@ -21,8 +21,8 @@ import java.nio.charset.*;
  * which is an index into this object (a normal "map" or "list" key).
  * For lists it must be an Integer, and for maps it can theoretically be any type of object, but is currently
  * limited in to <code>String</code>, <code>Number</code> or <code>Boolean</code>.
- * Non-String keys are only preserved when serialising to CBOR, and will be converted
- * to Strings when the object is serialised to JSON or Msgpack.
+ * Non-String keys are only preserved when serialising to CBOR or Msgpack, and will be converted
+ * to Strings when the object is serialised to JSON;
  * </p><p>
  * {@link #putPath putPath}, {@link #getPath getPath}, {@link #hasPath hasPath} and {@link #removePath removePath}
  * all accept a <i>path</i>, which is a String identifying a <b>descendent</b>. 
@@ -54,11 +54,12 @@ import java.nio.charset.*;
  * </p>
  * <ol>
  *  <li>
- *   Unlike JSON, CBOR/Msgpack suppors binary data, which we read as a {@link ByteBuffer} - these can be identified
+ *   Unlike JSON, CBOR/Msgpack supports binary data, which we read as a {@link ByteBuffer} - these can be identified
  *   with the {@link #isBuffer isBuffer()} method. When serializing a ByteBuffer to JSON, it will be Base-64 encoded
  *   with no padding, as recommended in RFC7049. By default the "URL- and filename-safe" variation of BAse64 will
  *   be used when writing (see {@link JsonWriteOptions#setBase64Standard}). When reading, all Base64 variations
- *   can be parsed.
+ *   can be parsed. <b>The ByteBuffer position is ignored</b>; it will be reset to zero before every read, write,
+ *   or when it is returned from {@link #bufferValue}.
  *  </li>
  *  <li>
  *   JSON does not support NaN or infinite floating point values. When serializing these values to JSON,
@@ -190,6 +191,7 @@ public class Json {
             core = object;
         } else if (object instanceof Json) {
             core = ((Json)object).core;
+            tag = ((Json)object).tag;
         } else {
             if (factory != null) {
                 Json json = factory.toJson(object);
@@ -203,7 +205,7 @@ public class Json {
                 } else if (object instanceof byte[]) {
                     core = ByteBuffer.wrap((byte[])object);
                 } else if (object instanceof ByteBuffer) {
-                    core = object;
+                    core = ((ByteBuffer)object).position(0);
                 } else if (object instanceof Boolean) {
                     core = object;
                 } else if (object instanceof Number) {
@@ -2548,8 +2550,7 @@ public class Json {
      * @since 4
      */
     protected void writeBuffer(OutputStream out) throws IOException {
-        ByteBuffer buf = bufferValue();
-        buf.position(0);
+        ByteBuffer buf = bufferValue().position(0);
         Channels.newChannel(out).write(buf);
     }
 

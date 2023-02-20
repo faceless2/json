@@ -491,32 +491,70 @@ public class JWK extends Json {
      */
     public List<X509Certificate> getCertificates() {
         if (certs == null) {
-            try {
-                Collection<? extends Certificate> cl = null;
-                if (isList("x5c")) {
-                    cl = new ArrayList<Certificate>();
-                    Base64.Decoder decoder = Base64.getDecoder();   // certs are different
-                    for (Json j : listValue("x5c")) {
-                        CertificateFactory factory = CertificateFactory.getInstance("X.509");
-                        cl = factory.generateCertificates(new ByteArrayInputStream(decoder.decode(j.stringValue())));
-                    }
-                } else if (isString("x5u")) {
+            if (isList("x5c")) {
+                certs = extractCertificates(get("x5c"));
+            } else if (isString("x5u")) {
+                try {
+                    certs = downloadCertificates(get("x5u"), get("x5t#256"), get("x5t"));
+                } catch (IOException e) {
+                    throw new IllegalStateException("Failed downloading certificate from \"" + get("x5u").stringValue() + "\"", e);
+                }
+            } else {
+                certs = Collections.<X509Certificate>emptyList();
+            }
+        }
+        return certs;
+    }
+
+    static List<X509Certificate> extractCertificates(Json list) {
+        List<X509Certificate> certs = new ArrayList<X509Certificate>();
+        try {
+            if (list.isList()) {
+                Base64.Decoder decoder = Base64.getDecoder();   // certs are different, they don't use URL encoding
+                for (Json j : list.listValue()) {
                     CertificateFactory factory = CertificateFactory.getInstance("X.509");
-                    URL url = new URL(stringValue("x5u"));
-                    InputStream in = null;
-                    try {
-                        in = url.openConnection().getInputStream();
-                        cl = factory.generateCertificates(in);
-                    } finally {
-                        if (in != null) try { in.close(); } catch (IOException e) {}
+                    byte[] input;
+                    if (j.isBuffer()) { // Which will be true if we're coming from COSE
+                        input = j.bufferValue().array();
+                    } else {
+                        input = decoder.decode(j.stringValue().replace("-", "+").replace("_", "/"));    // just in case
+                    }
+                    for (Certificate cert : factory.generateCertificates(new ByteArrayInputStream(input))) {
+                        certs.add((X509Certificate)cert);
+                    }
+                }
+            }
+        } catch (CertificateException e) {
+            throw new IllegalStateException("Certificate exception", e);
+        }
+        return certs;
+    }
+
+    static List<X509Certificate> downloadCertificates(Json jsonurl, Json sha256, Json sha1) throws IOException {
+        try {
+            List<X509Certificate> certs = new ArrayList<X509Certificate>();
+            if (jsonurl.isString()) {
+                CertificateFactory factory = CertificateFactory.getInstance("X.509");
+                URL url = new URL(jsonurl.stringValue());
+                InputStream in = null;
+                Collection<? extends Certificate> cl = null;
+                try {
+                    in = url.openConnection().getInputStream();
+                    cl = factory.generateCertificates(in);
+                } finally {
+                    in.close();
+                }
+                if (cl != null) {
+                    for (Certificate c : cl) {
+                        certs.add((X509Certificate)c);
                     }
                     MessageDigest digest = null;
                     byte[] b1 = null;
-                    if (isString("x5t#256")) {
-                        b1 = JWT.base64decode(stringValue("x5t#256"));
+                    if (sha256 != null && sha256.isString()) {
+                        b1 = JWT.base64decode(sha256.stringValue());
                         digest = MessageDigest.getInstance("SHA-256");
-                    } else if (isString("x5t")) {
-                        b1 = JWT.base64decode(stringValue("x5t"));
+                    } else if (sha1 != null && sha1.isString()) {
+                        b1 = JWT.base64decode(sha1.stringValue());
                         digest = MessageDigest.getInstance("SHA-1");
                     }
                     if (digest != null) {
@@ -525,22 +563,14 @@ public class JWK extends Json {
                             throw new IllegalStateException("Certificate thumbprint mismatch");
                         }
                     }
-                } else {
-                    cl = Collections.<Certificate>emptyList();
                 }
-                certs = new ArrayList<X509Certificate>();
-                for (Certificate c : cl) {
-                    certs.add((X509Certificate)c);
-                }
-            } catch (NoSuchAlgorithmException e) {
-                throw new IllegalStateException("Algorithm missing", e);
-            } catch (CertificateException e) {
-                throw new IllegalStateException("Certificate exception", e);
-            } catch (IOException e) {
-                throw new IllegalStateException("IO exception", e);
             }
+            return certs;
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Algorithm missing", e);
+        } catch (CertificateException e) {
+            throw new IllegalStateException("Certificate exception", e);
         }
-        return certs;
     }
 
     /**
@@ -573,7 +603,7 @@ public class JWK extends Json {
                 }
                 put("x5u", url);
             } else if (certs != null) {
-                Base64.Encoder encoder = Base64.getEncoder();   // certs are different
+                Base64.Encoder encoder = Base64.getEncoder();   // certs are different, they don't use URL encoding
                 Json l = Json.read("[]");
                 for (X509Certificate c : certs) {
                     l.put(l.size(), encoder.encodeToString(c.getEncoded()));
