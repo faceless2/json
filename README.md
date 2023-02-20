@@ -46,7 +46,7 @@ and fuzzed input, to make sure errors are handled properly.
 
 * Json in the wild has many variations - comments are embedded, maps have unquoted keys, and so on. By default the API will adhere closely to RFC8259 when reading or writing, although this can be changed. Again see JsonReadOptions.
 
-* When reading Json numbers, they will be mapping to ints, longs, BigIntegers and double as appropriate. If BigDecimal support is required, this can be turned on in JsonReadOptions
+* When reading Json numbers, they will be mapped to ints, longs, BigIntegers and double as necessary. If BigDecimal support is required, this can be turned on in JsonReadOptions
 
 * Json is read from Readers and written to Appendable.
   You can read from an InputStream too, in which case it will look for a BOM at the start of the stream.
