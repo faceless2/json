@@ -8,13 +8,14 @@ import java.nio.ByteBuffer;
 /**
  * Because OutputStreamWriter is dog-slow.
  * Appendable is more convenient than Writer, so a slight misnomer
+ * @hidden
  */
-class UTF8Writer implements Appendable {
+public class UTF8Writer implements Appendable {
 
     private final OutputStream out;
     private final boolean nfc;
 
-    UTF8Writer(OutputStream out, boolean nfc) {
+    public UTF8Writer(OutputStream out, boolean nfc) {
         this.out = out;
         this.nfc = nfc;
     }
