@@ -213,7 +213,7 @@ class CborWriter {
     private static void writeNum(int prefix, long i, OutputStream out) throws IOException {
         if (i < 0) {    // indefinite length
             out.write((prefix << 5) | 0x1F);
-        } else if (i < 23) {
+        } else if (i < 24) {
             out.write((prefix << 5) | ((int)i));
         } else if (i <= 255) {
             out.write((prefix << 5) | 24);
