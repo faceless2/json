@@ -494,6 +494,9 @@ public class Json {
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
+        if (!in.markSupported()) {
+            in = new BufferedInputStream(in);
+        }
         if (!(in instanceof CountingInputStream)) {
             in = new CountingInputStream(in);
         }
@@ -535,6 +538,9 @@ public class Json {
         }
         if (options == null) {
             options = DEFAULTREADOPTIONS;
+        }
+        if (!in.markSupported()) {
+            in = new BufferedInputStream(in);
         }
         if (!(in instanceof CountingInputStream)) {
             in = new CountingInputStream(in);
