@@ -20,6 +20,9 @@ public class C2PAHelper {
      * @throws IOException if the file failed to read.
      */
     public static C2PAStore extractFromJPEG(InputStream in) throws IOException {
+        if (!in.markSupported()) {
+            in = new BufferedInputStream(in);
+        }
         CountingInputStream cin = new CountingInputStream(in);
         return readJPEG(new CountingInputStream(in), false);
     }

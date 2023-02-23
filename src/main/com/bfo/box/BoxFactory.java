@@ -9,7 +9,7 @@ import com.bfo.json.*;
  */
 public class BoxFactory {
 
-    private boolean debug = true;
+    private boolean debug = false;
     private final Map<String,Class<? extends Box>> registry = new HashMap<String,Class<? extends Box>>();
     private final Set<String> containers = new HashSet<String>();
     private final Set<String> subtypes = new HashSet<String>();
@@ -67,7 +67,7 @@ public class BoxFactory {
             type = type + "." + subtype;
         }
         String origt = type;
-        while (box == null) {
+        while (box == null && type.length() > 0) {
             if (type.length() > minlength && Character.isDigit(type.charAt(type.length() - 1))) {
                 // If it ends in "__1", "__11" etc. then strip. But only from label components
                 StringBuilder st = new StringBuilder(type);
@@ -124,12 +124,18 @@ public class BoxFactory {
     }
 
     /**
-     * Read a Box from the InputStream
-     * @param stream the InputStream
+     * Read a Box from the InputStream. If you are planning to load more from the
+     * stream after this method, the stream <b>must support mark/reset</b>. Otherwise this
+     * method will buffer the stream.
+     *
+     * @param stream the InputStream, which should ideally support mark/reset
      * @return the box, or <code>null</code> if the stream is fully consumed
      * @throws IOException if the stream is corrupt or fails to read
      */
     public Box load(InputStream stream) throws IOException {
+        if (!stream.markSupported()) {
+            stream = new BufferedInputStream(stream);
+        }
         CountingInputStream in = stream instanceof CountingInputStream ? (CountingInputStream)stream : new CountingInputStream(stream);
         long off = in.tell();
         long len = in.read();
@@ -216,9 +222,6 @@ public class BoxFactory {
             }
         }
         in.limit(limit);
-        if (box.sparse) {
-            throw new Error();
-        }
         if (debug && !box.sparse) {
             byte[] writecopy = box.getEncoded();
             if (!Arrays.equals(writecopy, localcopy)) {
@@ -268,7 +271,7 @@ public class BoxFactory {
      * Should be called from the constructor for subclasses of this factory
      */
     public void registerDefaults() {
-        String[] s = new String[] {
+        String[] containerList = new String[] {
             // origin of this list unsure; mostly ISO14496 but there will be others
             "moov", "trak", "edts", "mdia", "minf", "dinf", "stbl", "mp4a",
             "mvex", "moof", "traf", "mfra", "udta", "ipro", "sinf", /*"meta",*/
@@ -278,6 +281,9 @@ public class BoxFactory {
             "purl", "egid", "desc", "?lyr", "tvnn", "tvsh", "tven", "tvsn",
             "tves", "purd", "pgap",
         };
+        for (String s : containerList) {
+            containers.add(s);
+        }
         register("jumb", null,   null, true,  JUMBox.class);
         register("jumd", null,   null, false, JumdBox.class);
         register("cbor", null,   null, false, CborBox.class);                        // Raw CBOR box with no children

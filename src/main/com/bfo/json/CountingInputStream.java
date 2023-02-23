@@ -3,9 +3,11 @@ package com.bfo.json;
 import java.io.*;
 
 /**
+ * A stream that counts. Note this MUST NOT add buffering, it breaks
+ * reading sibling boxes in BoxFactory
  * @hidden
  */
-public class CountingInputStream extends BufferedInputStream {
+public class CountingInputStream extends FilterInputStream {
 
     protected long pos;
     private long mark;
@@ -16,12 +18,7 @@ public class CountingInputStream extends BufferedInputStream {
         limit = -1;
     }
 
-    public CountingInputStream(InputStream out, int size) {
-	super(out, size);
-        limit = -1;
-    }
-
-    public int read() throws IOException {
+    @Override public int read() throws IOException {
         if (limit >= 0 && pos >= limit) {
             return -1;
         }
@@ -32,7 +29,7 @@ public class CountingInputStream extends BufferedInputStream {
         return v;
     }
 
-    public long skip(long n) throws IOException {
+    @Override public long skip(long n) throws IOException {
         if (n < 0) {
             n = 0;
         } else if (limit >= 0) {
@@ -45,7 +42,7 @@ public class CountingInputStream extends BufferedInputStream {
         return v;
     }
 
-    public int available() throws IOException {
+    @Override public int available() throws IOException {
         int v = super.available();
         if (limit >= 0) {
             v = Math.min(v, (int)Math.max(0, limit - pos));
@@ -53,7 +50,7 @@ public class CountingInputStream extends BufferedInputStream {
         return v;
     }
 
-    public int read(byte[] buf, int off, int len) throws IOException {
+    @Override public int read(byte[] buf, int off, int len) throws IOException {
         if (limit >= 0) {
             if (pos >= limit) {
                 return -1;
@@ -79,17 +76,17 @@ public class CountingInputStream extends BufferedInputStream {
         return this.limit;
     }
 
-    public void mark(int readlimit) {
+    @Override public void mark(int readlimit) {
         super.mark(readlimit);
         this.mark = pos;
     }
 
-    public void reset() throws IOException {
+    @Override public void reset() throws IOException {
         super.reset();
         this.pos = mark;
     }
 
-    public String toString() {
+    @Override public String toString() {
         return "{counting@"+pos+" on "+in+"}";
     }
 

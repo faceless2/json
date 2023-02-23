@@ -377,19 +377,25 @@ public class Box {
      * @throws RuntimeException wrapping an IOException if encountered while writing to the Appendable.
      */
     public Appendable dump(String prefix, Appendable out) {
+        if (prefix == null) {
+            prefix = "";
+        }
+        if (out == null) {
+            out = new StringBuilder();
+        }
+        return dump(prefix, out, false);
+    }
+
+    private Appendable dump(String prefix, Appendable out, boolean addnl) {
         try {
-            if (prefix == null) {
-                prefix = "";
-            }
-            if (out == null) {
-                out = new StringBuilder();
-            }
             out.append(prefix);
             out.append(this.toString());
-            out.append("\n");
+            if (first() != null || addnl) {
+                out.append("\n");
+            }
             prefix += " ";
             for (Box box = first();box!=null;box=box.next()) {
-                box.dump(prefix, out);
+                box.dump(prefix, out, addnl || box.next() != null);
             }
             return out;
         } catch (IOException e) {
