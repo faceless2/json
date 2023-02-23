@@ -16,4 +16,7 @@ public class C2PA_AssertionCloudData extends CborContainerBox implements C2PA_As
         super("cbor", "c2pa.cloud-data");
     }
 
+    @Override public void verify() {
+        throw new UnsupportedOperationException(label() + " not yet implemented");
+    }
 }

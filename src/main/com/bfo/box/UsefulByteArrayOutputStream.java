@@ -12,7 +12,7 @@ class UsefulByteArrayOutputStream extends OutputStream {
         this.buffer = new byte[8192];
     }
 
-    public void write(int v) {
+    @Override public void write(int v) {
         if (pos == buffer.length) {
             byte[] b = new byte[buffer.length + (buffer.length>>1)];
             System.arraycopy(buffer, 0, b, 0, buffer.length);
@@ -21,7 +21,7 @@ class UsefulByteArrayOutputStream extends OutputStream {
         buffer[pos++] = (byte)v;
     }
 
-    public void write(byte[] buf, int off, int len) {
+    @Override public void write(byte[] buf, int off, int len) {
         if (pos + len >= buffer.length) {
             byte[] b = new byte[Math.max(pos + len, buffer.length + (buffer.length>>1))];
             System.arraycopy(buffer, 0, b, 0, buffer.length);
@@ -29,6 +29,14 @@ class UsefulByteArrayOutputStream extends OutputStream {
         }
         System.arraycopy(buf, off, buffer, pos, len);
         pos += len;
+    }
+
+    public void write(InputStream in) throws IOException {
+        byte[] buf = new byte[8192];
+        int l;
+        while ((l=in.read(buf, 0, buf.length)) >= 0) {
+            write(buf, 0, l);
+        }
     }
 
     public int tell() {

@@ -16,4 +16,8 @@ public class C2PA_AssertionActions extends CborContainerBox implements C2PA_Asse
         super("cbor", "c2pa.actions");
     }
 
+    @Override public void verify() {
+        throw new UnsupportedOperationException(label() + " not yet implemented");
+    }
+
 }

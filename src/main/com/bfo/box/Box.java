@@ -196,8 +196,7 @@ public class Box {
                     other.next = next;
                     other.parent = parent;
                 }
-                parent = null;
-                return true;
+                parent = next = null;
             } else {
                 Box b = parent.first;
                 while (b.next != null && b.next != this) {
@@ -211,11 +210,10 @@ public class Box {
                         other.next = next;
                         other.parent = parent;
                     }
-                    parent = null;
-                    return true;
+                    parent = next = null;
                 }
-                parent = null;  // shouldn't get here
             }
+            return true;
         }
         return false;
     }
@@ -285,8 +283,9 @@ public class Box {
     }
 
     /**
-     * Return true if this box was not completely read during the {@link #load} method.
+     * Return true if this box was not completely read during the {@link BoxFactory#load} method.
      * Sparse boxes cannot be written, so {@link #getEncoded} will fail.
+     * @return whether box is sparse
      */
     public boolean isSparse() {
         return sparse;

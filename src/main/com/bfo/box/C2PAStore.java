@@ -33,6 +33,7 @@ public class C2PAStore extends JUMBox {
      * Return a representation of this store as a single Json object.
      * The returned value is not live, changes will not affect this object.
      * The object should be largely comparable to the output from <code>c2patool</code> 
+     * @return the json
      */
     public Json toJson() {
         Json out = Json.read("{\"manifests\":{}}");
@@ -49,11 +50,17 @@ public class C2PAStore extends JUMBox {
                     al.put(assertion.asBox().label(), ((CborContainerBox)assertion.asBox()).getBox().cbor().duplicate().sort());
                 } else if (assertion instanceof EmbeddedFileContainerBox) {
                     al.put(assertion.asBox().label(), ((EmbeddedFileContainerBox)assertion.asBox()).data());
+                } else {
+                    al.put(assertion.asBox().label(), assertion.asBox().getEncoded());
                 }
             }
             COSE signature = manifest.getSignature().cose();
             m.put("signature.alg", signature.getAlgorithm(0));
-            m.put("signature.issuer", signature.getCertificates().get(0).getSubjectX500Principal().getName());
+            if (!signature.getCertificates().isEmpty()) {
+                m.put("signature.issuer", signature.getCertificates().get(0).getSubjectX500Principal().getName());
+            }
+            m.put("signature.length", signature.toCbor().limit());
+            m.put("signature.cose", signature);
         }
         return out;
     }

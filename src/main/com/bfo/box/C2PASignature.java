@@ -14,8 +14,6 @@ import com.bfo.json.*;
  */
 public class C2PASignature extends CborContainerBox {
 
-    private int minsize = -1;
-
     /**
      * Create a new uninitialized box, for loading. Don't call this constructor
      */
@@ -40,6 +38,10 @@ public class C2PASignature extends CborContainerBox {
         }
     }
 
+    private int getMinSize() {
+        return 0;       // TODO test 
+    }
+
     /**
      * Return the COSE object which actually contains the signature.
      * While useful for retrieving cryptographic details from the signature,
@@ -56,28 +58,6 @@ public class C2PASignature extends CborContainerBox {
     }
 
     /**
-     * If the signature is padded to a specific length, get the length, otherwise return 0
-     */
-    public int getMinSize() {
-        if (minsize == -1) {
-            minsize = 0;
-            COSE cose = cose();
-            Json unprot = cose.getUnprotectedAttributes();
-            if (unprot != null && unprot.isBuffer("pad")) {
-//                minsize = unprot.bufferValue("pad").array().length;
-            }
-        }
-        return minsize;
-    }
-
-    public void setMinSize(int length) {
-        if (length < 0) {
-            throw new IllegalArgumentException("length must be >= 0");
-        }
-        this.minsize = length;
-    }
-
-    /**
      * Sign the claim. Before signing
      * <ul>
      * <li>If the {@link C2PAClaim#getAssertions claim's assertions} are empty, it will be initialized to all the {@link C2PAManifest#getAssertions manifest's assertions}</li>
@@ -91,8 +71,9 @@ public class C2PASignature extends CborContainerBox {
      * @param key the PrivateKey
      * @param certs a list of X.509 certificates to include in the COSE object.
      * @throws RuntimeException wrapping a GeneralSecurityException if signing fails
+     * @throws IOException if signing fails due to an IOException
      */
-    public void sign(PrivateKey key, List<X509Certificate> certs) /*throws GeneralSecurityException*/ {
+    public void sign(PrivateKey key, List<X509Certificate> certs) throws IOException /*throws GeneralSecurityException*/ {
         final COSE cose = cose();
         final C2PAManifest manifest = (C2PAManifest)parent();
         final C2PAClaim claim = manifest.getClaim();
@@ -104,21 +85,40 @@ public class C2PASignature extends CborContainerBox {
         if (assertions.isEmpty()) {
             assertions.addAll(manifest.getAssertions());
         }
-        for (int i=0;i<assertions.size();i++) {
-            if (assertions.get(i) == null) {
-                assertions.remove(i--);
-//            } else if (claim instanceof DataHashBox || claim instanceof BMFFHashBox) {
-//                foundHash = true;
-            }
-        }
-        if (!foundHash) {
-            // throw new IllegalStateException("No DataHash or BMFFHash assertion");
-        }
         if (claim.getGenerator() == null) {
             claim.setGenerator("BFO Json library", null);
         }
         if (claim.getHashAlgorithm() == null) {
             claim.setHashAlgorithm("SHA256");
+        }
+        C2PA_AssertionHashData hashdata = null;
+        C2PA_AssertionHashBMFF hashbmff = null;
+        for (C2PA_Assertion a : assertions) {
+            if (a == null) {
+                throw new NullPointerException("assertion in claim is null");    // shouldn't happen
+            } else if (a instanceof C2PA_AssertionUnknown) {
+                throw new IllegalStateException("assertion \"" + ((C2PA_AssertionUnknown)a).url() + "\" unknown [assertion.missing]");
+            } else if (a instanceof C2PA_AssertionHashData) {
+                if (hashdata != null || hashbmff != null) {
+                    throw new IllegalStateException("manifest has multiple hard-binding [assertion.multipleHardBindings]");
+                }
+                hashdata = (C2PA_AssertionHashData)a;
+            } else if (a instanceof C2PA_AssertionHashBMFF) {
+                if (hashdata != null || hashbmff != null) {
+                    throw new IllegalStateException("manifest has multiple hard-binding [assertion.multipleHardBindings]");
+                }
+                hashbmff = (C2PA_AssertionHashBMFF)a;
+            }
+        }
+        for (int i=0;i<claim.cbor().get("assertions").size();i++) {
+            claim.cbor().get("assertions").get(i).remove("hash");
+        }
+        if (hashdata != null) {
+            hashdata.sign();
+        } else if (hashbmff != null) {
+            hashbmff.sign();
+        } else {
+            throw new IllegalStateException("manifest has no hard-bindings [claim.hardBindings.missing]");
         }
         if (getMinSize() > 0) {
             Json j = cose.getUnprotectedAttributes();
@@ -136,7 +136,6 @@ public class C2PASignature extends CborContainerBox {
     private ByteBuffer generatePayload(int padlength) {
         final C2PAManifest manifest = (C2PAManifest)parent();
         final C2PAClaim claim = manifest.getClaim();
-        final List<C2PA_Assertion> assertions = claim.getAssertions();
         MessageDigest digest;
         Json l = claim.cbor().get("assertions");
         for (int i=0;i<l.size();i++) {
@@ -153,12 +152,11 @@ public class C2PASignature extends CborContainerBox {
 
     /**
      * Verify the cryptographic aspects of the claim. Note for full verification, each
-     * asseration in the claim's list must also be verified.
+     * asseration in the claim's list must also be verified, see {@link C2PA_Assertion#verify}
      * @param key the public key; if null, it will be extracted (if possible) from any certificates in the signature
      * @throws IllegalArgumentException if no key is available to verify
      * @throws IllegalStateException if the signature is not signed or has been incorrectly set up
      * @return true if the supplied key verifies the signature, false otherwise
-     * @see C2PA_Assertion#veriy
      */
     public boolean verify(PublicKey key) {
         // It does say that it a) must be a SIGN1 and b) must have exactly one "credential" (X509 cert)
@@ -202,30 +200,17 @@ public class C2PASignature extends CborContainerBox {
         if (box == null) {
             throw new IllegalStateException("URL \"" + url + "\" not in manifest [assertion.missing]");
         }
-        Json j = hasheduri;
-        while (j != null && !j.isString("alg")) {
-            j = j.parent();
-        }
-        String alg = j != null ? j.stringValue("alg") : manifest.getClaim().getHashAlgorithm();
-        MessageDigest digest;
-        try  {
-            digest = MessageDigest.getInstance(alg);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("hash alg \"" + alg + "\" not found [algorithm.unsupported]", e);
-        }
-        // Hash is over content, not including the header!
-        if (true) {
-            // "When creating a URI reference to an assertion (i.e., as part of
-            //  constructing a Claim), a W3C Verifiable Credential or other C2PA
-            //  structure stored as a JUMBF box, the hash shall be performed
-            //  over the contents of the structure’s JUMBF superbox, which
-            //  includes both the JUMBF Description Box and all content boxes
-            //  therein (but does not include the structure’s JUMBF superbox
-            //  header).
-            //    https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_hashing_jumbf_boxes
-            for (Box b=box.first();b!=null;b=b.next()) {
-                digest.update(b.getEncoded());
-            }
+        MessageDigest digest = manifest.getMessageDigest(hasheduri);
+        // "When creating a URI reference to an assertion (i.e., as part of
+        //  constructing a Claim), a W3C Verifiable Credential or other C2PA
+        //  structure stored as a JUMBF box, the hash shall be performed
+        //  over the contents of the structure’s JUMBF superbox, which
+        //  includes both the JUMBF Description Box and all content boxes
+        //  therein (but does not include the structure’s JUMBF superbox
+        //  header).
+        //    https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_hashing_jumbf_boxes
+        for (Box b=box.first();b!=null;b=b.next()) {
+            digest.update(b.getEncoded());
         }
         byte[] digestbytes = digest.digest();
         if (hasheduri.isBuffer("hash")) {

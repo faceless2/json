@@ -22,6 +22,8 @@ public class BoxFactory {
 
     /**
      * Return true if the specified type is a container
+     * @param tag the tag
+     * @return whether box with that tag is a container
      * @see #register
      */
     public boolean isContainer(String tag) {
@@ -33,6 +35,8 @@ public class BoxFactory {
 
     /**
      * Return true if the specified type has boxes that begin with an ISO box subtype
+     * @param tag the tag
+     * @return whether box with that tag is subtyped
      * @see #register
      * @hidden
      */
@@ -47,6 +51,9 @@ public class BoxFactory {
      * Create a new Box
      * @param type the type
      * @param subtype the subtype (if type requires subtypes), or null
+     * @param label if the box type is jumb, the label from the nested decription, or null
+     * @return a new Box
+     * @see #register
      */
     public Box createBox(String type, String subtype, String label) {
         if (registry.isEmpty()) {
@@ -89,10 +96,12 @@ public class BoxFactory {
     }
 
     /**
-     * Register a new Box type.
+     * Register a new Box type. Calls to {@link #createBox} will match the registered types
+     * to determine which type to create
      * @param type the type, a four-letter code, or null to set the default Box type (which defaults to {@link Box} but could be {@link DataBox} to load unrecognised boxes into memory
-     * @param subtype if true, this box type begins with a 16-byte ISO extension (see {@link ExtensionBox} which should be extracted as subtype
-     * @param container if true the box will be read as a container with children
+     * @param subtype the subtype, if this box type begins with a 16-byte ISO extension (see {@link ExtensionBox} which should be extracted as subtype. May be null
+     * @param label the label to match against  the nested "jumd" box. May be null
+     * @param container if true boxes of this type will be registered as containers, and will create children when read 
      * @param clazz the subclass of Box to create 
      */
     public void register(String type, String subtype, String label, boolean container, Class<? extends Box> clazz) {

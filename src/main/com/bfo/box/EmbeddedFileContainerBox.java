@@ -18,15 +18,18 @@ public class EmbeddedFileContainerBox extends JUMBox {
     private byte[] data;
 
     /**
-     * Create a new uninitialized box, for loading. Don't call this constructor
+     * Create a new uninitialized box, for loading.
      */
-    public EmbeddedFileContainerBox() {
+    protected EmbeddedFileContainerBox() {
     }
 
     /**
-     * Create a new EmbeddedFileContainerBox
-     * @param label the label, which must not be null
-     * @param mediaType the mediaType, which must not be null
+     * Create a new EmbeddedFileContainerBox. The stream will be fully read but not closed
+     * @param label the label (required)
+     * @param mediaType the mediaType (required)
+     * @param fileName the fileName (may be null)
+     * @param data the data to read (required)
+     * @throws IOException if the stream cannot be read.
      */
     public EmbeddedFileContainerBox(String label, String mediaType, String fileName, InputStream data) throws IOException {
         super(SUBTYPE, label);
@@ -79,6 +82,7 @@ public class EmbeddedFileContainerBox extends JUMBox {
 
     /**
      * Return the embedded file as a ByteBuffer if its embedded, otherwise return null
+     * @return the file data
      */
     public ByteBuffer data() {
         BfdbBox bfdb = bfdb();

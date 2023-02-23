@@ -16,7 +16,7 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
         super("cbor", "c2pa.ingredient");
     }
 
-    public void verify() {
+    @Override public void verify() {
         int count = 0;
         for (C2PA_Assertion a : getManifest().getAssertions()) {
             if (a instanceof C2PA_AssertionIngredient && "parentOf".equals(((C2PA_AssertionIngredient)a).cbor().stringValue("relationship")))  {
@@ -29,6 +29,7 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
 
         if (cbor().isMap("c2pa_manifest")) {
             // this is TODO, still having issues
+            //
             // specifically:
             //   adobe-20220124-CACA.jpg
             //   * the manifest ending in f85380524443 has assertion "c2pa.ingredient"
@@ -56,9 +57,6 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
             // * no idea, sig validates for both manifests but apparently shouldn't? enduser cert
             //   is OK, test chain. Seems to be todo with the "E-sig-CA.jpg" inside the manifest,
             //   c2patool says there's an issue with timestamp?
-            //
-            // adobe-20220124-E-dat-CA.jpg
-            // * need to verify hash
             //
             // adobe-20220124-E-uri-CIE-sig-CA.jpg
             // * manifest 7af56501ce4b is hashmismatch - looks intentional (deadbeef in data)

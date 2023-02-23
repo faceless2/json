@@ -95,6 +95,7 @@ public class C2PAClaim extends CborContainerBox {
                 cbor().put("assertions", assertions = Json.read("[]"));
             }
             assertionList = new AbstractList<C2PA_Assertion>() {
+                private Map<String,C2PA_AssertionUnknown> unknown;
                 @Override public int size() {
                     return assertions.size();
                 }
@@ -104,11 +105,22 @@ public class C2PAClaim extends CborContainerBox {
                     }
                     String url = assertions.get(i).stringValue("url");
                     Box box = manifest.find(url);
-                    return box instanceof C2PA_Assertion ? (C2PA_Assertion)box : null;
+                    if (!(box instanceof C2PA_Assertion)) {
+                        if (unknown == null) {
+                            unknown = new HashMap<String,C2PA_AssertionUnknown>();
+                        }
+                        box = new C2PA_AssertionUnknown();
+                        ((C2PA_AssertionUnknown)box).setURL(url);
+                        unknown.put(url, (C2PA_AssertionUnknown)box);
+                    }
+                    return (C2PA_Assertion)box;
                 }
                 @Override public C2PA_Assertion set(int i, C2PA_Assertion box) {
                     if (i < 0 || i >= size()) {
                         throw new IndexOutOfBoundsException(Integer.toString(i));
+                    }
+                    if (box == null || (box instanceof C2PA_AssertionUnknown && ((C2PA_AssertionUnknown)box).url() != null)) {
+                        throw new IllegalArgumentException("cannot be null or unknown");
                     }
                     C2PA_Assertion old = get(i);
                     if (old != box) {
@@ -131,6 +143,9 @@ public class C2PAClaim extends CborContainerBox {
                     return old;
                 }
                 @Override public boolean add(C2PA_Assertion box) {
+                    if (box == null || (box instanceof C2PA_AssertionUnknown && ((C2PA_AssertionUnknown)box).url() != null)) {
+                        throw new IllegalArgumentException("cannot be null or unknown");
+                    }
                     String url = manifest.find((JUMBox)box);
                     if (!manifestAssertions.contains(box) || url == null) {
                         throw new IllegalArgumentException("not in manifest assertions");

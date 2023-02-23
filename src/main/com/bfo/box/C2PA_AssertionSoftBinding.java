@@ -16,4 +16,9 @@ public class C2PA_AssertionSoftBinding extends CborContainerBox implements C2PA_
         super("cbor", "c2pa.soft-binding");
     }
 
+    @Override public void verify() {
+        // None defined as of Feb2023, so fail? accept? 
+        // throw new UnsupportedOperationException(label() + " not yet implemented");
+    }
+
 }

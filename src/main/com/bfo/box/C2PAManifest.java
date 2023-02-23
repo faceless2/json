@@ -2,6 +2,7 @@ package com.bfo.box;
 
 import java.io.*;
 import java.util.*;
+import java.security.*;
 import com.bfo.json.*;
 
 /**
@@ -26,7 +27,7 @@ import com.bfo.json.*;
  * KeyStore keystore = KeyStore.getInstance("PKCS12");
  * keystore.load(new FileInputStream(keystorefile), keystorepassword);
  * PrivateKey key = (PrivateKey)keystore.getKey(keystorealias, keystorepassword);
- * List&lt;gX509Certificate&gt; certs = new ArrayList<X509Certificate&gt;();
+ * List&lt;gX509Certificate&gt; certs = new ArrayList&lt;X509Certificate&gt;();
  * for (Certificate c : keystore.getCertificateChain(keystorealias)) {
  *     if (c instanceof X509Certificate) {
  *         certs.add((X509Certificate)c);
@@ -39,6 +40,8 @@ import com.bfo.json.*;
  * @since 5
  */
 public class C2PAManifest extends JUMBox {
+
+    private InputStream inputStream;
 
     /**
      * Create a new uninitialized box, for loading. Don't call this constructor
@@ -58,7 +61,28 @@ public class C2PAManifest extends JUMBox {
     }
 
     /**
-     * Return a live list of <i>assertions</i>, which can be edited
+     * Verifying C2PA requires verifying the data - this method need to be
+     * called before verifying the assertions returned by {@link #getAssertions}
+     * to supply that data.
+     * @param in the InputStream to read from
+     */
+    public void setInputStream(InputStream in) {
+        this.inputStream = in;
+    }
+
+    /**
+     * Retrieves the InputStream set by {@link #setInputStream} <i>and clears it</i>.
+     * Calling the method a second time will return null.
+     * @return the InputStream to read from
+     */
+    public InputStream getInputStream() {
+        InputStream in = inputStream;
+        inputStream = null;
+        return in;
+    }
+
+    /**
+     * Return a live list of <i>assertions</i>, which can be edited.
      * @return the assertion list
      */
     public List<C2PA_Assertion> getAssertions() {
@@ -71,6 +95,21 @@ public class C2PAManifest extends JUMBox {
         }
         if (c2as == null) {
             add(c2as = new JUMBox("c2as", "c2pa.assertions"));
+        }
+        // hack! here is where we upcast any assertions we didn't find
+        // into instanceof of C2PA_AssertionUnknown, move the children
+        // across and replace the original
+        for (Box b=c2as.first();b!=null;b=b.next()) {
+            if (!(b instanceof C2PA_Assertion || b instanceof JumdBox)) {
+                Box b2 = new C2PA_AssertionUnknown();
+                while (b.first() != null) {
+                    Box f = b.first();
+                    f.replace(null);
+                    b2.add(f);
+                }
+                b.replace(b2);
+                b = b2;
+            }
         }
         return new BoxList<C2PA_Assertion>(c2as, C2PA_Assertion.class);
     }
@@ -121,7 +160,25 @@ public class C2PAManifest extends JUMBox {
         if (count > 1) {
             throw new IllegalStateException("manifest has multiple hard-binding [assertion.multipleHardBindings]");
         } else if (count == 0) {
-            throw new IllegalStateException("manifest has no hard-bindings [assertion.multipleHardBindings]");
+            throw new IllegalStateException("manifest has no hard-bindings [claim.hardBindings.missing]");
+        }
+    }
+
+    MessageDigest getMessageDigest(Json j) {
+        String alg = null;
+        while (alg == null && j != null) {
+            alg = j.stringValue("alg");
+            j = j.parent();
+        }
+        if (alg == null) {
+            alg = getClaim().getHashAlgorithm();
+        }
+        MessageDigest dig;
+        try {
+            dig = MessageDigest.getInstance(alg);
+            return dig;
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("hash alg \"" + alg + "\" not found [algorithm.unsupported]", e);
         }
     }
 
