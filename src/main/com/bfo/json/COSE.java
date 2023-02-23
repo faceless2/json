@@ -466,8 +466,11 @@ public class COSE extends Json {
      */
     public COSE sign(Map<Key,String> keysAndAlgorithms) {
         if (isInitialized()) {
-            throw new IllegalStateException("Already initialized");
-        } else if (payload == null) {
+            while (size() > 0) {
+                remove(size() - 1);
+            }
+        }
+        if (payload == null) {
             throw new IllegalStateException("No payload");
         } else {
             Map<PrivateKey,String> keys = new LinkedHashMap<PrivateKey,String>();
@@ -490,6 +493,9 @@ public class COSE extends Json {
             if (protectedAtts == null) {
                 protectedAtts = Json.read("{}");
             }
+            if (unprotectedAtts == null) {
+                unprotectedAtts = Json.read("{}");
+            }
             if (certs != null && !certs.isEmpty()) {
                 Json j = Json.read("[]");
                 for (X509Certificate cert : certs) {
@@ -499,10 +505,7 @@ public class COSE extends Json {
                         throw new RuntimeException(e);  // doubt we'll see this
                     }
                 }
-                protectedAtts.put("certs", j);
-            }
-            if (unprotectedAtts == null) {
-                unprotectedAtts = Json.read("{}");
+                unprotectedAtts.put(33, j);     // x5chain
             }
             if (keys.size() == 1) {
                 PrivateKey key = keys.keySet().iterator().next();
