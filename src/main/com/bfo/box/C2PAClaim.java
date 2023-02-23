@@ -12,7 +12,7 @@ import com.bfo.json.*;
  */
 public class C2PAClaim extends CborContainerBox {
 
-    private List<JUMBox> assertionList;
+    private List<C2PA_Assertion> assertionList;
     private byte[] data;
 
     /**
@@ -84,35 +84,35 @@ public class C2PAClaim extends CborContainerBox {
      * and the entry cleared when the manifest is signed.
      * @return a live list of all the assertions that will be part of this claim.
      */
-    public List<JUMBox> getAssertions() {
+    public List<C2PA_Assertion> getAssertions() {
         if (assertionList == null) {
             final Json assertions;
             final C2PAManifest manifest = (C2PAManifest)parent();
-            final List<JUMBox> manifestAssertions = manifest.getAssertions();
+            final List<C2PA_Assertion> manifestAssertions = manifest.getAssertions();
             if (cbor().isList("assertions")) {
                 assertions = cbor().get("assertions");
             } else {
                 cbor().put("assertions", assertions = Json.read("[]"));
             }
-            assertionList = new AbstractList<JUMBox>() {
+            assertionList = new AbstractList<C2PA_Assertion>() {
                 @Override public int size() {
                     return assertions.size();
                 }
-                @Override public JUMBox get(int i) {
+                @Override public C2PA_Assertion get(int i) {
                     if (i < 0 || i >= size()) {
                         throw new IndexOutOfBoundsException(Integer.toString(i));
                     }
                     String url = assertions.get(i).stringValue("url");
                     Box box = manifest.find(url);
-                    return box instanceof JUMBox ? (JUMBox)box : null;
+                    return box instanceof C2PA_Assertion ? (C2PA_Assertion)box : null;
                 }
-                @Override public JUMBox set(int i, JUMBox box) {
+                @Override public C2PA_Assertion set(int i, C2PA_Assertion box) {
                     if (i < 0 || i >= size()) {
                         throw new IndexOutOfBoundsException(Integer.toString(i));
                     }
-                    JUMBox old = get(i);
+                    C2PA_Assertion old = get(i);
                     if (old != box) {
-                        String url = manifest.find(box);
+                        String url = manifest.find((JUMBox)box);
                         if (!manifestAssertions.contains(box) || url == null) {
                             throw new IllegalArgumentException("not in manifest assertions");
                         }
@@ -122,16 +122,16 @@ public class C2PAClaim extends CborContainerBox {
                     }
                     return old;
                 }
-                @Override public JUMBox remove(int i) {
+                @Override public C2PA_Assertion remove(int i) {
                     if (i < 0 || i >= size()) {
                         throw new IndexOutOfBoundsException(Integer.toString(i));
                     }
-                    JUMBox old = get(i);
+                    C2PA_Assertion old = get(i);
                     assertions.remove(i);
                     return old;
                 }
-                @Override public boolean add(JUMBox box) {
-                    String url = manifest.find(box);
+                @Override public boolean add(C2PA_Assertion box) {
+                    String url = manifest.find((JUMBox)box);
                     if (!manifestAssertions.contains(box) || url == null) {
                         throw new IllegalArgumentException("not in manifest assertions");
                     }

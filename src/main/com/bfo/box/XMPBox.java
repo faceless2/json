@@ -10,10 +10,12 @@ import java.io.*;
  */
 public class XMPBox extends ExtensionBox {
 
+    static String SUBTYPE = "cbcf7abea997e8429c71999491e3afa";
+
     private byte[] data;
 
-    @Override protected void read(InputStream in) throws IOException {
-        super.read(in);
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
+        super.read(in, factory);
         data = readFully(in);
     }
 

@@ -61,7 +61,7 @@ public class C2PAManifest extends JUMBox {
      * Return a live list of <i>assertions</i>, which can be edited
      * @return the assertion list
      */
-    public List<JUMBox> getAssertions() {
+    public List<C2PA_Assertion> getAssertions() {
         Box c2as = null;
         for (Box b=first();b!=null;b=b.next()) {
             if (b instanceof JUMBox && ((JUMBox)b).subtype().equals("c2as")) {
@@ -72,7 +72,7 @@ public class C2PAManifest extends JUMBox {
         if (c2as == null) {
             add(c2as = new JUMBox("c2as", "c2pa.assertions"));
         }
-        return new BoxList<JUMBox>(c2as, JUMBox.class);
+        return new BoxList<C2PA_Assertion>(c2as, C2PA_Assertion.class);
     }
 
     /**
@@ -109,6 +109,20 @@ public class C2PAManifest extends JUMBox {
             add(claim = new C2PASignature(null));
         }
         return claim;
+    }
+
+    void verifyExactlyOneHash() {
+        int count = 0;
+        for (C2PA_Assertion a : getAssertions()) {
+            if (a instanceof C2PA_AssertionHashData || a instanceof C2PA_AssertionHashBMFF) {
+                count++;
+            }
+        }
+        if (count > 1) {
+            throw new IllegalStateException("manifest has multiple hard-binding [assertion.multipleHardBindings]");
+        } else if (count == 0) {
+            throw new IllegalStateException("manifest has no hard-bindings [assertion.multipleHardBindings]");
+        }
     }
 
 }

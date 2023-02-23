@@ -14,7 +14,7 @@ public class TrackHeaderBox extends FullBox {
     float width, height;
     int[] matrix;
 
-    @Override protected void read(InputStream in) throws IOException {
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
         // See ISO14496-12
         if (version == 1) {
             ctime = readLong(in);

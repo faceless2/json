@@ -34,10 +34,10 @@ public class EmbeddedFileContainerBox extends JUMBox {
         add(new DataBox("bidb", readFully(data)));
     }
 
-    @Override protected void read(InputStream in) throws IOException {
-        add(Box.load(in, new JumdBox()));
-        add(Box.load(in, new BfdbBox()));
-        add(Box.load(in, new DataBox()));
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
+        add(factory.subFactory(new JumdBox()).load(in));
+        add(factory.subFactory(new BfdbBox()).load(in));
+        add(factory.subFactory(new DataBox()).load(in));
     }
 
     private BfdbBox bfdb() {

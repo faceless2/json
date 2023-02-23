@@ -27,7 +27,7 @@ public class JsonBox extends DataBox {
         setJson(json);
     }
 
-    @Override protected void read(InputStream in) throws IOException {
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
         json = Json.read(in, null);
     }
 

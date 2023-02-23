@@ -25,7 +25,7 @@ class BfdbBox extends Box {
         this.external = external;
     }
 
-    @Override protected void read(InputStream in) throws IOException {
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
         int toggles = in.read();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         int c;

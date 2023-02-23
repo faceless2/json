@@ -26,9 +26,9 @@ public class JsonContainerBox extends JUMBox {
         add(new JsonBox(json != null ? json : Json.read("{}")));
     }
 
-    @Override protected void read(InputStream in) throws IOException {
-        add(Box.load(in, new JumdBox()));
-        add(Box.load(in, new JsonBox()));
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
+        add(factory.subFactory(new JumdBox()).load(in));
+        add(factory.subFactory(new JsonBox()).load(in));
     }
 
     /**

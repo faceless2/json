@@ -27,7 +27,17 @@ public class DataBox extends Box {
         super(label);
     }
 
-    @Override protected void read(InputStream in) throws IOException {
+    /**
+     * Create a new DataBox initialized to the specified data
+     * @param label the label, which must not be null
+     * @param data the data, which is not cloned
+     */
+    public DataBox(String label, byte[] data) {
+        super(label);
+        this.data = data;
+    }
+
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
         data = readFully(in);
     }
 

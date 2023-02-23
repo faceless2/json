@@ -31,7 +31,7 @@ public abstract class ExtensionBox extends Box {
         this.subtype = subtype;
     }
 
-    @Override protected void read(InputStream in) throws IOException {
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
         StringBuilder q = new StringBuilder(4);
         byte[] b = new byte[16];
         for (int i=0;i<16;i++) {

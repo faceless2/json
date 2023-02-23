@@ -3,7 +3,7 @@ package com.bfo.box;
 import java.util.*;
 
 @SuppressWarnings("unchecked")
-class BoxList<T extends Box> extends AbstractList<T> {
+class BoxList<T> extends AbstractList<T> {
     
     // Efficiency be damned, lists will be short
     private final Box owner;
@@ -43,7 +43,7 @@ class BoxList<T extends Box> extends AbstractList<T> {
             if (is(b) && i-- == 0) {
                 preadd(t);
                 preremove((T)b);
-                b.replace(t);
+                b.replace((Box)t);
                 postremove((T)b);
                 postadd(t);
                 return (T)b;
@@ -70,13 +70,13 @@ class BoxList<T extends Box> extends AbstractList<T> {
             throw new IllegalArgumentException(t.toString());
         }
         preadd(t);
-        owner.add(t);
+        owner.add((Box)t);
         postadd(t);
         return true;
     }
 
-    boolean is(Box b) {
-        return clazz.isInstance(b);
+    boolean is(Object b) {
+        return b instanceof Box && clazz.isInstance(b);
     }
 
     void preadd(T t) {

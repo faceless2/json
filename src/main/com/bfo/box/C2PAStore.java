@@ -29,4 +29,33 @@ public class C2PAStore extends JUMBox {
         return new BoxList<C2PAManifest>(this, C2PAManifest.class);
     }
 
+    /**
+     * Return a representation of this store as a single Json object.
+     * The returned value is not live, changes will not affect this object.
+     * The object should be largely comparable to the output from <code>c2patool</code> 
+     */
+    public Json toJson() {
+        Json out = Json.read("{\"manifests\":{}}");
+        for (C2PAManifest manifest : getManifests()) {
+            Json m = Json.read("{}");
+            out.get("manifests").put(manifest.label(), m);
+            m.put("claim", manifest.getClaim().getBox().cbor().duplicate().sort());
+            Json al = Json.read("{}");
+            m.put("assertion_store", al);
+            for (C2PA_Assertion assertion : manifest.getAssertions()) {
+                if (assertion instanceof JsonContainerBox) {
+                    al.put(assertion.asBox().label(), ((JsonContainerBox)assertion.asBox()).getBox().json().duplicate().sort());
+                } else if (assertion instanceof CborContainerBox) {
+                    al.put(assertion.asBox().label(), ((CborContainerBox)assertion.asBox()).getBox().cbor().duplicate().sort());
+                } else if (assertion instanceof EmbeddedFileContainerBox) {
+                    al.put(assertion.asBox().label(), ((EmbeddedFileContainerBox)assertion.asBox()).data());
+                }
+            }
+            COSE signature = manifest.getSignature().cose();
+            m.put("signature.alg", signature.getAlgorithm(0));
+            m.put("signature.issuer", signature.getCertificates().get(0).getSubjectX500Principal().getName());
+        }
+        return out;
+    }
+
 }

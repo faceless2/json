@@ -26,10 +26,9 @@ import java.math.BigInteger;
  * Some simple examples.
  * </p>
  * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
- * Box box = Box.load(inputstream, null);
+ * Box box = Box.load(inputstream, null, null);
  * for (Box child=box.first();box!=null;box=box.next()) {
  *   System.out.println(box.type());         // A 4-character string
- *   System.out.println(box.isContainer());  // if true, box.first() may be non-null
  *   assert box.parent() == box;
  *   if (box instanceof XMPBox) {
  *     byte[] xmpdata = ((XMPBox)box).data(); // box subclasses are more interesting
@@ -42,57 +41,11 @@ import java.math.BigInteger;
  */
 public class Box {
 
-    private static final boolean debug = false; // true to load boxes into memory and check save==load
-
-    private int type;
-    private long len;   // store because not every Box is going to get parsed on read
     private Box parent, first, next;
-    private byte[] pad; // not convinced this is necessary
-
-    private static final Map<String,Class<? extends Box>> registry = new HashMap<String,Class<? extends Box>>();
-    private static final Set<String> containers = new HashSet<String>();
-    static {
-        String[] s = new String[] {
-            // origin of this list unsure; mostly ISO14496 but there will be others
-            "moov", "trak", "edts", "mdia", "minf", "dinf", "stbl", "mp4a",
-            "mvex", "moof", "traf", "mfra", "udta", "ipro", "sinf", /*"meta",*/
-            "ilst", "----", "?alb", "?art", "aART", "?cmt", "?day", "?nam",
-            "?gen", "gnre", "trkn", "disk", "?wrt", "?too", "tmpo", "cprt",
-            "cpil", "covr", "rtng", "?grp", "stik", "pcst", "catg", "keyw",
-            "purl", "egid", "desc", "?lyr", "tvnn", "tvsh", "tven", "tvsn",
-            "tves", "purd", "pgap",
-            "jumb"  // from ISO19566
-        };
-        for (int i=0;i<s.length;i++) {
-            containers.add(s[i]);
-        }
-    }
-
-    /*
-    private static Map<String,Field> tag2field = new HashMap<String,Field>();
-    private static {
-        tag2field.put("moov.udta.meta.ilst.\u00A9alb", Field.Album);
-        tag2field.put("moov.udta.meta.ilst.aART", Field.AlbumArtist);
-        tag2field.put("moov.udta.meta.ilst.\u00A9ART", Field.AlbumArtist);
-        tag2field.put("moov.udta.meta.ilst.\u00A9cmt", Field.Comment);
-        tag2field.put("moov.udta.meta.ilst.\u00A9day", Field.Year);
-        tag2field.put("moov.udta.meta.ilst.\u00A9nam", Field.Title);
-        tag2field.put("moov.udta.meta.ilst.\u00A9wrt", Field.Composer);
-        tag2field.put("moov.udta.meta.ilst.\u00A9too", Field.Encoder);
-        tag2field.put("moov.udta.meta.ilst.cprt", Field.Copyright);
-        tag2field.put("moov.udta.meta.ilst.\u00A9grp", Field.Group);
-        tag2field.put("moov.udta.meta.ilst.\u00A9gen", Field.Genre);
-        tag2field.put("moov.udta.meta.ilst.gnre", Field.Genre);
-        tag2field.put("moov.udta.meta.ilst.trkn", Field.Track);
-        tag2field.put("moov.udta.meta.ilst.disk", Field.Disc);
-        tag2field.put("moov.udta.meta.ilst.tmpo", Field.BPM);
-        tag2field.put("moov.udta.meta.ilst.cpil", Field.Compilation);
-        tag2field.put("moov.udta.meta.ilst.covr", Field.ImageOffset);
-        tag2field.put("moov.udta.meta.ilst.pgap", Field.Gapless);
-        tag2field.put("moov.udta.meta.ilst.com.apple.iTunes.iTunNORM", Field.Gain);
-        tag2field.put("moov.udta.meta.ilst.com.apple.iTunes.iTunes_CDDB_1", Field.CDDB);
-    }
-    */
+    int type;
+    long len;   // store because not every Box is going to get parsed on read
+    boolean sparse;    // if true, we skipped some data on load.
+    byte[] debugReadBytes;      // orig bytes read from disk, only set if BoxFactory.debug
 
     /**
      * @hidden
@@ -186,126 +139,6 @@ public class Box {
         return new String(c);
     }
 
-    /**
-     * @hidden
-     * @param type the type to register
-     * @param clazz the class of Box
-     */
-    public static void register(String type, boolean container, Class<? extends Box> clazz) {
-        registry.put(type, clazz);
-        if (type.length() == 4 && container) {
-            containers.add(type);
-        }
-    }
-
-    /**
-     * Read a Box from this InputStream
-     * @param stream the InputStream
-     * @param box the Box that we're loading, or <code>null</code> to auto-type and create
-     * @return the box, or <code>null</code> if the stream is fully consumed
-     * @throws IOException if the stream is corrupt or fails to read
-     */
-    public static Box load(InputStream stream, Box box) throws IOException {
-        CountingInputStream in = stream instanceof CountingInputStream ? (CountingInputStream)stream : new CountingInputStream(stream);
-        long off = in.tell();
-        long len = in.read();
-        if (len < 0) {
-            return null;
-        }
-        for (int i=0;i<3;i++) {
-            int q = in.read();
-            if (q < 0) {
-                throw new EOFException();
-            }
-            len = (len<<8) | q;
-        }
-
-        // If debug is on, take a local copy of the table
-        // into a byte array, then compare it later to
-        // the same table when we write it out.
-        byte[] localcopy = null;
-        if (debug) {
-            localcopy = new byte[(int)len];
-            int tmpoff = 0;
-            localcopy[tmpoff++] = (byte)(len>>24);
-            localcopy[tmpoff++] = (byte)(len>>16);
-            localcopy[tmpoff++] = (byte)(len>>8);
-            localcopy[tmpoff++] = (byte)(len>>0);
-            while (tmpoff < len) {
-                localcopy[tmpoff++] = (byte)in.read();
-            }
-            in = new CountingInputStream(new ByteArrayInputStream(localcopy));
-            off = 0;
-            in.limit(len);
-            in.skip(4);
-        }
-
-        int typeval = readInt(in);
-        if (len == 1) {
-            len = readLong(in);
-        }
-        long limit = in.limit();
-        in.limit(len == 0 ? -1 : off + len);
-
-        String type = typeToString(typeval);
-        String subtype = null;
-        if (type.equals("jumb") || type.equals("uuid")) {
-            in.mark(256);
-            ExtensionBox desc = (ExtensionBox)load(in, new ExtensionBox() { public String toString() { return "ignore"; }});
-            subtype = desc.subtype();
-            in.reset();
-        }
-        if (box == null) {
-            Class<? extends Box> cl = null;
-            if (subtype != null) {
-                cl = registry.get(type + "." + subtype);
-            }
-            if (cl == null) {
-                cl = registry.get(type);
-            }
-            try {
-                if (cl != null) {
-                    box = (Box)cl.getDeclaredConstructor().newInstance();
-                }
-            } catch (Exception e) {}
-            if (box == null) {
-                box = new Box();
-            }
-        }
-        box.len = len;
-        box.type = typeval;
-        box.read(in);
-        long skip = len == 0 ? Integer.MAX_VALUE : in.limit() - in.tell();
-        if (skip > 0) {
-            // It's not clear whether this is an error or not? 
-            UsefulByteArrayOutputStream out = new UsefulByteArrayOutputStream();
-            byte[] t = new byte[8192];
-            int l;
-            while (skip > 0 && (l=in.read(t, 0, (int)Math.min(t.length, skip))) >= 0) {
-                out.write(t, 0, l);
-                skip -= l;
-            }
-            byte[] pad = out.toByteArray();
-            if (pad.length > 0) {
-                box.setPad(pad);
-            }
-        }
-        in.limit(limit);
-        if (debug && !box.toString().equals("ignore")) {
-            byte[] writecopy = box.getEncoded();
-            if (!Arrays.equals(writecopy, localcopy)) {
-                /*
-                System.out.println("MISMATCH: box="+box);
-                if (box instanceof JumdBox) {
-                    System.out.println("INN="+hex(localcopy));
-                    System.out.println("OUT="+hex(writecopy));
-                }
-                */
-            }
-        }
-        return box;
-    }
-
     //------------------------------------------------------------------------------------------------
 
     /**
@@ -393,10 +226,10 @@ public class Box {
      * The stream will return EOF when this box's data is read.
      * @param in the stream
      */
-    protected void read(InputStream in) throws IOException {
-        if (isContainer()) {
+    protected void read(InputStream in, BoxFactory factory) throws IOException {
+        if (factory.isContainer(type())) {
             Box b;
-            while ((b=load(in, null)) != null) {
+            while ((b=factory.load(in)) != null) {
                 add(b);
             }
         }
@@ -422,18 +255,18 @@ public class Box {
     }
 
     /**
-     * Write the box content. For boxes that are not {@link #isContainer containers},
+     * Write the box content. For boxes that are not {@link BoxFactory#isContainer containers},
      * this method must be overridden otherwise the box cannot be encoded
      * @param out the OutputStream to write to
      * @throws UnsupportedOperationException if the box is not a container box and this method hasn't been overridden
      */
     protected void write(OutputStream out) throws IOException {
-        if (isContainer()) {
+        if (isSparse()) {
+            throw new UnsupportedOperationException("sparse box: " + this);
+        } else {
             for (Box b=first;b!=null;b=b.next) {
                 b.dowrite(out);
             }
-        } else {
-            throw new UnsupportedOperationException("Box is not a container and write() was not overridden: " + this);
         }
     }
 
@@ -447,31 +280,16 @@ public class Box {
         UsefulByteArrayOutputStream out = new UsefulByteArrayOutputStream();
         try {
             dowrite(out);
-            if (pad != null) {
-                out.write(pad);
-            }
         } catch (IOException e) {}
         return out.toByteArray();
     }
 
     /**
-     * If the box was loaded with additional padding bytes following its content,
-     * return those bytes. They will be preserved when the box is written too.
-     * This is necessary when computing signatures based on boxes.
-     * @return the pad, which will be an array greater than zero, or null
-     * @hidden
+     * Return true if this box was not completely read during the {@link #load} method.
+     * Sparse boxes cannot be written, so {@link #getEncoded} will fail.
      */
-    public byte[] getPad() {
-        return pad;
-    }
-
-    /**
-     * Set the padding bytes
-     * @param pad the padding bytes, or zero. They will be stored as supplied, not cloned
-     * @hidden
-     */
-    public void setPad(byte[] pad) {
-        this.pad = pad;
+    public boolean isSparse() {
+        return sparse;
     }
 
     /**
@@ -499,14 +317,6 @@ public class Box {
      */
     public long length() {
         return len;
-    }
-
-    /**
-     * Return true if this box is a container of other boxes
-     * @return whether this box is a container
-     */
-    public boolean isContainer() {
-        return containers.contains(typeToString(type));
     }
 
     /**
@@ -549,10 +359,8 @@ public class Box {
             sb.append(name);
             sb.append("\"");
         }
-        if (getPad() != null) {
-            sb.append(",\"pad\":\"");
-            sb.append(hex(getPad()));
-            sb.append("\"");
+        if (isSparse()) {
+            sb.append(",\"sparse\":true");
         }
         if (length() > 0) {
             sb.append(",\"size\":");
@@ -608,25 +416,6 @@ public class Box {
             b[i/2] = (byte)Integer.parseInt(s.substring(i, i + 2), 16);
         }
         return b;
-    }
-
-    static {
-        register("jumb", true, JUMBox.class);
-        register("jumd", false, JumdBox.class);
-        register("cbor", false, CborBox.class);                        // Raw CBOR box with no children
-        register("json", false, JsonBox.class);                        // Raw JSON box with no children
-        register("xml ", false, XmlBox.class);
-        register("tkhd", false, TrackHeaderBox.class);
-        register("bfdb", false, DataBox.class);
-        register("bidb", false, DataBox.class);
-        register("jumb.cbor", true, CborContainerBox.class);          // Jumb CBOR box - has [jumd, cbor]
-        register("jumb.json", true, JsonContainerBox.class);          // Jumb JSON box - has [jumd, json]
-        register("jumb.c2pa", true, C2PAStore.class);
-        register("jumb.c2ma", true, C2PAManifest.class);
-        register("jumb.c2cl", true, C2PAClaim.class);
-        register("jumb.c2cs", true, C2PASignature.class);
-        register("uuid.be7acfcb97a942e89c71999491e3afac", false, XMPBox.class);// wrong order, magnificently prioritised in XMP spec
-        register("uuid.cbcf7abea997e8429c71999491e3afa", false, XMPBox.class); // byte order FFS
     }
 
 }

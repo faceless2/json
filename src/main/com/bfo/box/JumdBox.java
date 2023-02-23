@@ -27,8 +27,8 @@ class JumdBox extends ExtensionBox {
         this.id = id < 0 || id > 65535 ? null : Integer.valueOf(id);
     }
 
-    @Override protected void read(InputStream in) throws IOException {
-        super.read(in);
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
+        super.read(in, factory);
         int toggles = in.read();
         requestable = (toggles & 1) == 1;
         if ((toggles & 2) == 2) {

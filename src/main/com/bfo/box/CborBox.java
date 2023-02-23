@@ -39,7 +39,7 @@ public class CborBox extends DataBox {
         this.cbor = cbor;
     }
 
-    @Override protected void read(InputStream in) throws IOException {
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
         cbor = Json.readCbor(in, null);
     }
 
@@ -59,8 +59,10 @@ public class CborBox extends DataBox {
         StringBuilder sb = new StringBuilder();
         sb.append(super.toString());
         sb.setCharAt(sb.length() - 1, ',');
-        sb.append("\"cbor\":");
+        sb.append("\"json\":");
         sb.append(new Json(cbor().toString(new JsonWriteOptions().setCborDiag("hex"))).toString());
+//        sb.append(",\"cbor\":");
+//        sb.append(hex(cbor().toCbor().array()));
         sb.append("}");
         return sb.toString();
     }

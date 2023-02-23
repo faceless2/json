@@ -26,14 +26,18 @@ public class CborContainerBox extends JUMBox {
         this("cbor", label, json);
     }
 
+    CborContainerBox(String subtype, String label) {
+        this(subtype, label, null);
+    }
+
     CborContainerBox(String subtype, String label, Json json) {
         super(subtype, label);
         add(new CborBox(json != null ? json : Json.read("{}")));
     }
 
-    @Override protected void read(InputStream in) throws IOException {
-        add(Box.load(in, new JumdBox()));
-        add(Box.load(in, new CborBox()));
+    @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
+        add(factory.subFactory(new JumdBox()).load(in));
+        add(factory.subFactory(new CborBox()).load(in));
     }
 
     /**

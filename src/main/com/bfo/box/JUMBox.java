@@ -38,6 +38,9 @@ public class JUMBox extends Box {
      * @return the Box matching that path
      */
     public JUMBox find(String path) {
+        if (path == null) {
+            return null;
+        }
         if (path.startsWith("self#")) {
             path = path.substring(5);
         }
@@ -45,11 +48,25 @@ public class JUMBox extends Box {
             path = path.substring(6);
         }
         Box ctx = this;
-        String[]  l = path.split("/");
-        Box child = this;
+        if (path.charAt(0) == '/') {
+            // absolute path
+            while (ctx.parent() != null) {
+                ctx = ctx.parent();
+            }
+            // Now we have (eg "/c2pa/foo" and ctx should have "c2pa" on it
+            String first = path.substring(1, path.indexOf("/", 1));
+            if (!(ctx instanceof JUMBox && first.equals(((JUMBox)ctx).label()))) {
+                return null;
+            }
+            path = path.substring(path.indexOf("/", 1) + 1);
+        }
+        String[] l = path.split("/");
+        if (l.length == 0) {
+            return null;
+        }
         for (int i=0;i<l.length;i++) {
             String search = l[i];
-            child = ((JUMBox)child).first().next();
+            Box child = ((JUMBox)ctx).first().next();
             while (child instanceof JUMBox) {
                 String label = ((JUMBox)child).label();
                 if (search.equals(label)) {
@@ -60,8 +77,9 @@ public class JUMBox extends Box {
             if (!(child instanceof JUMBox)) {
                 return null;
             }
+            ctx = child;
         }
-        return child == this ? null : (JUMBox)child;
+        return (JUMBox)ctx;
     }
 
     /**
@@ -71,6 +89,9 @@ public class JUMBox extends Box {
      * @return the JUMBF path to request that box from this node
      */
     public String find(JUMBox child) {
+        if (child == null) {
+            return null;
+        }
         String s = null;
         JUMBox b = child;
         while (b != null) {
