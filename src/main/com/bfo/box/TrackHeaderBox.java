@@ -15,6 +15,7 @@ public class TrackHeaderBox extends FullBox {
     int[] matrix;
 
     @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
+        super.read(in, factory);
         // See ISO14496-12
         if (version == 1) {
             ctime = readLong(in);
