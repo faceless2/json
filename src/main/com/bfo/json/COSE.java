@@ -505,7 +505,11 @@ public class COSE extends Json {
                         throw new RuntimeException(e);  // doubt we'll see this
                     }
                 }
-                unprotectedAtts.put(33, j);     // x5chain
+                // Note that 20230204 the state of play is: use "x5chain" in unprotected.
+                // With RFC9360 and the upcoming C2PA draft, it will be: use 33 in protected
+                // -- watch https://github.com/contentauth/c2pa-rs/issues/189
+                // protectedAtts.put(33, j);              // x5chain
+                unprotectedAtts.put("x5chain", j)
             }
             if (keys.size() == 1) {
                 PrivateKey key = keys.keySet().iterator().next();
