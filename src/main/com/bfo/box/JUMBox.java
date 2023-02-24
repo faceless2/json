@@ -79,6 +79,9 @@ public class JUMBox extends Box {
             }
             ctx = child;
         }
+        if (ctx != null && !((JumdBox)((JUMBox)ctx).first()).isRequestable()) {
+            throw new IllegalStateException("Box " + ctx + " is not requestable: " + ctx.first());
+        }
         return (JUMBox)ctx;
     }
 
