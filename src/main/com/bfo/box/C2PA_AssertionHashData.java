@@ -75,25 +75,25 @@ public class C2PA_AssertionHashData extends CborContainerBox implements C2PA_Ass
             setExclusions(new long[0]);
         }
         cbor().remove("hash");
-        byte[] digest = calculateDigest(false);
+        byte[] digest = calculateDigest(true);
         cbor().put("hash", digest);
     }
 
     @Override public void verify() throws C2PAException, IOException  {
         getManifest().verifyExactlyOneHash();
-        byte[] digest = calculateDigest(true);
+        byte[] digest = calculateDigest(false);
         byte[] storedDigest = cbor().bufferValue("hash").array();
         if (!Arrays.equals(digest, storedDigest)) {
             throw new C2PAException(C2PAStatus.assertion_dataHash_mismatch, "digest mismatch");
         }
     }
 
-    private byte[] calculateDigest(boolean exclude) throws IOException, C2PAException {
+    private byte[] calculateDigest(boolean signing) throws IOException, C2PAException {
         InputStream in = getManifest().getInputStream();
         if (in == null) {
             throw new IllegalStateException("manifest has no InputStream set");
         }
-        MessageDigest digest = getManifest().getMessageDigest(cbor());
+        MessageDigest digest = getManifest().getMessageDigest(cbor(), signing);
         Json ex = cbor().get("exclusions");
         if (ex == null || !ex.isList()) {
             ex = Json.read("[]");
@@ -118,7 +118,7 @@ public class C2PA_AssertionHashData extends CborContainerBox implements C2PA_Ass
             if (reading) {
                 next = Long.MAX_VALUE;
             }
-            if (exclude) {
+            if (!signing) {
                 for (int i=0;i<ex.size();i++) {
                     if (ex.get(i).isNumber("start") && ex.get(i).isNumber("length")) {
                         long start = ex.get(i).intValue("start");

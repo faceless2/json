@@ -23,6 +23,14 @@ class JumdBox extends ExtensionBox {
 
     public JumdBox(String subtype, String label, int id) {
         super("jumd", subtype);
+        this.requestable = true;
+        for (int i=0;i<label.length();i++) {
+            int c = label.codePointAt(i);
+            // if (c < 0x1f || (c >= 0x7f && c <= 0x9f) || c == '/' || c == ';' || c == '?' || c == ':' || c == '#')    // official list from ISO19566
+            if (c < 0x1f || (c >= 0x7f && c <= 0x9f) || c == '/' || c == ';' || c == '?' || c == '#' || (c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff || Character.getType(c) == Character.FORMAT) {
+                throw new IllegalArgumentException("label has invalid character " + (c > 0x30 && c <= 0x7f ? ("\"" + ((char)c) + "\"") : Integer.toHexString(c)));
+            }
+        }
         this.label = label;
         this.id = id < 0 || id > 65535 ? null : Integer.valueOf(id);
     }

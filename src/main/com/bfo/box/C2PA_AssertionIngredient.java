@@ -16,6 +16,15 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
         super("cbor", "c2pa.ingredient");
     }
 
+    /**
+     * Create a new assertion
+     * @param label the label (will default to "c2pa.ingredient" if null)
+     * @param json the Json to initialize the assertion with
+     */
+    public C2PA_AssertionIngredient(String label, Json json) {
+        super("cbor", label == null ? "c2pa.ingredient" : label, json);
+    }
+
     String getTargetManifestURL() {
         return cbor().has("c2pa_manifest") ?  cbor().get("c2pa_manifest").stringValue("url") : null;
     }

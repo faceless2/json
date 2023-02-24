@@ -164,7 +164,7 @@ public class C2PAManifest extends JUMBox {
         }
     }
 
-    MessageDigest getMessageDigest(Json j) throws C2PAException {
+    MessageDigest getMessageDigest(Json j, boolean signing) throws C2PAException {
         String alg = null;
         while (alg == null && j != null) {
             alg = j.stringValue("alg");
@@ -172,14 +172,23 @@ public class C2PAManifest extends JUMBox {
         }
         if (alg == null) {
             alg = getClaim().getHashAlgorithm();
+            if (alg == null && signing) {
+                getClaim().setHashAlgorithm(C2PAClaim.DEFAULT_HASH_ALGORITHM);
+                alg = getClaim().getHashAlgorithm();
+            }
         }
-        MessageDigest dig;
-        try {
-            dig = MessageDigest.getInstance(alg);
-            return dig;
-        } catch (NoSuchAlgorithmException e) {
-            throw new C2PAException(C2PAStatus.algorithm_unsupported, "alg \"" + alg + "\" not found", e);
+        return getMessageDigest(alg);
+    }
+
+    static MessageDigest getMessageDigest(String alg) throws C2PAException {
+        if ("sha256".equals(alg) || "sha384".equals(alg) || "sha512".equals(alg)) {
+            try {
+                return MessageDigest.getInstance(alg.toUpperCase());
+            } catch (NoSuchAlgorithmException e) {
+                throw new C2PAException(C2PAStatus.algorithm_unsupported, "alg \"" + alg + "\" not found", e);
+            }
         }
+        throw new C2PAException(C2PAStatus.algorithm_unsupported, "alg \"" + alg + "\" not found");
     }
 
 }

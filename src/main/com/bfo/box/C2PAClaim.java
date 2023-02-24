@@ -12,6 +12,8 @@ import com.bfo.json.*;
  */
 public class C2PAClaim extends CborContainerBox {
 
+    static final String DEFAULT_HASH_ALGORITHM = "sha256";
+
     private List<C2PA_Assertion> assertionList;
     private byte[] data;
 
@@ -63,6 +65,15 @@ public class C2PAClaim extends CborContainerBox {
      * @param alg the hash algorithm, which should be a valid Java Hash algorithm name.
      */
     public void setHashAlgorithm(String alg) {
+        if (alg == null) {
+            throw new IllegalArgumentException("alg is null");
+        }
+        alg = alg.toLowerCase();
+        try {
+            C2PAManifest.getMessageDigest(alg);
+        } catch (C2PAException e) {
+            throw new IllegalArgumentException(e.getMessage());
+        }
         cbor().put("alg", alg);
     }
 

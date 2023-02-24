@@ -16,6 +16,49 @@ public class C2PA_AssertionActions extends CborContainerBox implements C2PA_Asse
         super("cbor", "c2pa.actions");
     }
 
+    /**
+     * Add a new action to the list. This assertion must have already been added to
+     * the manifest. An ingredient can be specified as a reference, and if so it too
+     * must be in the manifest: its details will be added to the parameters.
+     * @param action the action name, eg "c2pa.opened"
+     * @param ingredient the ingredient to refer to, or null.
+     * @param parameters any extra parameters, or null
+     */
+    public void add(String action, C2PA_AssertionIngredient ingredient, Json parameters) throws C2PAException {
+        if (action == null) {
+            throw new IllegalArgumentException("action is null");
+        }
+        if (getManifest() == null) {
+            throw new IllegalArgumentException("not in manifest");
+        }
+        Json actions = cbor().get("actions");
+        if (actions == null) {
+            cbor().put("actions", actions = Json.read("[]"));
+        }
+        Json j = Json.read("{}"); 
+        j.put("action", action);
+        if (ingredient != null) {
+            String url = getManifest().find(ingredient);
+            if (url == null) {
+                throw new IllegalArgumentException("ingredient not in manifest");
+            }
+            if (ingredient.cbor().isString("instanceID")) {
+                j.put("instanceID", ingredient.cbor().get("instanceID").value());
+            }
+            if (parameters == null) {
+                parameters = Json.read("{}");
+            }
+            Json jj = Json.read("{}");
+            jj.put("url", "self#jumbf=" + url);
+            C2PASignature.digestHashedURL(jj, getManifest(), true, true);
+            parameters.put("ingredient", jj);
+        }
+        if (parameters != null) {
+            j.put("parameters", parameters);
+        }
+        actions.put(actions.size(), j);
+    }
+
     @Override public void verify() throws C2PAException {
         // For each action in the actions list:
         //

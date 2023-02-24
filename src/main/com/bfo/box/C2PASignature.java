@@ -82,15 +82,15 @@ public class C2PASignature extends CborContainerBox {
         if (claim.getFormat() == null) {
             throw new IllegalStateException("claim has no format");
         }
+        if (claim.getInstanceID() == null) {
+            throw new IllegalStateException("claim has no instanceID");
+        }
         boolean foundHash = false;
         if (assertions.isEmpty()) {
             assertions.addAll(manifest.getAssertions());
         }
         if (claim.getGenerator() == null) {
             claim.setGenerator("BFO Json library", null);
-        }
-        if (claim.getHashAlgorithm() == null) {
-            claim.setHashAlgorithm("SHA256");
         }
         C2PA_AssertionHashData hashdata = null;
         C2PA_AssertionHashBMFF hashbmff = null;
@@ -129,18 +129,18 @@ public class C2PASignature extends CborContainerBox {
             j.put("pad", new byte[getMinSize()]);
         }
         claim.cbor().put("signature", "self#jumbf=" + manifest.find(this));
-        cose.setPayload(generatePayload(getMinSize()), true);
+        cose.setPayload(generatePayload(getMinSize(), true), true);
         cose.setCertificates(certs);
         cose.sign(key, null);
     }
 
-    private ByteBuffer generatePayload(int padlength) throws C2PAException {
+    private ByteBuffer generatePayload(int padlength, boolean signing) throws C2PAException {
         final C2PAManifest manifest = (C2PAManifest)parent();
         final C2PAClaim claim = manifest.getClaim();
         MessageDigest digest;
         Json l = claim.cbor().get("assertions");
         for (int i=0;i<l.size();i++) {
-            digestHashedURL(l.get(i), manifest, false);
+            digestHashedURL(l.get(i), manifest, false, signing);
         }
         byte[] b = claim.cbor().toCbor().array();
         if (padlength > b.length) {
@@ -185,7 +185,7 @@ public class C2PASignature extends CborContainerBox {
         } else if (key == null) {
             throw new IllegalArgumentException("no key supplied and no certificates included in the signature");
         }
-        ByteBuffer payload = generatePayload(getMinSize());
+        ByteBuffer payload = generatePayload(getMinSize(), false);
         cose.setPayload(payload, true);
         boolean b = cose.verify(key) >= 0;
         return b ? C2PAStatus.claimSignature_validated : C2PAStatus.claimSignature_mismatch;
@@ -196,13 +196,13 @@ public class C2PASignature extends CborContainerBox {
      * and update it. If it already has a digest and it differs,
      * or the URL cannot be found, throw an Exception
      */
-    static void digestHashedURL(Json hasheduri, C2PAManifest manifest, boolean ingredient) throws C2PAException {
+    static void digestHashedURL(Json hasheduri, C2PAManifest manifest, boolean ingredient, boolean signing) throws C2PAException {
         String url = hasheduri.stringValue("url");
         JUMBox box = manifest.find(url);
         if (box == null) {
             throw new C2PAException(C2PAStatus.assertion_missing, "\"" + url + "\" not in manifest");
         }
-        MessageDigest digest = manifest.getMessageDigest(hasheduri);
+        MessageDigest digest = manifest.getMessageDigest(hasheduri, signing);
         // "When creating a URI reference to an assertion (i.e., as part of
         //  constructing a Claim), a W3C Verifiable Credential or other C2PA
         //  structure stored as a JUMBF box, the hash shall be performed
