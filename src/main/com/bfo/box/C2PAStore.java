@@ -30,6 +30,16 @@ public class C2PAStore extends JUMBox {
     }
 
     /**
+     * Return the active manifest, which is just the last one
+     * in the list returned by {@link #getManifests}
+     * @return the active manifest
+     */
+    public C2PAManifest getActiveManifest() {
+        List<C2PAManifest> l = getManifests();
+        return l.isEmpty() ? null : l.get(l.size() - 1);
+    }
+
+    /**
      * Return a representation of this store as a single Json object.
      * The returned value is not live, changes will not affect this object.
      * The object should be largely comparable to the output from <code>c2patool</code> 

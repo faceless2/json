@@ -65,6 +65,10 @@ public class TestC2PA {
                             System.out.println("      assertion \"" + a.asBox().label() + "\" ok");
                         } catch (UnsupportedOperationException e) {
                             System.out.println("      assertion \"" + a.asBox().label() + "\" unsupported");
+                        } catch (C2PAException e) {
+                            System.out.println("      assertion \"" + a.asBox().label() + "\" failed: [" + e.getStatus() + "] " + e.getMessage());
+                            verified = false;
+                            e.printStackTrace();
                         } catch (Exception e) {
                             System.out.println("      assertion \"" + a.asBox().label() + "\" failed: " + e.getMessage());
                             verified = false;
@@ -76,12 +80,17 @@ public class TestC2PA {
                     }
                 }
                 try {
-                    if (manifest.getSignature().verify(null)) {
-                        System.out.println("      signature verified");
+                    C2PAStatus status = manifest.getSignature().verify(null);
+                    if (status.isOK()) {
+                        System.out.println("      signature verified [" + status + "]");
                     } else {
-                        System.out.println("      signature failed");
+                        System.out.println("      signature failed [" + status + "]");
                         verified = false;
                     }
+                } catch (C2PAException e) {
+                    verified = false;
+                    System.out.println("      siganture failed: [" + e.getStatus() + "] " + e.getMessage());
+                    e.printStackTrace();
                 } catch (Exception e) {
                     verified = false;
                     System.out.println("      signature failed");

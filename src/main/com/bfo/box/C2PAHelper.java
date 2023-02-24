@@ -138,9 +138,10 @@ public class C2PAHelper {
      * @param input the InputStream containing the JPEG file, which will be fully read but left open
      * @param out the OutputStream to write the signed JPEG file to, which will be flushed but left open
      * @throws IOException if the JPEG could not be written or read.
+     * @throws C2PAException if the C2PA preconditions for signing aren't met
      * @return the bytes representing the C2PAStore object that was embedded.
      */
-    public static byte[] signJPEG(C2PAStore store, PrivateKey key, List<X509Certificate> certs, InputStream input, OutputStream out) throws IOException {
+    public static byte[] signJPEG(C2PAStore store, PrivateKey key, List<X509Certificate> certs, InputStream input, OutputStream out) throws IOException, C2PAException {
         // We have to read the stream twice, once to digest, once to write out.
         // So we have to take a copy.
         UsefulByteArrayOutputStream tmp = new UsefulByteArrayOutputStream();
@@ -339,7 +340,7 @@ public class C2PAHelper {
                                 }
                             }
                             try {
-                                if (manifest.getSignature().verify(null)) {
+                                if (manifest.getSignature().verify(null).isOK()) {
                                     System.out.println("# signature verified");
                                 } else {
                                     System.out.println("# signature verification failed");

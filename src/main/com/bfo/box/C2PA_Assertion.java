@@ -27,11 +27,11 @@ public interface C2PA_Assertion {
     /**
      * Verify this assertion. If it fails, throw an IllegalStateException with details of why.
      * The default implementation <b>succeeds</b>.
-     * @throws IllegalStateException if the assertion failed to verify
+     * @throws C2PAException if the assertion failed to verify
      * @throws UnsupportedOperationException if the assertion isn't implemented
      * @throws IOException if the assertion verification involved I/O and the IO layer threw an exception
      */
-    public default void verify() throws IOException, UnsupportedOperationException {
+    public default void verify() throws IOException, UnsupportedOperationException, C2PAException {
     }
 
 }

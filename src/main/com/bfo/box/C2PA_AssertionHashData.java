@@ -70,7 +70,7 @@ public class C2PA_AssertionHashData extends CborContainerBox implements C2PA_Ass
      * and there should be no need to call it manually.
      * @throws IOException if an exception was thrown while calculating the digest
      */
-    public void sign() throws IOException {
+    public void sign() throws IOException, C2PAException {
         if (!cbor().isList("exclusions")) {
             setExclusions(new long[0]);
         }
@@ -79,16 +79,16 @@ public class C2PA_AssertionHashData extends CborContainerBox implements C2PA_Ass
         cbor().put("hash", digest);
     }
 
-    @Override public void verify() throws IOException {
+    @Override public void verify() throws C2PAException, IOException  {
         getManifest().verifyExactlyOneHash();
         byte[] digest = calculateDigest(true);
         byte[] storedDigest = cbor().bufferValue("hash").array();
         if (!Arrays.equals(digest, storedDigest)) {
-            throw new IllegalStateException("digest mismatch [assertion.dataHash.mismatch]");
+            throw new C2PAException(C2PAStatus.assertion_dataHash_mismatch, "digest mismatch");
         }
     }
 
-    private byte[] calculateDigest(boolean exclude) throws IOException {
+    private byte[] calculateDigest(boolean exclude) throws IOException, C2PAException {
         InputStream in = getManifest().getInputStream();
         if (in == null) {
             throw new IllegalStateException("manifest has no InputStream set");

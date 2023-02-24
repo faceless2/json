@@ -150,7 +150,7 @@ public class C2PAManifest extends JUMBox {
         return claim;
     }
 
-    void verifyExactlyOneHash() {
+    void verifyExactlyOneHash() throws C2PAException {
         int count = 0;
         for (C2PA_Assertion a : getAssertions()) {
             if (a instanceof C2PA_AssertionHashData || a instanceof C2PA_AssertionHashBMFF) {
@@ -158,13 +158,13 @@ public class C2PAManifest extends JUMBox {
             }
         }
         if (count > 1) {
-            throw new IllegalStateException("manifest has multiple hard-binding [assertion.multipleHardBindings]");
+            throw new C2PAException(C2PAStatus.assertion_multipleHardBindings, "manifest has multiple hard-binding");
         } else if (count == 0) {
-            throw new IllegalStateException("manifest has no hard-bindings [claim.hardBindings.missing]");
+            throw new C2PAException(C2PAStatus.claim_hardBindings_missing, "manifest has no hard-binding");
         }
     }
 
-    MessageDigest getMessageDigest(Json j) {
+    MessageDigest getMessageDigest(Json j) throws C2PAException {
         String alg = null;
         while (alg == null && j != null) {
             alg = j.stringValue("alg");
@@ -178,7 +178,7 @@ public class C2PAManifest extends JUMBox {
             dig = MessageDigest.getInstance(alg);
             return dig;
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("hash alg \"" + alg + "\" not found [algorithm.unsupported]", e);
+            throw new C2PAException(C2PAStatus.algorithm_unsupported, "alg \"" + alg + "\" not found", e);
         }
     }
 

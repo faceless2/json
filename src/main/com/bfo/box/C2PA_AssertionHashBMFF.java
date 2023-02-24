@@ -31,7 +31,7 @@ public class C2PA_AssertionHashBMFF extends CborContainerBox implements C2PA_Ass
         return "c2pa.hash.bmff.v2".equals(label());
     }
 
-    @Override public void verify() {
+    @Override public void verify() throws C2PAException {
         getManifest().verifyExactlyOneHash();
         // TODO https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_validating_a_bmff_hash
         throw new UnsupportedOperationException(label() + " not yet implemented");
@@ -40,7 +40,7 @@ public class C2PA_AssertionHashBMFF extends CborContainerBox implements C2PA_Ass
     /**
      * Calculate the digest during signing. Not yet implemented
      */
-    public void sign() {
+    public void sign() throws IOException, C2PAException {
         throw new UnsupportedOperationException(label() + " not yet implemented");
     }
 

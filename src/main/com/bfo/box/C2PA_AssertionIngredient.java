@@ -1,7 +1,7 @@
 package com.bfo.box;
 
 import com.bfo.json.*;
-import java.io.*;
+import java.util.*;
 
 /**
  * A C2PA Assertion for the "c2pa.ingredient" type
@@ -16,7 +16,40 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
         super("cbor", "c2pa.ingredient");
     }
 
-    @Override public void verify() {
+    String getTargetManifestURL() {
+        return cbor().has("c2pa_manifest") ?  cbor().get("c2pa_manifest").stringValue("url") : null;
+    }
+
+    /**
+     * If this ingredient has a c2pa_manifest value, return the target manifest, or null if
+     * it's not specified or can't be found
+     */
+    public C2PAManifest getTargetManifest() {
+        String url = getTargetManifestURL();
+        JUMBox box = getManifest().find(url);
+        return box instanceof C2PAManifest ? (C2PAManifest)box : null;
+    }
+
+    boolean hasTargetManifest() {
+        return cbor().has("c2pa_manifest");
+    }
+
+    /**
+     * Return the specified relationship between this ingredient and the manifest it refers to
+     * @return one of "parentOf", "componentOf"
+     */
+    public String relationship() {
+        return cbor().stringValue("relationship");
+    }
+
+    @Override public void verify() throws C2PAException {
+        //
+        // Validate that there are zero or one c2pa.ingredient assertions whose
+        // relationship is parentOf. If there is more than one, the manifest must be
+        // rejected with a failure code of manifest.multipleParents.
+        //
+        //     -- https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_validate_the_correct_assertions_for_the_type_of_manifest
+
         int count = 0;
         for (C2PA_Assertion a : getManifest().getAssertions()) {
             if (a instanceof C2PA_AssertionIngredient && "parentOf".equals(((C2PA_AssertionIngredient)a).cbor().stringValue("relationship")))  {
@@ -24,50 +57,49 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
             }
         }
         if (count > 1) {
-            throw new IllegalStateException("manifest has multiple \"parentOf\" c2pa.ingredient assertions [manifest.multipleParents]");
+            throw new C2PAException(C2PAStatus.manifest_multipleParents, "manifest has multiple \"parentOf\" c2pa.ingredient assertions");
         }
 
         if (cbor().isMap("c2pa_manifest")) {
-            // this is TODO, still having issues
-            //
-            // specifically:
-            //   adobe-20220124-CACA.jpg
-            //   * the manifest ending in f85380524443 has assertion "c2pa.ingredient"
-            //   * that assertion has a c2pa_manifest referencing a second manifest
-            //     ending in 7af56501ce4b, digest "3epjVN8X1spZW0Z6TYQO/6owR7xADaDDVzeeDBOGV4g="
-            //   * however that manifest just doesn't digest that way. Verified by digesting
-            //     the original bytes as read in; can't make it work.
-            //   * c2patool says the file is fine. However if I modify one byte in the
-            //     manifest ending in 7af56501ce4b, it fails the file - but it doesn't fail
-            //     the "c2pa.ingredient" assertion. Conclusion, it's not checking that
-            //     digest.
-            //
-            // HOWEVER
-            //  adobe-20220124-E-clm-CAICAI.jpg
-            //  * manifest 762c0362b236 is invalid; "c2pa.ingredient__1" appears to have been
-            //    stored with the wrong hash, as again the data is unchanged since loading
-            //  * same manifest also has "c2pa.ingredient__1", and this refers to the
-            //    missing entry in the c2pa_manifest, "contentbeef:urn:uuid:8bb8ad50-ef2f-4f75-b709-a0e302d58019"
-            //    the item is missing; it should invalidate. However if we don't check it then
-            //    a0e302d58019 passes. So we check and it fails.
-            //  * other manifest (a0e302d58019) is OK. So I think this is now correct
-            //  -- in fact this one is correct if we only check the final manifest
-            //
-            // adobe-20220124-CIE-sig-CA.jpg
-            // * no idea, sig validates for both manifests but apparently shouldn't? enduser cert
-            //   is OK, test chain. Seems to be todo with the "E-sig-CA.jpg" inside the manifest,
-            //   c2patool says there's an issue with timestamp?
-            //
-            // adobe-20220124-E-uri-CIE-sig-CA.jpg
-            // * manifest 7af56501ce4b is hashmismatch - looks intentional (deadbeef in data)
-            // * manifest 644a63d1f7d0 is fine, but again includes 7af56501ce4b as ingredient
-            //   but because we're not validating ingredients, we pass when it should fail
-            //
-
-            String url = cbor().get("c2pa_manifest").stringValue("url");
-            if (getManifest().find(url) == null) {
-                throw new IllegalStateException("URL \"" + url + "\" not in manifest [claim.missing]");
+            if (getTargetManifest() == null) {
+                throw new C2PAException(C2PAStatus.claim_missing, "\"" + getTargetManifestURL() + "\" not in manifest");
             }
+
+            // adobe-20220124-E-uri-CIE-sig-CA.jpg
+            // 
+            //   active manifest ends in 644a63d1f7d0: the "c2pa.ingredient" refers to another manifest,
+            //   7af56501ce4b, which has been deliberately altered. So this would be invalid IFF were
+            //   are to recursively validate ingredients. However it does have a "validationStatus"
+            //   showing it was validated as a failure.
+            // 
+            // adobe-20220124-CACA.jpg
+            // 
+            //   active manifest ends in f85380524443: the "c2pa.ingredient" assertion refers to another
+            //   manifest 7af56501ce4b with a digest "3epjVN8X1spZW0Z6TYQO/6owR7xADaDDVzeeDBOGV4g=",
+            //   but that manifest doesn't digest this way. Moreover, if I change one byte in that
+            //   manifest the overall signature fails, but "c2pa.ingredient" does not. So based on this,
+            //   we not NOT supposed to recursively validate ingredients.
+            //
+            // Conclusion: recursively validating manifests is NOT done, but if there is a validationStatus
+            // listed, we will report that.
+
+            if (cbor().isList("validationStatus")) {
+                Json vals = cbor().get("validationStatus");
+                for (int i=0;i<vals.size();i++) {
+                    String code = vals.get(i).stringValue("code");
+                    if (code != null) {
+                        for (C2PAStatus status : C2PAStatus.values()) {
+                            if (status.toString().equals(code) && status.isError()) {
+                                C2PAException nest = new C2PAException(status, vals.get(i).stringValue("explanation"));
+                                C2PAException e = new C2PAException(C2PAStatus.ingredient_hashedURI_mismatch, "referenced ingredient at \"" + getTargetManifestURL() + "\" validationStatus has error");
+                                e.initCause(nest);
+                                throw e;
+                            }
+                        }
+                    }
+                }
+            }
+            // If we were recursive, we'd do this
             // C2PASignature.digestHashedURL(cbor().get("c2pa_manifest"), getManifest(), true);
         }
     }

@@ -72,8 +72,9 @@ public class C2PASignature extends CborContainerBox {
      * @param certs a list of X.509 certificates to include in the COSE object.
      * @throws RuntimeException wrapping a GeneralSecurityException if signing fails
      * @throws IOException if signing fails due to an IOException
+     * @throws C2PAException if the C2PA preconditions for signing are not met
      */
-    public void sign(PrivateKey key, List<X509Certificate> certs) throws IOException /*throws GeneralSecurityException*/ {
+    public void sign(PrivateKey key, List<X509Certificate> certs) throws IOException, C2PAException /*throws GeneralSecurityException*/ {
         final COSE cose = cose();
         final C2PAManifest manifest = (C2PAManifest)parent();
         final C2PAClaim claim = manifest.getClaim();
@@ -97,15 +98,15 @@ public class C2PASignature extends CborContainerBox {
             if (a == null) {
                 throw new NullPointerException("assertion in claim is null");    // shouldn't happen
             } else if (a instanceof C2PA_AssertionUnknown) {
-                throw new IllegalStateException("assertion \"" + ((C2PA_AssertionUnknown)a).url() + "\" unknown [assertion.missing]");
+                throw new C2PAException(C2PAStatus.assertion_missing, "assertion \"" + ((C2PA_AssertionUnknown)a).url() + "\" not found");
             } else if (a instanceof C2PA_AssertionHashData) {
                 if (hashdata != null || hashbmff != null) {
-                    throw new IllegalStateException("manifest has multiple hard-binding [assertion.multipleHardBindings]");
+                    throw new C2PAException(C2PAStatus.assertion_multipleHardBindings, "manifest has multiple hard-binding");
                 }
                 hashdata = (C2PA_AssertionHashData)a;
             } else if (a instanceof C2PA_AssertionHashBMFF) {
                 if (hashdata != null || hashbmff != null) {
-                    throw new IllegalStateException("manifest has multiple hard-binding [assertion.multipleHardBindings]");
+                    throw new C2PAException(C2PAStatus.assertion_multipleHardBindings, "manifest has multiple hard-binding");
                 }
                 hashbmff = (C2PA_AssertionHashBMFF)a;
             }
@@ -118,7 +119,7 @@ public class C2PASignature extends CborContainerBox {
         } else if (hashbmff != null) {
             hashbmff.sign();
         } else {
-            throw new IllegalStateException("manifest has no hard-bindings [claim.hardBindings.missing]");
+            throw new C2PAException(C2PAStatus.claim_hardBindings_missing, "manifest has no hard-binding");
         }
         if (getMinSize() > 0) {
             Json j = cose.getUnprotectedAttributes();
@@ -133,7 +134,7 @@ public class C2PASignature extends CborContainerBox {
         cose.sign(key, null);
     }
 
-    private ByteBuffer generatePayload(int padlength) {
+    private ByteBuffer generatePayload(int padlength) throws C2PAException {
         final C2PAManifest manifest = (C2PAManifest)parent();
         final C2PAClaim claim = manifest.getClaim();
         MessageDigest digest;
@@ -158,7 +159,7 @@ public class C2PASignature extends CborContainerBox {
      * @throws IllegalStateException if the signature is not signed or has been incorrectly set up
      * @return true if the supplied key verifies the signature, false otherwise
      */
-    public boolean verify(PublicKey key) {
+    public C2PAStatus verify(PublicKey key) throws C2PAException {
         // It does say that it a) must be a SIGN1 and b) must have exactly one "credential" (X509 cert)
         final COSE cose = cose();
         final C2PAManifest manifest = (C2PAManifest)parent();
@@ -173,11 +174,11 @@ public class C2PASignature extends CborContainerBox {
         }
         for (Box b=manifest.first();b!=null;b=b.next()) {
             if (b instanceof C2PAClaim && b != claim) {
-                throw new IllegalStateException("too many claim boxes [claim.multiple]");
+                throw new C2PAException(C2PAStatus.claim_multiple, "too many claim boxes");
             }
         }
         if (!claim.cbor().isString("signature") || manifest.find(claim.cbor().stringValue("signature")) != this) {
-            throw new IllegalStateException("signature not in claim [claimSignature.missing]");
+            throw new C2PAException(C2PAStatus.claimSignature_missing, "signature not in claim");
         }
         if (key == null && cose.getCertificates() != null && !cose.getCertificates().isEmpty()) {
             key = cose.getCertificates().get(0).getPublicKey();
@@ -186,7 +187,8 @@ public class C2PASignature extends CborContainerBox {
         }
         ByteBuffer payload = generatePayload(getMinSize());
         cose.setPayload(payload, true);
-        return cose.verify(key) >= 0;   // claimSignature.mismatch
+        boolean b = cose.verify(key) >= 0;
+        return b ? C2PAStatus.claimSignature_validated : C2PAStatus.claimSignature_mismatch;
     }
 
     /**
@@ -194,11 +196,11 @@ public class C2PASignature extends CborContainerBox {
      * and update it. If it already has a digest and it differs,
      * or the URL cannot be found, throw an Exception
      */
-    static void digestHashedURL(Json hasheduri, C2PAManifest manifest, boolean ingredient) {
+    static void digestHashedURL(Json hasheduri, C2PAManifest manifest, boolean ingredient) throws C2PAException {
         String url = hasheduri.stringValue("url");
         JUMBox box = manifest.find(url);
         if (box == null) {
-            throw new IllegalStateException("URL \"" + url + "\" not in manifest [assertion.missing]");
+            throw new C2PAException(C2PAStatus.assertion_missing, "\"" + url + "\" not in manifest");
         }
         MessageDigest digest = manifest.getMessageDigest(hasheduri);
         // "When creating a URI reference to an assertion (i.e., as part of
@@ -217,8 +219,8 @@ public class C2PASignature extends CborContainerBox {
             byte[] olddigestbytes = hasheduri.bufferValue("hash").array();
             if (!Arrays.equals(digestbytes, olddigestbytes)) {
                 debugMismatch(box);
-                String code = ingredient ? "ingredient.hashedURI.mismatch" : "assertion.hashedURI.mismatch";
-                throw new IllegalStateException("hash mismatch for \"" + box.label() + "\" [" + code + "]");
+                C2PAStatus status = ingredient ? C2PAStatus.ingredient_hashedURI_mismatch : C2PAStatus.assertion_hashedURI_mismatch;
+                throw new C2PAException(status, "hash mismatch for \"" + box.label() + "\"");
             }
         }
         hasheduri.put("hash", digestbytes);
