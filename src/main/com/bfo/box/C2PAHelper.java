@@ -155,6 +155,9 @@ public class C2PAHelper {
             store.getManifests().add(new C2PAManifest(UUID.randomUUID().toString()));
         }
         C2PAManifest manifest = store.getManifests().get(store.getManifests().size() - 1);
+        if (manifest.getClaim().getInstanceID() == null) {
+            manifest.getClaim().setInstanceID("urn:uuid:" + UUID.randomUUID().toString());
+        }
         C2PA_AssertionHashData hash = null;
         for (C2PA_Assertion a : manifest.getAssertions()) {
             if (a instanceof C2PA_AssertionHashData) {
@@ -175,7 +178,7 @@ public class C2PAHelper {
         manifest.getSignature().sign(key, certs);
         byte[] dummydata = store.getEncoded();
         int length = dummydata.length;
-        final int maxsegmentlength = 65530;     // 65535, but headroom feels nicer
+        final int maxsegmentlength = 65534;     // 65535 plus one for luck
         final int segheaderlen = 12;            // bytes of overhead per segment
         int numsegments = (int)Math.ceil(length / (float)(maxsegmentlength - segheaderlen));
         hash.setExclusions(new long[] { start, length + (numsegments * segheaderlen) });
@@ -223,7 +226,7 @@ public class C2PAHelper {
     }
 
     public static void main(String[] args) throws Exception {
-        String storepath = null, password = "", storetype = "pkcs12", alias = null, alg = null, cw = null, outname = null;
+        String storepath = null, password = "", storetype = "pkcs12", alias = null, alg = null, cw = null, outname = null, outc2pa = null;
         List<X509Certificate> certs = new ArrayList<X509Certificate>();
         PrivateKey key = null;
         boolean sign = false, debug = false;
@@ -254,6 +257,8 @@ public class C2PAHelper {
                 cw = args[++i];
             } else if (s.equals("--out")) {
                 outname = args[++i];
+            } else if (s.equals("--c2pa")) {
+                outc2pa = args[++i];
             } else {
                 if (sign) {
                     keystore = KeyStore.getInstance(storetype);
@@ -290,7 +295,7 @@ public class C2PAHelper {
                             throw new IllegalStateException("no certs");
                         }
                         C2PAStore c2pa = new C2PAStore();
-                        C2PAManifest manifest = new C2PAManifest(new File(inname).toURI().toString());
+                        C2PAManifest manifest = new C2PAManifest("urn:uuid:"+UUID.randomUUID().toString());
                         c2pa.getManifests().add(manifest);
                         manifest.getClaim().setFormat("image/jpeg");
                         if (alg != null) {
@@ -310,10 +315,17 @@ public class C2PAHelper {
                             //fout.write(encoded);
                             //fout.close();
                             System.out.println(c2pa.toJson().toString(new JsonWriteOptions().setPretty(true).setCborDiag("hex")));
+                            System.out.println(c2pa.dump(null, null));
                         }
                         System.out.println("# signed and wrote to \"" + outname + "\"");
                         out.close();
                         out = null;
+                        if (outc2pa != null) {
+                            out = new BufferedOutputStream(new FileOutputStream(outc2pa));
+                            out.write(encoded);
+                            out.close();
+                            outc2pa = null;
+                        }
                     } else {
                         C2PAStore c2pa = extractFromJPEG(in);
                         if (c2pa != null) {
@@ -359,6 +371,8 @@ public class C2PAHelper {
                             cw = args[++i];
                         } else if (s.equals("--out")) {
                             outname = args[++i];
+                        } else if (s.equals("--c2pa")) {
+                            outc2pa = args[++i];
                         } else if (s.equals("--sign")) {
                             sign = true;
                         } else if (s.equals("--verify")) {
@@ -386,6 +400,7 @@ public class C2PAHelper {
         System.out.println("   --alg <algorithm>       if signing, the hash algorithm");
         System.out.println("   --creativework <path>   if signing, filename containing a JSON schema to embed");
         System.out.println("   --out <path>            if signing, filename to write signed output to (default will derive from input");
+        System.out.println("   --c2pa <path>           if signing, filename to dump the C2PA object to (default is not dumped");
         System.out.println("   <path>                  the filename to sign or verify");
         System.out.println();
         System.exit(0);
