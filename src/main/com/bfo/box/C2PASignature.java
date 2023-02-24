@@ -5,6 +5,8 @@ import java.util.*;
 import java.nio.*;
 import java.security.*;
 import java.security.cert.*;
+import java.security.interfaces.*;
+import java.security.spec.*;
 import com.bfo.json.*;
 
 /**
@@ -89,9 +91,6 @@ public class C2PASignature extends CborContainerBox {
         if (assertions.isEmpty()) {
             assertions.addAll(manifest.getAssertions());
         }
-        if (claim.getGenerator() == null) {
-            claim.setGenerator("BFO Json library", null);
-        }
         C2PA_AssertionHashData hashdata = null;
         C2PA_AssertionHashBMFF hashbmff = null;
         for (C2PA_Assertion a : assertions) {
@@ -127,6 +126,9 @@ public class C2PASignature extends CborContainerBox {
                 j = Json.read("{}");
             }
             j.put("pad", new byte[getMinSize()]);
+        }
+        if (claim.getGenerator() == null) {
+            claim.setGenerator("BFO Json library", null);
         }
         claim.cbor().put("signature", "self#jumbf=" + manifest.find(this));
         cose.setPayload(generatePayload(getMinSize(), true), true);
@@ -261,6 +263,237 @@ public class C2PASignature extends CborContainerBox {
         }
     }
 
+    /**
+     * Verify that the supplied certificate chain is allowed for use with C2PA.
+     * @param certs the list of certificates, in order, with the signing certificate first
+     * @param purpose the purpose of this chain - either "ocsp", "timestamp" or anything else for "signing"
+     * @throws a C2PAException describing why if the certificates are not valid
+     */
+    public static void verifyCertificates(List<X509Certificate> certs, String purpose) throws C2PAException {
+        if (!"timestamp".equals(purpose) && !"ocsp".equals(purpose)) {
+            purpose = "signing";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        Exception e2 = null;
+
+        for (int ix=0;ix<certs.size();ix++) {
+            List<String> list = new ArrayList<String>();
+            X509Certificate cert = certs.get(ix);
+            try {
+
+                //
+                // The algorithm field of the signatureAlgorithm field shall be one of the following values:
+                //   ecdsa-with-SHA256 (RFC 5758 section 3.2)
+                //   ecdsa-with-SHA384 (RFC 5758 section 3.2)
+                //   ecdsa-with-SHA512 (RFC 5758 section 3.2)
+                //   sha256WithRSAEncryption (RFC 8017 appendix A.2.4)
+                //   sha384WithRSAEncryption (RFC 8017 appendix A.2.4)
+                //   sha512WithRSAEncryption (RFC 8017 appendix A.2.4)
+                //   id-RSASSA-PSS (RFC 8017 appendix A.2.3)
+                //   id-Ed25519 (RFC 8410 section 3u).
+                // 
+                if (!Arrays.asList("1.2.840.10045.4.3.2", "1.2.840.10045.4.3.3", "1.2.840.10045.4.3.4", "1.2.840.113549.1.1.11", "1.2.840.113549.1.1.12", "1.2.840.113549.1.1.13", "1.2.840.113549.1.1.10", "1.3.101.112").contains(cert.getSigAlgOID())) {
+                    list.add("algorithm " + cert.getSigAlgOID());
+                } else if (cert.getSigAlgOID().equals("1.2.840.113549.1.1.10")) {
+                    // If the algorithm field of the signatureAlgorithm
+                    // field is id-RSASSA-PSS, the parameters field is
+                    // of type RSASSA-PSS-params. Its fields shall have
+                    // the following requirements: RFC 8017 section A.2.3.
+                    // 
+                    //   The hashAlgorithm field shall be present.
+                    // 
+                    //   The algorithm field of the hashAlgorithm field
+                    //   shall be one of the following values: (RFC 8017
+                    //   appendix B.1): id-sha256 id-sha384 id-sha512
+                    // 
+                    //   The maskGenAlgorithm field shall be present.
+                    // 
+                    //   The algorithm field of the parameters field of
+                    //   the maskGenAlgorithm field shall be equal to
+                    //   the algorithm field of the hashAlgorithm
+                    //   field.
+
+                    AlgorithmParameters p = AlgorithmParameters.getInstance(cert.getSigAlgName());
+                    p.init(cert.getSigAlgParams());
+                    PSSParameterSpec spec = p.getParameterSpec(PSSParameterSpec.class);
+                    if (!Arrays.asList("SHA256", "SHA384", "SHA512").contains(spec.getDigestAlgorithm())) {
+                        list.add("RSASSA-PSS-params algorithm " + spec.getDigestAlgorithm());
+                    } else if (!(spec.getMGFParameters() instanceof MGF1ParameterSpec && spec.getDigestAlgorithm().equals(((MGF1ParameterSpec)spec.getMGFParameters()).getDigestAlgorithm()))) {
+                        list.add("RSASSA-PSS-params algorithm != mfg algorithm");
+                    }
+                }
+
+                if (cert.getPublicKey() instanceof ECPublicKey) {
+                    // If the algorithm field of the algorithm field of
+                    // the certificate’s subjectPublicKeyInfo is
+                    // id-ecPublicKey, the parameters field shall be one
+                    // of the following named curves: (RFC 5480 section
+                    // 2.1.1.1.): prime256v1 secp384r1 secp521r1
+                    // 
+                    String crv = new JWK(cert.getPublicKey()).stringValue("crv");
+                    if (!Arrays.asList("P-256", "P-384", "P-521").contains(crv)) {
+                        list.add("public-key EC curve");
+                    }
+                } else if (cert.getPublicKey() instanceof RSAPublicKey) {
+                    // If the algorithm field of the algorithm field of
+                    // the certificate’s subjectPublicKeyInfo is
+                    // rsaEncryption or rsaPSS, the modulus field of the
+                    // parameters field shall have a length of at least
+                    // 2048 bits.
+                    int bitlength = ((RSAKey)cert.getPublicKey()).getModulus().bitLength();
+                    if (bitlength < 2048) {
+                        list.add("public-key RSA bits=" + bitlength);
+                    }
+                }
+
+                // Version must be v3. RFC 5280 section 4.1.2.1
+                if (cert.getVersion() != 3) {
+                    list.add("version " + cert.getVersion());
+                }
+
+                // The issuerUniqueID and subjectUniqueID optional fields of
+                // the TBSCertificate sequence must not be present. RFC 5280
+                // section 4.1.2.8
+                if (cert.getSubjectUniqueID() != null || cert.getIssuerUniqueID() != null) {
+                    list.add("has issuerUniqueID or subjectUniqueID");
+                }
+
+                // The Basic Constraints extension must follow RFC 5280
+                // section 4.2.1.9. In particular, it must be present with the
+                // CA boolean asserted if the certificate issues certificates,
+                // and not asserted if it does not.
+                if ("ca".equals(purpose) && cert.getBasicConstraints() < 0) {
+                    list.add("no basic constraints");
+                } else if (!"ca".equals(purpose) && cert.getBasicConstraints() >= 0) {
+                    list.add("basic constraints set");
+                }
+
+                // The Authority Key Identifier extension must be present in
+                // any certificate that is not self-signed. RFC 5280 section
+                // 4.2.1.1
+                if (cert.getSubjectX500Principal() != null && !cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal())) {
+                    if (cert.getExtensionValue("1.3.6.1.5.5.7.1.1") == null) {
+                        list.add("Authority Key Identifier (1.3.6.1.5.5.7.1.1) not set and not self-signed");
+                    }
+                }
+
+                // The Subject Key Identifier extension must be present in
+                // any certificate that acts as a CA. It should be present in
+                // end entity certificates. RFC 5280 section 4.2.1.2
+                // TODO surely this is every cert?
+                if (cert.getSubjectX500Principal() == null) {
+                    list.add("no subject");
+                }
+
+                // The Key Usage extension must be present and should be
+                // marked as critical. Certificates used to sign C2PA manifests
+                // must assert the digitalSignature bit. The keyCertSign bit
+                // must only be asserted if the cA boolean is asserted in the
+                // Basic Constraints extension. RFC 5280 section 4.2.1.3
+                boolean[] keyusage = cert.getKeyUsage();
+                if ("signing".equals(purpose) && !keyusage[0]) {
+                    list.add("keyUsage missing digitalSignature");
+                }
+                if (keyusage[5] && cert.getBasicConstraints() < 0) {
+                    list.add("keyUsage contains keyCertSign");
+                }
+
+                // The Extended Key Usage (EKU) extension must be present and
+                // non-empty in any certificate where the Basic Constraints
+                // extension is absent or the cA boolean is not asserted. These
+                // are commonly called "end entity" or "leaf" certificates. RFC
+                // 5280 section 4.2.1.12
+                if (cert.getBasicConstraints() == 0) {
+                    if (!cert.getCriticalExtensionOIDs().contains("2.5.29.37")) {
+                        // list.add("extendedKeyUsage not critical"); not listed, should be
+                    }
+                    List<String> eku = cert.getExtendedKeyUsage();
+                    if (eku == null) {
+                        list.add("extendedKeyUsage not present");
+                    } else if (eku.contains("2.5.29.37.0")) {
+                        // The anyExtendedKeyUsage EKU (2.5.29.37.0) must not be present.
+                        list.add("extendedKeyUsage contains 2.5.29.37.0");
+                    } else if ("signing".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.4")) {
+                        // If the configuration store contains a list of EKUs, a
+                        // certificate that signs C2PA manifests must be valid for at
+                        // least one of the listed purposes.
+                        //
+                        // If the configuration store does not contain a list of
+                        // EKUs, a certificate that signs C2PA manifests must be valid
+                        // for the id-kp-emailProtection (1.3.6.1.5.5.7.3.4) purpose.
+                        //
+                        //    The id-kp-emailProtection purpose is not implicitly
+                        //    included by default if a list of EKUs has been configured. If
+                        //    desired, it must explicitly be added to the list in the
+                        //    configuration store.
+                        list.add("extendedKeyUsage missing 1.3.6.1.5.5.7.3.4");
+                    } else if ("timestamp".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.8")) {
+                        // A certificate that signs time-stamping countersignatures
+                        // must be valid for the id-kp-timeStamping (1.3.6.1.5.5.7.3.8)
+                        // purpose.
+                        list.add("extendedKeyUsage missing 1.3.6.1.5.5.7.3.8");
+                    } else if ("timestamp".equals(purpose) && eku.contains("1.3.6.1.5.5.7.3.8")) {
+                        // If a certificate is valid for either id-kp-timeStamping or
+                        // id-kp-OCSPSigning, it must be valid for exactly one of those
+                        // two purposes, and not valid for any other purpose.
+                        if (eku.size() > 1) {
+                            list.add("extendedKeyUsage contains not only 1.3.6.1.5.5.7.3.8");
+                        }
+                    } else if ("ocsp".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.9")) {
+                        // A certificate that signs OCSP responses for certificates
+                        // must be valid for the id-kp-OCSPSigning (1.3.6.1.5.5.7.3.9)
+                        // purpose.
+                        list.add("extendedKeyUsage missing 1.3.6.1.5.5.7.3.9");
+                    } else if ("ocsp".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.9")) {
+                        // If a certificate is valid for either id-kp-timeStamping or
+                        // id-kp-OCSPSigning, it must be valid for exactly one of those
+                        // two purposes, and not valid for any other purpose.
+                        if (eku.size() > 1) {
+                            list.add("extendedKeyUsage contains not only 1.3.6.1.5.5.7.3.9");
+                        }
+                    }
+                }
+
+                // A certificate should not be valid for any other purposes
+                // outside of the purposes listed above, but the presence of any
+                // EKUs not mentioned in this profile and not in the list of
+                // EKUs in the configuration store shall not cause the
+                // certificate to be rejected.
+                // NOOP
+            } catch (Exception e) {
+                list.add("parsing exception");
+                e2 = e;
+            }
+
+            for (String s : list) {
+                // System.out.println("## ix="+ix+" p="+purpose+": "+s);
+                if (sb.length() > 0) {
+                    sb.append(", ");
+                }
+                sb.append(purpose);
+                sb.append("cert");
+                if ("ca".equals(purpose)) {
+                    sb.append(" ");
+                    sb.append(ix);
+                }
+                sb.append(": ");
+                sb.append(s);
+            }
+            list.clear();
+
+            purpose = "ca";
+        }
+
+        if (sb.length() > 0) {
+            C2PAException e = new C2PAException(C2PAStatus.signingCredential_invalid, sb.toString());
+            if (e2 != null) {
+                e.initCause(e2);
+            }
+            // System.out.println(certs);
+            throw e;
+        }
+    }
 }
 
 // TODO

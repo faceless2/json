@@ -341,6 +341,8 @@ public class C2PAHelper {
                                     try {
                                         a.verify();
                                         System.out.println("# assertion \"" + a.asBox().label() + "\" verified");
+                                    } catch (C2PAException e) {
+                                        System.out.println("# assertion \"" + a.asBox().label() + "\" failed: [" + e.getStatus() + "] " + e.getMessage());
                                     } catch (UnsupportedOperationException e) {
                                         System.out.println("# assertion \"" + a.asBox().label() + "\" unsupported");
                                     } catch (Exception e) {
@@ -352,11 +354,20 @@ public class C2PAHelper {
                                 }
                             }
                             try {
-                                if (manifest.getSignature().verify(null).isOK()) {
-                                    System.out.println("# signature verified");
+                                C2PASignature.verifyCertificates(manifest.getSignature().cose().getCertificates(), "signing");
+                            } catch (C2PAException e) {
+                                System.out.println("# certificates failed: [" + e.getStatus() + "] " + e.getMessage());
+                            }
+                            try {
+                                C2PAStatus status = manifest.getSignature().verify(null);
+                                if (status.isOK()) {
+                                    System.out.println("# signature verified: [" + status + "]");
                                 } else {
-                                    System.out.println("# signature verification failed");
+                                    System.out.println("# signature verification failed: [" + status + "]");
                                 }
+                            } catch (C2PAException e) {
+                                System.out.println("# signature failed: [" + e.getStatus() + "] " + e.getMessage());
+                                e.printStackTrace();
                             } catch (Exception e) {
                                 System.out.println("# signature failed");
                                 e.printStackTrace();
