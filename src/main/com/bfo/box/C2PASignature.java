@@ -173,6 +173,8 @@ public class C2PASignature extends CborContainerBox {
             // and shall use detached content mode."
             //  -- https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_signing_a_claim
             throw new IllegalStateException("not detached");
+        } else if (cose.getTag() != 18) {
+            throw new IllegalStateException("not Signature1");
         }
         for (Box b=manifest.first();b!=null;b=b.next()) {
             if (b instanceof C2PAClaim && b != claim) {
@@ -404,53 +406,56 @@ public class C2PASignature extends CborContainerBox {
                 // extension is absent or the cA boolean is not asserted. These
                 // are commonly called "end entity" or "leaf" certificates. RFC
                 // 5280 section 4.2.1.12
-                if (cert.getBasicConstraints() == 0) {
+                if (cert.getBasicConstraints() < 0) {
                     if (!cert.getCriticalExtensionOIDs().contains("2.5.29.37")) {
                         // list.add("extendedKeyUsage not critical"); not listed, should be
                     }
                     List<String> eku = cert.getExtendedKeyUsage();
                     if (eku == null) {
                         list.add("extendedKeyUsage not present");
-                    } else if (eku.contains("2.5.29.37.0")) {
-                        // The anyExtendedKeyUsage EKU (2.5.29.37.0) must not be present.
-                        list.add("extendedKeyUsage contains 2.5.29.37.0");
-                    } else if ("signing".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.4")) {
-                        // If the configuration store contains a list of EKUs, a
-                        // certificate that signs C2PA manifests must be valid for at
-                        // least one of the listed purposes.
-                        //
-                        // If the configuration store does not contain a list of
-                        // EKUs, a certificate that signs C2PA manifests must be valid
-                        // for the id-kp-emailProtection (1.3.6.1.5.5.7.3.4) purpose.
-                        //
-                        //    The id-kp-emailProtection purpose is not implicitly
-                        //    included by default if a list of EKUs has been configured. If
-                        //    desired, it must explicitly be added to the list in the
-                        //    configuration store.
-                        list.add("extendedKeyUsage missing 1.3.6.1.5.5.7.3.4");
-                    } else if ("timestamp".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.8")) {
-                        // A certificate that signs time-stamping countersignatures
-                        // must be valid for the id-kp-timeStamping (1.3.6.1.5.5.7.3.8)
-                        // purpose.
-                        list.add("extendedKeyUsage missing 1.3.6.1.5.5.7.3.8");
-                    } else if ("timestamp".equals(purpose) && eku.contains("1.3.6.1.5.5.7.3.8")) {
-                        // If a certificate is valid for either id-kp-timeStamping or
-                        // id-kp-OCSPSigning, it must be valid for exactly one of those
-                        // two purposes, and not valid for any other purpose.
-                        if (eku.size() > 1) {
-                            list.add("extendedKeyUsage contains not only 1.3.6.1.5.5.7.3.8");
-                        }
-                    } else if ("ocsp".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.9")) {
-                        // A certificate that signs OCSP responses for certificates
-                        // must be valid for the id-kp-OCSPSigning (1.3.6.1.5.5.7.3.9)
-                        // purpose.
-                        list.add("extendedKeyUsage missing 1.3.6.1.5.5.7.3.9");
-                    } else if ("ocsp".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.9")) {
-                        // If a certificate is valid for either id-kp-timeStamping or
-                        // id-kp-OCSPSigning, it must be valid for exactly one of those
-                        // two purposes, and not valid for any other purpose.
-                        if (eku.size() > 1) {
-                            list.add("extendedKeyUsage contains not only 1.3.6.1.5.5.7.3.9");
+                    } else {
+                        if (eku.contains("2.5.29.37.0")) {
+                            // The anyExtendedKeyUsage EKU (2.5.29.37.0) must not be present.
+                            list.add("extendedKeyUsage contains 2.5.29.37.0");
+                        } 
+                        if ("signing".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.4")) {
+                            // If the configuration store contains a list of EKUs, a
+                            // certificate that signs C2PA manifests must be valid for at
+                            // least one of the listed purposes.
+                            //
+                            // If the configuration store does not contain a list of
+                            // EKUs, a certificate that signs C2PA manifests must be valid
+                            // for the id-kp-emailProtection (1.3.6.1.5.5.7.3.4) purpose.
+                            //
+                            //    The id-kp-emailProtection purpose is not implicitly
+                            //    included by default if a list of EKUs has been configured. If
+                            //    desired, it must explicitly be added to the list in the
+                            //    configuration store.
+                            list.add("extendedKeyUsage missing 1.3.6.1.5.5.7.3.4");
+                        } else if ("timestamp".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.8")) {
+                            // A certificate that signs time-stamping countersignatures
+                            // must be valid for the id-kp-timeStamping (1.3.6.1.5.5.7.3.8)
+                            // purpose.
+                            list.add("extendedKeyUsage missing 1.3.6.1.5.5.7.3.8");
+                        } else if ("timestamp".equals(purpose) && eku.contains("1.3.6.1.5.5.7.3.8")) {
+                            // If a certificate is valid for either id-kp-timeStamping or
+                            // id-kp-OCSPSigning, it must be valid for exactly one of those
+                            // two purposes, and not valid for any other purpose.
+                            if (eku.size() > 1) {
+                                list.add("extendedKeyUsage contains not only 1.3.6.1.5.5.7.3.8");
+                            }
+                        } else if ("ocsp".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.9")) {
+                            // A certificate that signs OCSP responses for certificates
+                            // must be valid for the id-kp-OCSPSigning (1.3.6.1.5.5.7.3.9)
+                            // purpose.
+                            list.add("extendedKeyUsage missing 1.3.6.1.5.5.7.3.9");
+                        } else if ("ocsp".equals(purpose) && !eku.contains("1.3.6.1.5.5.7.3.9")) {
+                            // If a certificate is valid for either id-kp-timeStamping or
+                            // id-kp-OCSPSigning, it must be valid for exactly one of those
+                            // two purposes, and not valid for any other purpose.
+                            if (eku.size() > 1) {
+                                list.add("extendedKeyUsage contains not only 1.3.6.1.5.5.7.3.9");
+                            }
                         }
                     }
                 }
@@ -497,7 +502,6 @@ public class C2PASignature extends CborContainerBox {
 }
 
 // TODO
-// * add hard bindings (datahash)
 // * require certs in key
 // * look at timestamps; sigTst?
 // * look at update manifests
