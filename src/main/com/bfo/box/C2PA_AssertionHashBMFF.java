@@ -2,6 +2,7 @@ package com.bfo.box;
 
 import com.bfo.json.*;
 import java.io.*;
+import java.util.*;
 
 /**
  * A C2PA Assertion for the "c2pa.hash.bmff" or "c2pa.hash.bmff.v2" types
@@ -31,16 +32,17 @@ public class C2PA_AssertionHashBMFF extends CborContainerBox implements C2PA_Ass
         return "c2pa.hash.bmff.v2".equals(label());
     }
 
-    @Override public void verify() throws C2PAException {
-        getManifest().verifyExactlyOneHash();
+    @Override public List<C2PAStatus> verify() throws IOException {
         // TODO https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_validating_a_bmff_hash
         throw new UnsupportedOperationException(label() + " not yet implemented");
     }
 
     /**
-     * Calculate the digest during signing. Not yet implemented
+     * Calculate the digest during signing. Not yet implemented, throws UnsupportedOperationException
+     * @return a list of failure codes, or an empty list on success
+     * @throws IOException if such an exception was encountered during signing
      */
-    public void sign() throws IOException, C2PAException {
+    public List<C2PAStatus> sign() throws IOException {
         throw new UnsupportedOperationException(label() + " not yet implemented");
     }
 

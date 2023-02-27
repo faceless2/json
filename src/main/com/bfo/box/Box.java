@@ -160,7 +160,8 @@ public class Box {
 
     /**
      * Add this box to the end of the list of children
-     * @param box the box
+     * @param box the box, which must not be already part of a tree
+     * @throws IllegalStateExeption if box is already part of a tree
      */
     public void add(Box box) {
         if (box.parent != null) {
@@ -178,24 +179,19 @@ public class Box {
         }
     }
 
-    /**
-     * Remove this box from its parent, and if other != null, replace it with "other"
-     * @param other the Box to replace this box with, or null to remove this box
-     * @return true if the tree changed as a result, false otherwise
-     */
-    public boolean replace(Box other) {
-        if (other != null && other.parent != null) {
-            throw new IllegalStateException("already added");
+    void addIfNotNull(Box box) {
+        if (box != null) {
+            add(box);
         }
+    }
+
+    /**
+     * Remove this box from its parent
+     */
+    public void remove() {
         if (parent != null) {
             if (parent.first == this) {
-                if (other == null) {
-                    parent.first = next;
-                } else {
-                    parent.first = other;
-                    other.next = next;
-                    other.parent = parent;
-                }
+                parent.first = next;
                 parent = next = null;
             } else {
                 Box b = parent.first;
@@ -203,19 +199,42 @@ public class Box {
                     b = b.next;
                 }
                 if (b.next == this) {
-                    if (other == null) {
-                        b.next = next;
-                    } else {
-                        b.next = other;
-                        other.next = next;
-                        other.parent = parent;
-                    }
+                    b.next = next;
                     parent = next = null;
                 }
             }
-            return true;
         }
-        return false;
+    }
+
+    /**
+     * Insert this box before the specified box. If this box already exists
+     * @param other the Box to insert this box before. The box must have a parent.
+     * @throws IllegalStateExeption if this box is already part of a tree, or other has no parent
+     */
+    public void insertBefore(Box other) {
+        if (parent != null) {
+            throw new IllegalStateException("already added");
+        }
+        if (other == null) {
+            throw new IllegalStateException("other is null");
+        }
+        if (other.parent == null) {
+            throw new IllegalStateException("other has no parent");
+        }
+        Box parent = other.parent;
+        if (parent.first == other) {
+            parent.first = this;
+            this.parent = parent;
+            this.next = other;
+        } else {
+            Box b = parent.first;
+            while (b.next != other) {
+                b = b.next;
+            }
+            b.next = this;
+            this.parent = parent;
+            this.next = other;
+        }
     }
 
     /**
@@ -238,18 +257,21 @@ public class Box {
      * @param out the OutputStream
      */
     private final void dowrite(OutputStream out) throws IOException {
-        UsefulByteArrayOutputStream bout = out instanceof UsefulByteArrayOutputStream ? (UsefulByteArrayOutputStream)out : new UsefulByteArrayOutputStream();
-        int start = bout.tell();
-        bout.writeInt(0);
-        bout.writeInt(stringToType(type()));
-        write(bout);
-        int end = bout.tell();
-        bout.seek(start);
-        bout.writeInt(end - start);
-        bout.seek(end);
-        if (out != bout) {
-            bout.writeTo(out);
-        }
+        ByteArrayOutputStream tmp = new ByteArrayOutputStream();
+        write(tmp);
+        tmp.close();
+        byte[] data = tmp.toByteArray();
+        int len = data.length + 8;
+        int type = stringToType(type());
+        out.write(len>>24);
+        out.write(len>>16);
+        out.write(len>>8);
+        out.write(len>>0);
+        out.write(type>>24);
+        out.write(type>>16);
+        out.write(type>>8);
+        out.write(type>>0);
+        out.write(data);
     }
 
     /**
@@ -340,6 +362,30 @@ public class Box {
      */
     public Box first() {
         return first;
+    }
+
+    /**
+     * Return a deep duplicate of this box, duplicating all its children too
+     * if necessary.
+     */
+    public Box duplicate() {
+        try {
+            Box dup = BoxFactory.newBox(getClass());
+            dup.type = type;
+            if (first != null) {
+                for (Box b=first();b!=null;b=b.next()) {
+                    dup.add(b.duplicate());
+                }
+            } else {
+                byte[] q = getEncoded();
+                dup.read(new ByteArrayInputStream(q, 8, q.length - 8), new BoxFactory());
+            }
+            return dup;
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

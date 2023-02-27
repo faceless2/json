@@ -69,26 +69,37 @@ public class C2PA_AssertionHashData extends CborContainerBox implements C2PA_Ass
      * in the exclusions</i>. This method is called by {@link C2PASignature#sign}
      * and there should be no need to call it manually.
      * @throws IOException if an exception was thrown while calculating the digest
+     * @return a list of failure codes, or an empty list on success
      */
-    public void sign() throws IOException, C2PAException {
+    public List<C2PAStatus> sign() throws IOException {
         if (!cbor().isList("exclusions")) {
             setExclusions(new long[0]);
         }
         cbor().remove("hash");
-        byte[] digest = calculateDigest(true);
-        cbor().put("hash", digest);
-    }
-
-    @Override public void verify() throws C2PAException, IOException  {
-        getManifest().verifyExactlyOneHash();
-        byte[] digest = calculateDigest(false);
-        byte[] storedDigest = cbor().bufferValue("hash").array();
-        if (!Arrays.equals(digest, storedDigest)) {
-            throw new C2PAException(C2PAStatus.assertion_dataHash_mismatch, "digest mismatch");
+        try {
+            byte[] digest = calculateDigest(true);
+            cbor().put("hash", digest);
+            return Collections.<C2PAStatus>emptyList();
+        } catch (NoSuchAlgorithmException e) {
+            return Collections.<C2PAStatus>singletonList(new C2PAStatus(e, getManifest().find(this)));
         }
     }
 
-    private byte[] calculateDigest(boolean signing) throws IOException, C2PAException {
+    @Override public List<C2PAStatus> verify() throws IOException {
+        try {
+            byte[] digest = calculateDigest(false);
+            byte[] storedDigest = cbor().bufferValue("hash").array();
+            if (!Arrays.equals(digest, storedDigest)) {
+                return Collections.<C2PAStatus>singletonList(new C2PAStatus(C2PAStatus.Code.assertion_dataHash_mismatch, "digest mismatch", getManifest().find(this), null));
+            } else {
+                return Collections.<C2PAStatus>emptyList();
+            }
+        } catch (NoSuchAlgorithmException e) {
+            return Collections.<C2PAStatus>singletonList(new C2PAStatus(e, getManifest().find(this)));
+        }
+    }
+
+    private byte[] calculateDigest(boolean signing) throws IOException, NoSuchAlgorithmException {
         InputStream in = getManifest().getInputStream();
         if (in == null) {
             throw new IllegalStateException("manifest has no InputStream set");

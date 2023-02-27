@@ -72,11 +72,12 @@ public class C2PASignature extends CborContainerBox {
      * </ul>
      * @param key the PrivateKey
      * @param certs a list of X.509 certificates to include in the COSE object.
+     * @return a list of status codes - if any of them are invalid, signing failed
      * @throws RuntimeException wrapping a GeneralSecurityException if signing fails
      * @throws IOException if signing fails due to an IOException
-     * @throws C2PAException if the C2PA preconditions for signing are not met
      */
-    public void sign(PrivateKey key, List<X509Certificate> certs) throws IOException, C2PAException /*throws GeneralSecurityException*/ {
+    public List<C2PAStatus> sign(PrivateKey key, List<X509Certificate> certs) throws IOException /*throws GeneralSecurityException*/ {
+        final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
         final COSE cose = cose();
         final C2PAManifest manifest = (C2PAManifest)parent();
         final C2PAClaim claim = manifest.getClaim();
@@ -97,15 +98,18 @@ public class C2PASignature extends CborContainerBox {
             if (a == null) {
                 throw new NullPointerException("assertion in claim is null");    // shouldn't happen
             } else if (a instanceof C2PA_AssertionUnknown) {
-                throw new C2PAException(C2PAStatus.assertion_missing, "assertion \"" + ((C2PA_AssertionUnknown)a).url() + "\" not found");
+                status.add(new C2PAStatus(C2PAStatus.Code.assertion_missing, "assertion \"" + ((C2PA_AssertionUnknown)a).url() + "\" not found", find(manifest), null));
+                return status;
             } else if (a instanceof C2PA_AssertionHashData) {
                 if (hashdata != null || hashbmff != null) {
-                    throw new C2PAException(C2PAStatus.assertion_multipleHardBindings, "manifest has multiple hard-binding");
+                    status.add(new C2PAStatus(C2PAStatus.Code.assertion_multipleHardBindings, "manifest has multiple hard-binding", find(manifest), null));
+                    return status;
                 }
                 hashdata = (C2PA_AssertionHashData)a;
             } else if (a instanceof C2PA_AssertionHashBMFF) {
                 if (hashdata != null || hashbmff != null) {
-                    throw new C2PAException(C2PAStatus.assertion_multipleHardBindings, "manifest has multiple hard-binding");
+                    status.add(new C2PAStatus(C2PAStatus.Code.assertion_multipleHardBindings, "manifest has multiple hard-binding", find(manifest), null));
+                    return status;
                 }
                 hashbmff = (C2PA_AssertionHashBMFF)a;
             }
@@ -114,11 +118,12 @@ public class C2PASignature extends CborContainerBox {
             claim.cbor().get("assertions").get(i).remove("hash");
         }
         if (hashdata != null) {
-            hashdata.sign();
+            status.addAll(hashdata.sign());
         } else if (hashbmff != null) {
-            hashbmff.sign();
+            status.addAll(hashbmff.sign());
         } else {
-            throw new C2PAException(C2PAStatus.claim_hardBindings_missing, "manifest has no hard-binding");
+            status.add(new C2PAStatus(C2PAStatus.Code.claim_hardBindings_missing, "manifest has no hard-binding", find(manifest), null));
+            return status;
         }
         if (getMinSize() > 0) {
             Json j = cose.getUnprotectedAttributes();
@@ -130,19 +135,27 @@ public class C2PASignature extends CborContainerBox {
         if (claim.getGenerator() == null) {
             claim.setGenerator("BFO Json library", null);
         }
-        claim.cbor().put("signature", "self#jumbf=" + manifest.find(this));
-        cose.setPayload(generatePayload(getMinSize(), true), true);
+        claim.cbor().put("signature", manifest.find(this));
+        cose.setPayload(generatePayload(getMinSize(), true, status), true);
         cose.setCertificates(certs);
+        status.addAll(verifyCertificates(certs, "signing"));
         cose.sign(key, null);
+        status.add(0, new C2PAStatus(C2PAStatus.Code.claimSignature_validated, "signing succeeded", find(manifest), null));
+        for (int i=0;i<status.size();i++) {
+            if (status.get(i) == null) {
+                status.remove(i--);
+            }
+        }
+        return status;
     }
 
-    private ByteBuffer generatePayload(int padlength, boolean signing) throws C2PAException {
+    private ByteBuffer generatePayload(int padlength, boolean signing, List<C2PAStatus> status) {
         final C2PAManifest manifest = (C2PAManifest)parent();
         final C2PAClaim claim = manifest.getClaim();
         MessageDigest digest;
         Json l = claim.cbor().get("assertions");
         for (int i=0;i<l.size();i++) {
-            digestHashedURL(l.get(i), manifest, false, signing);
+            status.add(digestHashedURL(l.get(i), manifest, false, signing));
         }
         byte[] b = claim.cbor().toCbor().array();
         if (padlength > b.length) {
@@ -159,10 +172,13 @@ public class C2PASignature extends CborContainerBox {
      * @param key the public key; if null, it will be extracted (if possible) from any certificates in the signature
      * @throws IllegalArgumentException if no key is available to verify
      * @throws IllegalStateException if the signature is not signed or has been incorrectly set up
-     * @return true if the supplied key verifies the signature, false otherwise
+     * @throws IOException if such an exception was thrown while computing the object digest
+     * @return a list of validation status codes
      */
-    public C2PAStatus verify(PublicKey key) throws C2PAException {
+    public List<C2PAStatus> verify(PublicKey key) throws IOException {
         // It does say that it a) must be a SIGN1 and b) must have exactly one "credential" (X509 cert)
+        final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
+
         final COSE cose = cose();
         final C2PAManifest manifest = (C2PAManifest)parent();
         final C2PAClaim claim = manifest.getClaim();
@@ -178,21 +194,39 @@ public class C2PASignature extends CborContainerBox {
         }
         for (Box b=manifest.first();b!=null;b=b.next()) {
             if (b instanceof C2PAClaim && b != claim) {
-                throw new C2PAException(C2PAStatus.claim_multiple, "too many claim boxes");
+                status.add(new C2PAStatus(C2PAStatus.Code.claim_multiple, "too many claim boxes", manifest.find((C2PAClaim)b), null));
+                return status;
             }
         }
         if (!claim.cbor().isString("signature") || manifest.find(claim.cbor().stringValue("signature")) != this) {
-            throw new C2PAException(C2PAStatus.claimSignature_missing, "signature not in claim");
+            status.add(new C2PAStatus(C2PAStatus.Code.claimSignature_missing, "signature not in claim", claim.cbor().stringValue("signature"), null));
+            return status;
         }
         if (key == null && cose.getCertificates() != null && !cose.getCertificates().isEmpty()) {
             key = cose.getCertificates().get(0).getPublicKey();
         } else if (key == null) {
             throw new IllegalArgumentException("no key supplied and no certificates included in the signature");
         }
-        ByteBuffer payload = generatePayload(getMinSize(), false);
+
+        for (C2PA_Assertion a : manifest.getClaim().getAssertions()) {
+            if (a != null) {
+                List<C2PAStatus> st = a.verify();
+                if (st != null) {
+                    status.addAll(st);
+                }
+            }
+        }
+        status.addAll(verifyCertificates(cose.getCertificates(), "signing"));
+        ByteBuffer payload = generatePayload(getMinSize(), false, status);
         cose.setPayload(payload, true);
         boolean b = cose.verify(key) >= 0;
-        return b ? C2PAStatus.claimSignature_validated : C2PAStatus.claimSignature_mismatch;
+        status.add(0, new C2PAStatus(b ? C2PAStatus.Code.claimSignature_validated : C2PAStatus.Code.claimSignature_mismatch, null, manifest.find(this), null));
+        for (int i=0;i<status.size();i++) {
+            if (status.get(i) == null) {
+                status.remove(i--);
+            }
+        }
+        return status;
     }
 
     /**
@@ -200,13 +234,18 @@ public class C2PASignature extends CborContainerBox {
      * and update it. If it already has a digest and it differs,
      * or the URL cannot be found, throw an Exception
      */
-    static void digestHashedURL(Json hasheduri, C2PAManifest manifest, boolean ingredient, boolean signing) throws C2PAException {
+    static C2PAStatus digestHashedURL(Json hasheduri, C2PAManifest manifest, boolean ingredient, boolean signing) {
         String url = hasheduri.stringValue("url");
         JUMBox box = manifest.find(url);
         if (box == null) {
-            throw new C2PAException(C2PAStatus.assertion_missing, "\"" + url + "\" not in manifest");
+            return new C2PAStatus(C2PAStatus.Code.assertion_missing, "\"" + url + "\" not in manifest", manifest.find(manifest), null);
         }
-        MessageDigest digest = manifest.getMessageDigest(hasheduri, signing);
+        MessageDigest digest;
+        try {
+            digest = manifest.getMessageDigest(hasheduri, signing);
+        } catch (NoSuchAlgorithmException e) {
+            return new C2PAStatus(e, manifest.find(box));
+        }
         // "When creating a URI reference to an assertion (i.e., as part of
         //  constructing a Claim), a W3C Verifiable Credential or other C2PA
         //  structure stored as a JUMBF box, the hash shall be performed
@@ -223,11 +262,12 @@ public class C2PASignature extends CborContainerBox {
             byte[] olddigestbytes = hasheduri.bufferValue("hash").array();
             if (!Arrays.equals(digestbytes, olddigestbytes)) {
                 debugMismatch(box);
-                C2PAStatus status = ingredient ? C2PAStatus.ingredient_hashedURI_mismatch : C2PAStatus.assertion_hashedURI_mismatch;
-                throw new C2PAException(status, "hash mismatch for \"" + box.label() + "\"");
+                C2PAStatus.Code status = ingredient ? C2PAStatus.Code.ingredient_hashedURI_mismatch : C2PAStatus.Code.assertion_hashedURI_mismatch;
+                return new C2PAStatus(status, "hash mismatch for \"" + box.label() + "\"", manifest.find(box), null);
             }
         }
         hasheduri.put("hash", digestbytes);
+        return null;
     }
 
     // Boxes differ, debug details of why as best we can
@@ -269,15 +309,13 @@ public class C2PASignature extends CborContainerBox {
      * Verify that the supplied certificate chain is allowed for use with C2PA.
      * @param certs the list of certificates, in order, with the signing certificate first
      * @param purpose the purpose of this chain - either "ocsp", "timestamp" or anything else for "signing"
-     * @throws a C2PAException describing why if the certificates are not valid
+     * @return a list of failures for the specified certificates, or an empty list if they're valid.
      */
-    public static void verifyCertificates(List<X509Certificate> certs, String purpose) throws C2PAException {
+    private  static List<C2PAStatus> verifyCertificates(List<X509Certificate> certs, String purpose) {
+        final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
         if (!"timestamp".equals(purpose) && !"ocsp".equals(purpose)) {
             purpose = "signing";
         }
-
-        StringBuilder sb = new StringBuilder();
-        Exception e2 = null;
 
         for (int ix=0;ix<certs.size();ix++) {
             List<String> list = new ArrayList<String>();
@@ -319,7 +357,7 @@ public class C2PASignature extends CborContainerBox {
                     AlgorithmParameters p = AlgorithmParameters.getInstance(cert.getSigAlgName());
                     p.init(cert.getSigAlgParams());
                     PSSParameterSpec spec = p.getParameterSpec(PSSParameterSpec.class);
-                    if (!Arrays.asList("SHA256", "SHA384", "SHA512").contains(spec.getDigestAlgorithm())) {
+                    if (!Arrays.asList("SHA-256", "SHA-384", "SHA-512").contains(spec.getDigestAlgorithm())) {
                         list.add("RSASSA-PSS-params algorithm " + spec.getDigestAlgorithm());
                     } else if (!(spec.getMGFParameters() instanceof MGF1ParameterSpec && spec.getDigestAlgorithm().equals(((MGF1ParameterSpec)spec.getMGFParameters()).getDigestAlgorithm()))) {
                         list.add("RSASSA-PSS-params algorithm != mfg algorithm");
@@ -375,8 +413,9 @@ public class C2PASignature extends CborContainerBox {
                 // any certificate that is not self-signed. RFC 5280 section
                 // 4.2.1.1
                 if (cert.getSubjectX500Principal() != null && !cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal())) {
-                    if (cert.getExtensionValue("1.3.6.1.5.5.7.1.1") == null) {
-                        list.add("Authority Key Identifier (1.3.6.1.5.5.7.1.1) not set and not self-signed");
+                    if (cert.getExtensionValue("2.5.29.35") == null) {
+                        list.add("Authority Key Identifier (2.5.29.35) missing and not self-signed");
+                        System.out.println(cert);
                     }
                 }
 
@@ -467,37 +506,16 @@ public class C2PASignature extends CborContainerBox {
                 // certificate to be rejected.
                 // NOOP
             } catch (Exception e) {
-                list.add("parsing exception");
-                e2 = e;
+                status.add(new C2PAStatus(C2PAStatus.Code.signingCredential_invalid, "parsing exception", "Cose_Sign1.x5chain[" + ix + "]", e));
             }
 
             for (String s : list) {
-                // System.out.println("## ix="+ix+" p="+purpose+": "+s);
-                if (sb.length() > 0) {
-                    sb.append(", ");
-                }
-                sb.append(purpose);
-                sb.append("cert");
-                if ("ca".equals(purpose)) {
-                    sb.append(" ");
-                    sb.append(ix);
-                }
-                sb.append(": ");
-                sb.append(s);
+                status.add(new C2PAStatus(C2PAStatus.Code.signingCredential_invalid, s, "Cose_Sign1.x5chain[" + ix + "]", null));
             }
             list.clear();
-
             purpose = "ca";
         }
-
-        if (sb.length() > 0) {
-            C2PAException e = new C2PAException(C2PAStatus.signingCredential_invalid, sb.toString());
-            if (e2 != null) {
-                e.initCause(e2);
-            }
-            // System.out.println(certs);
-            throw e;
-        }
+        return status;
     }
 }
 

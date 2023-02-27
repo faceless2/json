@@ -2,6 +2,7 @@ package com.bfo.box;
 
 import com.bfo.json.*;
 import java.io.*;
+import java.util.*;
 
 /**
  * A C2PA Assertion for the "c2pa.thumbnail.claim" and "c2pa.thumbnail.ingredient" types

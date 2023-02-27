@@ -24,7 +24,7 @@ public class C2PA_AssertionActions extends CborContainerBox implements C2PA_Asse
      * @param ingredient the ingredient to refer to, or null.
      * @param parameters any extra parameters, or null
      */
-    public void add(String action, C2PA_AssertionIngredient ingredient, Json parameters) throws C2PAException {
+    public void add(String action, C2PA_AssertionIngredient ingredient, Json parameters) {
         if (action == null) {
             throw new IllegalArgumentException("action is null");
         }
@@ -39,7 +39,7 @@ public class C2PA_AssertionActions extends CborContainerBox implements C2PA_Asse
         j.put("action", action);
         if (ingredient != null) {
             String url = getManifest().find(ingredient);
-            if (url == null) {
+            if (url == null || url.startsWith("self#jumbf=/")) {
                 throw new IllegalArgumentException("ingredient not in manifest");
             }
             if (ingredient.cbor().isString("instanceID")) {
@@ -49,7 +49,7 @@ public class C2PA_AssertionActions extends CborContainerBox implements C2PA_Asse
                 parameters = Json.read("{}");
             }
             Json jj = Json.read("{}");
-            jj.put("url", "self#jumbf=" + url);
+            jj.put("url", url);
             C2PASignature.digestHashedURL(jj, getManifest(), true, true);
             parameters.put("ingredient", jj);
         }
@@ -59,7 +59,7 @@ public class C2PA_AssertionActions extends CborContainerBox implements C2PA_Asse
         actions.put(actions.size(), j);
     }
 
-    @Override public void verify() throws C2PAException {
+    @Override public List<C2PAStatus> verify() {
         // For each action in the actions list:
         //
         // If the action field is c2pa.opened, c2pa.placed, c2pa.removed,
@@ -90,6 +90,7 @@ public class C2PA_AssertionActions extends CborContainerBox implements C2PA_Asse
         //
         //  -- https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_assertion_validation
 
+        final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
         Json actions = cbor().get("actions");
         for (int i=0;i<actions.size();i++) {
             Json action = actions.get(i);
@@ -98,28 +99,26 @@ public class C2PA_AssertionActions extends CborContainerBox implements C2PA_Asse
                 String url = action.hasPath("parameters.ingredient.url") ? action.getPath("parameters.ingredient").stringValue("url") : null;
                 JUMBox box = getManifest().find(url);
                 if (box == null) {
-                    throw new C2PAException(C2PAStatus.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" not found");
-                }
-                if (!(box instanceof C2PA_AssertionIngredient && ((C2PA_Assertion)box).getManifest() == getManifest())) {
-                    throw new C2PAException(C2PAStatus.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" in different manifest");
-                }
-                C2PA_AssertionIngredient ingredient = (C2PA_AssertionIngredient)box;
-                String relationship = ingredient.cbor().stringValue("relationship");
-                if (Arrays.asList("c2pa.opened", "c2pa.repackaged", "c2pa.transcoded").contains(type) && !"parentOf".equals(relationship)) {
-                    throw new C2PAException(C2PAStatus.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" relationship \"" + relationship + "\"");
-                }
-                if (Arrays.asList("c2pa.placed", "c2pa.removed").contains(type) && !"componentOf".equals(relationship)) {
-                    throw new C2PAException(C2PAStatus.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" relationship \"" + relationship + "\"");
-                }
-                if (ingredient.hasTargetManifest()) {
-                    C2PAManifest target = ingredient.getTargetManifest();
-                    if (target == null) {
-                        throw new C2PAException(C2PAStatus.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" manifest \"" + ingredient.getTargetManifestURL() + "\" not found");
+                    status.add(new C2PAStatus(C2PAStatus.Code.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" not found", getManifest().find(this), null));
+                } else if (!(box instanceof C2PA_AssertionIngredient && ((C2PA_Assertion)box).getManifest() == getManifest())) {
+                    status.add(new C2PAStatus(C2PAStatus.Code.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" in different manifest", getManifest().find(this), null));
+                } else {
+                    C2PA_AssertionIngredient ingredient = (C2PA_AssertionIngredient)box;
+                    String relationship = ingredient.cbor().stringValue("relationship");
+                    if (Arrays.asList("c2pa.opened", "c2pa.repackaged", "c2pa.transcoded").contains(type) && !"parentOf".equals(relationship)) {
+                        status.add(new C2PAStatus(C2PAStatus.Code.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" relationship \"" + relationship + "\"", getManifest().find(this), null));
+                    } else if (Arrays.asList("c2pa.placed", "c2pa.removed").contains(type) && !"componentOf".equals(relationship)) {
+                        status.add(new C2PAStatus(C2PAStatus.Code.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" relationship \"" + relationship + "\"", getManifest().find(this), null));
+                    } else if (ingredient.hasTargetManifest()) {
+                        C2PAManifest target = ingredient.getTargetManifest();
+                        if (target == null) {
+                        status.add(new C2PAStatus(C2PAStatus.Code.assertion_action_ingredientMismatch, "action[" + i + "] \"" + type + "\" ingredient \"" + url + "\" manifest \"" + ingredient.getTargetManifestURL() + "\" not found", getManifest().find(this), null));
+                        }
                     }
                 }
             }
         }
-
+        return status;
     }
 
 }

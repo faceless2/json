@@ -137,11 +137,12 @@ public class C2PAHelper {
      * @param certs the certificates corresponding to that key to include
      * @param input the InputStream containing the JPEG file, which will be fully read but left open
      * @param out the OutputStream to write the signed JPEG file to, which will be flushed but left open
+     * @param rawout an optional OutputStream to write the raw C2PAStore object that was embedded, which will be flushed but left open
      * @throws IOException if the JPEG could not be written or read.
-     * @throws C2PAException if the C2PA preconditions for signing aren't met
-     * @return the bytes representing the C2PAStore object that was embedded.
+     * @return a list of status codes during signing, which should contain no error codes
      */
-    public static byte[] signJPEG(C2PAStore store, PrivateKey key, List<X509Certificate> certs, InputStream input, OutputStream out) throws IOException, C2PAException {
+    public static List<C2PAStatus> signJPEG(C2PAStore store, PrivateKey key, List<X509Certificate> certs, InputStream input, OutputStream out, OutputStream rawout) throws IOException {
+        List<C2PAStatus> status;
         // We have to read the stream twice, once to digest, once to write out.
         // So we have to take a copy.
         UsefulByteArrayOutputStream tmp = new UsefulByteArrayOutputStream();
@@ -152,7 +153,7 @@ public class C2PAHelper {
             store = new C2PAStore();
         }
         if (store.getManifests().isEmpty()) {
-            store.getManifests().add(new C2PAManifest(UUID.randomUUID().toString()));
+            store.getManifests().add(new C2PAManifest("urn:uuid:" + UUID.randomUUID().toString()));
         }
         C2PAManifest manifest = store.getManifests().get(store.getManifests().size() - 1);
         if (manifest.getClaim().getInstanceID() == null) {
@@ -178,13 +179,13 @@ public class C2PAHelper {
         manifest.getSignature().sign(key, certs);
         byte[] dummydata = store.getEncoded();
         int length = dummydata.length;
-        final int maxsegmentlength = 65534;     // 65535 plus one for luck
-        final int segheaderlen = 12;            // bytes of overhead per segment
-        int numsegments = (int)Math.ceil(length / (float)(maxsegmentlength - segheaderlen));
-        hash.setExclusions(new long[] { start, length + (numsegments * segheaderlen) });
+        final int maxsegmentlength = 65535;     // 65535 plus one for luck
+        final int segheaderlen = 20;            // bytes of overhead per segment
+        int numsegments = (int)Math.ceil((length - 8) / (float)(maxsegmentlength - segheaderlen));
+        hash.setExclusions(new long[] { start, (length - 8) + (numsegments * segheaderlen) });
         // Sign a second time now we have set exclusions
         manifest.setInputStream(tmp.toInputStream());
-        manifest.getSignature().sign(key, certs);
+        status = manifest.getSignature().sign(key, certs);
         byte[] data = store.getEncoded();
         if (data.length != length) {
             //System.out.println(((C2PAStore)new BoxFactory().load(new ByteArrayInputStream(dummydata))).toJson());
@@ -199,8 +200,9 @@ public class C2PAHelper {
         }
         // Write our C2PA as segments
         for (int i=0;i<numsegments;i++) {
-            int start2 = i * (maxsegmentlength - segheaderlen);
+            int start2 = 8 + (i * (maxsegmentlength - segheaderlen));
             int len = Math.min(maxsegmentlength - segheaderlen, data.length - start2);
+            // System.out.println("WRITE " + i+"/"+numsegments+" start2="+start2+" len="+len+" to " + (start2+len)+"/"+data.length);
             int seglen = len + segheaderlen - 2;  // excluding marker
             out.write(0xff);    // app11
             out.write(0xeb);
@@ -214,6 +216,7 @@ public class C2PAHelper {
             out.write(i>>16);
             out.write(i>>8);
             out.write(i);
+            out.write(data, 0, 8);      // this must be repeated each segment
             out.write(data, start2, len);
         }
         // Write rest of file
@@ -222,14 +225,18 @@ public class C2PAHelper {
             out.write(buf, 0, length);
         }
         out.flush();
-        return data;
+        if (rawout != null) {
+            rawout.write(data);
+            rawout.flush();
+        }
+        return status;
     }
 
     public static void main(String[] args) throws Exception {
         String storepath = null, password = "", storetype = "pkcs12", alias = null, alg = null, cw = null, outname = null, outc2pa = null;
         List<X509Certificate> certs = new ArrayList<X509Certificate>();
         PrivateKey key = null;
-        boolean sign = false, debug = false;
+        boolean sign = false, debug = false, boxdebug = false;
 
         // No apologies for this, it's a quick and nasty test
         KeyStore keystore = null;
@@ -247,6 +254,12 @@ public class C2PAHelper {
                 sign = false;
             } else if (s.equals("--debug")) {
                 debug = true;
+            } else if (s.equals("--boxdebug")) {
+                boxdebug = true;
+            } else if (s.equals("--nodebug")) {
+                debug = false;
+            } else if (s.equals("--noboxdebug")) {
+                boxdebug = false;
             } else if (s.equals("--keystoretype")) {
                 storetype = args[++i];
             } else if (s.equals("--alias")) {
@@ -282,10 +295,14 @@ public class C2PAHelper {
                     for (Certificate c : keystore.getCertificateChain(alias)) {
                         certs.add((X509Certificate)c);
                     }
+                    if (certs.size() > 0) {
+                        // "The trust anchor’s certificate (also called the root certificate) should not be included."
+                        certs.remove(certs.size() - 1);
+                    }
                 }
                 do {
                     String inname = args[i];
-                    System.out.println(inname);
+//                    System.out.println(inname);
                     InputStream in = new FileInputStream(inname);
                     if (sign) {
                         if (key == null) {
@@ -295,9 +312,30 @@ public class C2PAHelper {
                             throw new IllegalStateException("no certs");
                         }
                         C2PAStore c2pa = new C2PAStore();
-                        C2PAManifest manifest = new C2PAManifest("urn:uuid:"+UUID.randomUUID().toString());
+                        /*
+                        C2PAStore original = extractFromJPEG(in);
+                        C2PAManifest lastmanifest = null;
+                        List<C2PAStatus> laststatus = null;
+                        if (original != null) {
+                            lastmanifest = original.getActiveManifest();
+                            lastmanifest.setInputStream(new FileInputStream(inname));
+                            laststatus = lastmanifest.getSignature().verify(null);
+                            for (C2PAManifest mf : original.getManifests()) {
+                                lastmanifest = (C2PAManifest)mf.duplicate();
+                                c2pa.getManifests().add(lastmanifest);
+                            }
+                        }
+                        */
+                        C2PAManifest manifest = new C2PAManifest("urn:uuid:" + UUID.randomUUID().toString());
                         c2pa.getManifests().add(manifest);
                         manifest.getClaim().setFormat("image/jpeg");
+                        /*
+                        if (original != null) {
+                            C2PA_AssertionIngredient ing;
+                            manifest.getAssertions().add(ing = new C2PA_AssertionIngredient());
+                            ing.setTargetManifest("parentOf", lastmanifest, laststatus);
+                        }
+                        */
                         if (alg != null) {
                             manifest.getClaim().setHashAlgorithm(alg);
                         }
@@ -308,22 +346,34 @@ public class C2PAHelper {
                         if (outname == null) {
                             outname = inname.indexOf(".") > 0 ? inname.substring(0, inname.lastIndexOf(".")) + "-signed" + inname.substring(inname.lastIndexOf(".")) : inname + "-signed.jpg";
                         }
+                        in = new FileInputStream(inname);
                         OutputStream out = new BufferedOutputStream(new FileOutputStream(outname));
-                        byte[] encoded = signJPEG(c2pa, key, certs, in, out);
+                        OutputStream rawout = null;
+                        if (outc2pa != null) {
+                            rawout = new BufferedOutputStream(new FileOutputStream(outc2pa));
+                        }
+                        List<C2PAStatus> status = signJPEG(c2pa, key, certs, in, out, rawout);
                         if (debug) {
-                            //FileOutputStream fout = new FileOutputStream("/tmp/t1");
-                            //fout.write(encoded);
-                            //fout.close();
                             System.out.println(c2pa.toJson().toString(new JsonWriteOptions().setPretty(true).setCborDiag("hex")));
+                        }
+                        if (boxdebug) {
                             System.out.println(c2pa.dump(null, null));
                         }
-                        System.out.println("# signed and wrote to \"" + outname + "\"");
+                        boolean ok = true;
+                        for (C2PAStatus st : status) {
+                            ok &= st.isOK();
+                            System.out.println("# " + st);
+                        }
+                        if (ok) {
+                            System.out.println(inname + ": SIGNED, wrote to \"" + outname + "\"");
+                        } else {
+                            System.out.println(inname + ": SIGNED WITH ERRORS, wrote to \"" + outname + "\"");
+                        }
+                        System.out.println();
                         out.close();
                         out = null;
-                        if (outc2pa != null) {
-                            out = new BufferedOutputStream(new FileOutputStream(outc2pa));
-                            out.write(encoded);
-                            out.close();
+                        if (rawout != null) {
+                            rawout.close();
                             outc2pa = null;
                         }
                     } else {
@@ -334,44 +384,23 @@ public class C2PAHelper {
                             manifest.setInputStream(in);
                             if (debug) {
                                 System.out.println(c2pa.toJson().toString(new JsonWriteOptions().setPretty(true).setCborDiag("hex")));
-                                System.out.println("# active manifest \"" + manifest.label() + "\"");
                             }
-                            for (C2PA_Assertion a : manifest.getClaim().getAssertions()) {
-                                if (a != null) {
-                                    try {
-                                        a.verify();
-                                        System.out.println("# assertion \"" + a.asBox().label() + "\" verified");
-                                    } catch (C2PAException e) {
-                                        System.out.println("# assertion \"" + a.asBox().label() + "\" failed: [" + e.getStatus() + "] " + e.getMessage());
-                                    } catch (UnsupportedOperationException e) {
-                                        System.out.println("# assertion \"" + a.asBox().label() + "\" unsupported");
-                                    } catch (Exception e) {
-                                        System.out.println("# assertion \"" + a.asBox().label() + "\" failed: " + e.getMessage());
-                                        e.printStackTrace();
-                                    }
-                                } else {
-                                    System.out.println("# assertion is null (shouldn't happen)");
-                                }
+                            if (boxdebug) {
+                                System.out.println(c2pa.dump(null, null));
                             }
-                            try {
-                                C2PASignature.verifyCertificates(manifest.getSignature().cose().getCertificates(), "signing");
-                            } catch (C2PAException e) {
-                                System.out.println("# certificates failed: [" + e.getStatus() + "] " + e.getMessage());
+                            System.out.println("# active manifest \"" + manifest.label() + "\"");
+                            List<C2PAStatus> status = manifest.getSignature().verify(null);
+                            boolean ok = true;
+                            for (C2PAStatus st : status) {
+                                ok &= st.isOK();
+                                System.out.println("# " + st);
                             }
-                            try {
-                                C2PAStatus status = manifest.getSignature().verify(null);
-                                if (status.isOK()) {
-                                    System.out.println("# signature verified: [" + status + "]");
-                                } else {
-                                    System.out.println("# signature verification failed: [" + status + "]");
-                                }
-                            } catch (C2PAException e) {
-                                System.out.println("# signature failed: [" + e.getStatus() + "] " + e.getMessage());
-                                e.printStackTrace();
-                            } catch (Exception e) {
-                                System.out.println("# signature failed");
-                                e.printStackTrace();
+                            if (ok) {
+                                System.out.println(inname + ": VALIDATED");
+                            } else {
+                                System.out.println(inname + ": VALIDATION FAILED");
                             }
+                            System.out.println();
                         } 
                     }
                     while (++i < args.length) {
@@ -388,6 +417,14 @@ public class C2PAHelper {
                             sign = true;
                         } else if (s.equals("--verify")) {
                             sign = false;
+                        } else if (s.equals("--debug")) {
+                            debug = true;
+                        } else if (s.equals("--boxdebug")) {
+                            boxdebug = true;
+                        } else if (s.equals("--nodebug")) {
+                            debug = false;
+                        } else if (s.equals("--noboxdebug")) {
+                            boxdebug = false;
                         } else if (s.equals("--help")) {
                             help();
                         } else {
@@ -404,6 +441,9 @@ public class C2PAHelper {
         System.out.println("   --verify                switch to verify mode (the default)");
         System.out.println("   --sign                  switch to signing mode");
         System.out.println("   --debug                 turn on debug to dump the c2pa store as CBOR-diag");
+        System.out.println("   --boxdebug              turn on debug to dump the c2pa store as a box tree");
+        System.out.println("   --nodebug               turn off --debug");
+        System.out.println("   --noboxdebug            turn off --boxdebug");
         System.out.println("   --keystore <path>       if signing, the path to Keystore to load credentials from");
         System.out.println("   --keystoretype <type>   if signing, the keystore type - pkcs12 (default), jks or jceks");
         System.out.println("   --alias <name>          if signing, the alias from the keystore (default is the first one");

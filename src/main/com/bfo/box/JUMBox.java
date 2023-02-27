@@ -86,8 +86,9 @@ public class JUMBox extends Box {
     }
 
     /**
-     * Given a descendent of this box, return the JUMBF path (without the leading "self#jumbf=")
-     * that would be used to request it, or <code>null</code> if it's not requestable or not found
+     * Given a descendent of this box, return the JUMBF path (with the leading "self#jumbf=")
+     * that would be used to request it, or <code>null</code> if it's not requestable or not found.
+     * It will be returned as a relative path if possible, an absolute one if not.
      * @param child the descendent Box
      * @return the JUMBF path to request that box from this node
      */
@@ -99,9 +100,13 @@ public class JUMBox extends Box {
         JUMBox b = child;
         while (b != null) {
             s = s == null ? b.label() : b.label() + "/" + s;
-            b = b.parent() instanceof JUMBox ? (JUMBox)b.parent() : null;
-            if (b == this) {
-                return s;
+            if (b.parent() == null) {
+                return "self#jumbf=/" + s;
+            } else {
+                b = (JUMBox)b.parent();
+                if (b == this) {
+                    return "self#jumbf=" + s;
+                }
             }
         }
         return null;

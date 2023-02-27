@@ -57,44 +57,11 @@ public class TestC2PA {
             for (C2PAManifest manifest : manifests) {
                 manifest.setInputStream(TestC2PA.class.getResourceAsStream(s.replaceAll(".c2pa", "")));
                 System.out.println("    manifest " + manifest.label());
+                List<C2PAStatus> status = manifest.getSignature().verify(null);
                 boolean verified = true;
-                for (C2PA_Assertion a : manifest.getClaim().getAssertions()) {
-                    if (a != null) {
-                        try {
-                            a.verify();
-                            System.out.println("      assertion \"" + a.asBox().label() + "\" ok");
-                        } catch (UnsupportedOperationException e) {
-                            System.out.println("      assertion \"" + a.asBox().label() + "\" unsupported");
-                        } catch (C2PAException e) {
-                            System.out.println("      assertion \"" + a.asBox().label() + "\" failed: [" + e.getStatus() + "] " + e.getMessage());
-                            verified = false;
-                            e.printStackTrace();
-                        } catch (Exception e) {
-                            System.out.println("      assertion \"" + a.asBox().label() + "\" failed: " + e.getMessage());
-                            verified = false;
-                            e.printStackTrace();
-                        }
-                    } else {
-                        verified = false;
-                        System.out.println("      assertion missing");
-                    }
-                }
-                try {
-                    C2PAStatus status = manifest.getSignature().verify(null);
-                    if (status.isOK()) {
-                        System.out.println("      signature verified [" + status + "]");
-                    } else {
-                        System.out.println("      signature failed [" + status + "]");
-                        verified = false;
-                    }
-                } catch (C2PAException e) {
-                    verified = false;
-                    System.out.println("      siganture failed: [" + e.getStatus() + "] " + e.getMessage());
-                    e.printStackTrace();
-                } catch (Exception e) {
-                    verified = false;
-                    System.out.println("      signature failed");
-                    e.printStackTrace();
+                for (C2PAStatus st : status) {
+                    verified &= st.isOK();
+                    System.out.println("      " + st);
                 }
                 try {
                     if (verified && errorExpected) {

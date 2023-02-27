@@ -65,7 +65,9 @@ public class C2PAStore extends JUMBox {
                 }
             }
             COSE signature = manifest.getSignature().cose();
-            m.put("signature.alg", signature.getAlgorithm(0));
+            if (signature.isInitialized()) {
+                m.put("signature.alg", signature.getAlgorithm(0));
+            }
             if (!signature.getCertificates().isEmpty()) {
                 m.put("signature.issuer", signature.getCertificates().get(0).getSubjectX500Principal().getName());
             }

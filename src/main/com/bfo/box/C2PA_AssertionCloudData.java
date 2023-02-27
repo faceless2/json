@@ -2,6 +2,7 @@ package com.bfo.box;
 
 import com.bfo.json.*;
 import java.io.*;
+import java.util.*;
 
 /**
  * A C2PA Assertion for the "c2pa.cloud-data" type
@@ -16,7 +17,7 @@ public class C2PA_AssertionCloudData extends CborContainerBox implements C2PA_As
         super("cbor", "c2pa.cloud-data");
     }
 
-    @Override public void verify() throws C2PAException {
+    @Override public List<C2PAStatus> verify() {
         throw new UnsupportedOperationException(label() + " not yet implemented");
     }
 }

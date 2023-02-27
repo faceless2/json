@@ -2,6 +2,7 @@ package com.bfo.box;
 
 import java.io.*;
 import java.util.*;
+import java.security.NoSuchAlgorithmException;
 import com.bfo.json.*;
 
 /**
@@ -71,7 +72,7 @@ public class C2PAClaim extends CborContainerBox {
         alg = alg.toLowerCase();
         try {
             C2PAManifest.getMessageDigest(alg);
-        } catch (C2PAException e) {
+        } catch (NoSuchAlgorithmException e) {
             throw new IllegalArgumentException(e.getMessage());
         }
         cbor().put("alg", alg);
@@ -136,11 +137,11 @@ public class C2PAClaim extends CborContainerBox {
                     C2PA_Assertion old = get(i);
                     if (old != box) {
                         String url = manifest.find((JUMBox)box);
-                        if (!manifestAssertions.contains(box) || url == null) {
+                        if (!manifestAssertions.contains(box) || url == null || url.startsWith("self#jumbf=/")) {
                             throw new IllegalArgumentException("not in manifest assertions");
                         }
                         Json j = Json.read("{}");
-                        j.put("url", "self#jumbf=" + url);
+                        j.put("url", url);
                         assertions.put(i, j);
                     }
                     return old;
@@ -158,11 +159,11 @@ public class C2PAClaim extends CborContainerBox {
                         throw new IllegalArgumentException("cannot be null or unknown");
                     }
                     String url = manifest.find((JUMBox)box);
-                    if (!manifestAssertions.contains(box) || url == null) {
+                    if (!manifestAssertions.contains(box) || url == null || url.startsWith("self#jumbf=/")) {
                         throw new IllegalArgumentException("not in manifest assertions");
                     }
                     Json j = Json.read("{}");
-                    j.put("url", "self#jumbf=" + url);
+                    j.put("url", url);
                     assertions.put(assertions.size(), j);
                     return true;
                 }

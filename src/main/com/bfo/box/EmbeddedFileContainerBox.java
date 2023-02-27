@@ -14,9 +14,6 @@ public class EmbeddedFileContainerBox extends JUMBox {
 
     static final String SUBTYPE = "40cb0c32bb8a489da70b2ad6f47f4369";
 
-    private String mediaType, fileName, externalURL;
-    private byte[] data;
-
     /**
      * Create a new uninitialized box, for loading.
      */
@@ -38,9 +35,9 @@ public class EmbeddedFileContainerBox extends JUMBox {
     }
 
     @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
-        add(factory.subFactory(new JumdBox()).load(in));
-        add(factory.subFactory(new BfdbBox()).load(in));
-        add(factory.subFactory(new DataBox()).load(in));
+        addIfNotNull(factory.subFactory(new JumdBox()).load(in));
+        addIfNotNull(factory.subFactory(new BfdbBox()).load(in));
+        addIfNotNull(factory.subFactory(new DataBox()).load(in));
     }
 
     private BfdbBox bfdb() {

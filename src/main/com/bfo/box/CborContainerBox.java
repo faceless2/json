@@ -36,8 +36,8 @@ public class CborContainerBox extends JUMBox {
     }
 
     @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
-        add(factory.subFactory(new JumdBox()).load(in));
-        add(factory.subFactory(new CborBox()).load(in));
+        addIfNotNull(factory.subFactory(new JumdBox()).load(in));
+        addIfNotNull(factory.subFactory(new CborBox()).load(in));
     }
 
     /**

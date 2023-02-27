@@ -1,6 +1,7 @@
 package com.bfo.box;
 
 import java.io.*;
+import java.util.*;
 
 /**
  * An interface implemented by JUMBox objects that represent assertions.
@@ -25,13 +26,15 @@ public interface C2PA_Assertion {
     }
 
     /**
-     * Verify this assertion. If it fails, throw an IllegalStateException with details of why.
-     * The default implementation <b>succeeds</b>.
-     * @throws C2PAException if the assertion failed to verify
+     * Verify this assertion, returning a list of status codes describing why this assertion failed
+     * or an empty list if it succeeded.
+     * The default implementation <b>succeeds</b>, and returns an empty list.
      * @throws UnsupportedOperationException if the assertion isn't implemented
      * @throws IOException if the assertion verification involved I/O and the IO layer threw an exception
+     * @return a list of status codes, which may be empty on success
      */
-    public default void verify() throws IOException, UnsupportedOperationException, C2PAException {
+    public default List<C2PAStatus> verify() throws IOException, UnsupportedOperationException {
+        return Collections.<C2PAStatus>emptyList();
     }
 
 }

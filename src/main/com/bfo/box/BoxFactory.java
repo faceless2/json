@@ -81,18 +81,31 @@ public class BoxFactory {
             }
             Class<? extends Box> cl = registry.get(type);
             if (cl != null) {
-                try {
-                    box = (Box)cl.getDeclaredConstructor().newInstance();
-                    break;
-                } catch (Exception e) {}
+                box = newBox(cl);
             }
             type = type.indexOf(".") > 0 ? type.substring(0, type.lastIndexOf(".")) : "";
         }
         if (box == null) {
             box = new Box();
         }
+        assert box.first() == null;
         // System.out.println("CREATE: t="+origt+" resolved="+type+" box="+box.getClass().getName());
         return box;
+    }
+
+    /**
+     * Create a new, empty box. Always call this rather than newInstance
+     * as it clears any default children
+     */
+    static Box newBox(Class<? extends Box> clazz) {
+        try {
+            Box box = (Box)clazz.getDeclaredConstructor().newInstance();
+            while (box.first() != null) {
+                box.first().remove();
+            }
+            return box;
+        } catch (Exception e) {}
+        return null;
     }
 
     /**
@@ -195,10 +208,6 @@ public class BoxFactory {
             }
         }
         Box box = createBox(type, subtype, label);
-        // Just in case empty constructors also add boxes
-        while (box.first() != null) {
-            box.first().replace(null);
-        }
         box.len = len;
         box.type = typeval;
         box.read(in, this);

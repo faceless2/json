@@ -2,6 +2,7 @@ package com.bfo.box;
 
 import com.bfo.json.*;
 import java.io.*;
+import java.util.*;
 
 /**
  * A C2PA Assertion for the "c2pa.soft-binding" type
@@ -14,11 +15,6 @@ public class C2PA_AssertionSoftBinding extends CborContainerBox implements C2PA_
      */
     public C2PA_AssertionSoftBinding() {
         super("cbor", "c2pa.soft-binding");
-    }
-
-    @Override public void verify() throws C2PAException {
-        // None defined as of Feb2023, so fail? accept? 
-        // throw new UnsupportedOperationException(label() + " not yet implemented");
     }
 
 }

@@ -30,13 +30,68 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
     }
 
     /**
+     * Set this ingredient to refer to the specified manifest. The manifest
+     * must be already in the same {@link C2PAStore store} as this one.
+     * @param relationship should be "parentOf" or "componentOf"
+     * @param manifest the manifest
+     * @param status if not null, a list of status codes to be attached as <code>validationStatus</code>.
+     */
+    public void setTargetManifest(String relationship, C2PAManifest manifest, List<C2PAStatus> status) {
+        String url;
+        if (manifest == null || getManifest() == null || manifest == getManifest() || manifest.parent() != getManifest().parent() || (url=getManifest().find(manifest)) == null) {
+            throw new IllegalStateException("manifest and this assertion's manifest must be in the same store");
+        }
+        final Json json = cbor();
+        json.remove("c2pa_manifest");
+        json.remove("dc:format");
+        json.remove("dc:title");
+        json.remove("instanceId");
+        json.remove("thumbnail");
+        json.remove("validationStatus");
+        json.put("relationship", relationship);
+        Json j = Json.read("{}");
+        j.put("url", url);
+        C2PASignature.digestHashedURL(j, manifest, true, true);
+        json.put("c2pa_manifest", j);
+        for (String s : Arrays.asList("dc:format", "dc:title", "instanceID")) {
+            if (manifest.getClaim().cbor().has(s)) {
+                json.put(s, manifest.getClaim().cbor().get(s).value());
+            }
+        }
+        if (status != null && !status.isEmpty()) {
+            Json s = Json.read("[]");
+            for (C2PAStatus st : status) {
+                s.put(s.size(), st.toJson());
+            }
+            json.put("validationStatus", s);
+        }
+    }
+
+    /**
      * If this ingredient has a c2pa_manifest value, return the target manifest, or null if
      * it's not specified or can't be found
+     * @return the target manifest, or null
      */
     public C2PAManifest getTargetManifest() {
         String url = getTargetManifestURL();
         JUMBox box = getManifest().find(url);
         return box instanceof C2PAManifest ? (C2PAManifest)box : null;
+    }
+
+    /**
+     * If this ingredient has a validationStatus value, return it as a list of {@link C2PAStatus}
+     * @return the list of validation status codes, or an empty list
+     */
+    public List<C2PAStatus> getValidationStatus() {
+        Json j = cbor().get("validationStatus");
+        if (j != null && j.size() > 0) {
+            List<C2PAStatus> l = new ArrayList<C2PAStatus>();
+            for (int i=0;i<j.size();i++) {
+                l.add(C2PAStatus.read(j.get(i)));
+            }
+            return Collections.<C2PAStatus>unmodifiableList(l);
+        }
+        return Collections.<C2PAStatus>emptyList();
     }
 
     boolean hasTargetManifest() {
@@ -51,7 +106,8 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
         return cbor().stringValue("relationship");
     }
 
-    @Override public void verify() throws C2PAException {
+    @Override public List<C2PAStatus> verify() {
+        final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
         //
         // Validate that there are zero or one c2pa.ingredient assertions whose
         // relationship is parentOf. If there is more than one, the manifest must be
@@ -66,12 +122,14 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
             }
         }
         if (count > 1) {
-            throw new C2PAException(C2PAStatus.manifest_multipleParents, "manifest has multiple \"parentOf\" c2pa.ingredient assertions");
+            status.add(new C2PAStatus(C2PAStatus.Code.manifest_multipleParents, "manifest has multiple \"parentOf\" c2pa.ingredient assertions", getManifest().find(this), null));
+            return status;
         }
 
         if (cbor().isMap("c2pa_manifest")) {
             if (getTargetManifest() == null) {
-                throw new C2PAException(C2PAStatus.claim_missing, "\"" + getTargetManifestURL() + "\" not in manifest");
+                status.add(new C2PAStatus(C2PAStatus.Code.claim_missing, "\"" + getTargetManifestURL() + "\" not in manifest", getManifest().find(this), null));
+                return status;
             }
 
             // adobe-20220124-E-uri-CIE-sig-CA.jpg
@@ -95,22 +153,16 @@ public class C2PA_AssertionIngredient extends CborContainerBox implements C2PA_A
             if (cbor().isList("validationStatus")) {
                 Json vals = cbor().get("validationStatus");
                 for (int i=0;i<vals.size();i++) {
-                    String code = vals.get(i).stringValue("code");
-                    if (code != null) {
-                        for (C2PAStatus status : C2PAStatus.values()) {
-                            if (status.toString().equals(code) && status.isError()) {
-                                C2PAException nest = new C2PAException(status, vals.get(i).stringValue("explanation"));
-                                C2PAException e = new C2PAException(C2PAStatus.ingredient_hashedURI_mismatch, "referenced ingredient at \"" + getTargetManifestURL() + "\" validationStatus has error");
-                                e.initCause(nest);
-                                throw e;
-                            }
-                        }
+                    C2PAStatus st = C2PAStatus.read(vals.get(i));
+                    if (st.isError()) {
+                        status.add(new C2PAStatus(C2PAStatus.Code.ingredient_hashedURI_mismatch, false, C2PAStatus.Code.ingredient_hashedURI_mismatch.getCode(), "referenced ingredient at \"" + getTargetManifestURL() + "\" validationStatus has error", getManifest().find(this), null, st));
                     }
                 }
             }
             // If we were recursive, we'd do this
             // C2PASignature.digestHashedURL(cbor().get("c2pa_manifest"), getManifest(), true);
         }
+        return status;
     }
 
 }

@@ -43,7 +43,8 @@ class BoxList<T> extends AbstractList<T> {
             if (is(b) && i-- == 0) {
                 preadd(t);
                 preremove((T)b);
-                b.replace((Box)t);
+                ((Box)t).insertBefore(b);
+                b.remove();
                 postremove((T)b);
                 postadd(t);
                 return (T)b;
@@ -57,7 +58,7 @@ class BoxList<T> extends AbstractList<T> {
         for (Box b=owner.first();b!=null;b=b.next()) {
             if (is(b) && i-- == 0) {
                 preremove((T)b);
-                b.replace(null);
+                b.remove();
                 postremove((T)b);
                 return (T)b;
             }

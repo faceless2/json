@@ -104,10 +104,11 @@ public class C2PAManifest extends JUMBox {
                 Box b2 = new C2PA_AssertionUnknown();
                 while (b.first() != null) {
                     Box f = b.first();
-                    f.replace(null);
+                    f.remove();
                     b2.add(f);
                 }
-                b.replace(b2);
+                b2.insertBefore(b);
+                b.remove();
                 b = b2;
             }
         }
@@ -150,21 +151,7 @@ public class C2PAManifest extends JUMBox {
         return claim;
     }
 
-    void verifyExactlyOneHash() throws C2PAException {
-        int count = 0;
-        for (C2PA_Assertion a : getAssertions()) {
-            if (a instanceof C2PA_AssertionHashData || a instanceof C2PA_AssertionHashBMFF) {
-                count++;
-            }
-        }
-        if (count > 1) {
-            throw new C2PAException(C2PAStatus.assertion_multipleHardBindings, "manifest has multiple hard-binding");
-        } else if (count == 0) {
-            throw new C2PAException(C2PAStatus.claim_hardBindings_missing, "manifest has no hard-binding");
-        }
-    }
-
-    MessageDigest getMessageDigest(Json j, boolean signing) throws C2PAException {
+    MessageDigest getMessageDigest(Json j, boolean signing) throws NoSuchAlgorithmException {
         String alg = null;
         while (alg == null && j != null) {
             alg = j.stringValue("alg");
@@ -180,15 +167,15 @@ public class C2PAManifest extends JUMBox {
         return getMessageDigest(alg);
     }
 
-    static MessageDigest getMessageDigest(String alg) throws C2PAException {
+    static MessageDigest getMessageDigest(String alg) throws NoSuchAlgorithmException {
         if ("sha256".equals(alg) || "sha384".equals(alg) || "sha512".equals(alg)) {
             try {
                 return MessageDigest.getInstance(alg.toUpperCase());
             } catch (NoSuchAlgorithmException e) {
-                throw new C2PAException(C2PAStatus.algorithm_unsupported, "alg \"" + alg + "\" not found", e);
+                throw new NoSuchAlgorithmException("alg \"" + alg + "\" not found", e);
             }
         }
-        throw new C2PAException(C2PAStatus.algorithm_unsupported, "alg \"" + alg + "\" not found");
+        throw new NoSuchAlgorithmException("alg \"" + alg + "\" not found");
     }
 
 }
