@@ -267,7 +267,7 @@ public class C2PASignature extends CborContainerBox {
             }
         }
         hasheduri.put("hash", digestbytes);
-        return null;
+        return new C2PAStatus(C2PAStatus.Code.assertion_hashedURI_match, "hash match for \"" + box.label() + "\"", manifest.find(box), null);
     }
 
     // Boxes differ, debug details of why as best we can
@@ -432,12 +432,16 @@ public class C2PASignature extends CborContainerBox {
                 // must assert the digitalSignature bit. The keyCertSign bit
                 // must only be asserted if the cA boolean is asserted in the
                 // Basic Constraints extension. RFC 5280 section 4.2.1.3
-                boolean[] keyusage = cert.getKeyUsage();
-                if ("signing".equals(purpose) && !keyusage[0]) {
-                    list.add("keyUsage missing digitalSignature");
-                }
-                if (keyusage[5] && cert.getBasicConstraints() < 0) {
-                    list.add("keyUsage contains keyCertSign");
+                if (!cert.getCriticalExtensionOIDs().contains("2.5.29.15")) {
+                    list.add("keyUsage not marked as critical");
+                } else {
+                    boolean[] keyusage = cert.getKeyUsage();
+                    if ("signing".equals(purpose) && (keyusage == null || !keyusage[0])) {
+                        list.add("keyUsage missing digitalSignature");
+                    }
+                    if (keyusage != null && keyusage[5] && cert.getBasicConstraints() < 0) {
+                        list.add("keyUsage contains keyCertSign");
+                    }
                 }
 
                 // The Extended Key Usage (EKU) extension must be present and

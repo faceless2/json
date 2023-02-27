@@ -55,8 +55,12 @@ class UsefulByteArrayOutputStream extends OutputStream {
     }
 
     public byte[] toByteArray() {
-        byte[] b = new byte[pos];
-        System.arraycopy(buffer, 0, b, 0, pos);
+        return toByteArray(0, pos);
+    }
+
+    public byte[] toByteArray(int off, int len) {
+        byte[] b = new byte[len];
+        System.arraycopy(buffer, off, b, 0, len);
         return b;
     }
 
@@ -65,7 +69,11 @@ class UsefulByteArrayOutputStream extends OutputStream {
     }
 
     public InputStream toInputStream() {
-        return new ByteArrayInputStream(buffer, 0, pos);
+        return toInputStream(0, pos);
+    }
+
+    public InputStream toInputStream(int off, int len) {
+        return new ByteArrayInputStream(buffer, off, len);
     }
 
     public String toString() {

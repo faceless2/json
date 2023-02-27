@@ -24,19 +24,78 @@ public class C2PAHelper {
             in = new BufferedInputStream(in);
         }
         CountingInputStream cin = new CountingInputStream(in);
-        return readJPEG(new CountingInputStream(in), false);
+        final Map<Integer,UsefulByteArrayOutputStream> app11 = new HashMap<Integer,UsefulByteArrayOutputStream>();
+        Callback cb = new Callback() {
+            public boolean segment(final int table, int length, final CountingInputStream in) throws IOException {
+                if (table == 0xFFEB) {
+                    // 0xFFEB - app11 marker (already read)
+                    // 2 byte length (already read)
+                    // 2 byte ID, which is always 0x4a50
+                    // 2 byte box instance number "disambiguates between JPEG XT marker segments"
+                    // 4 byte packet sequence number, which C2PA requires they're in order
+                    // 4 byte box length
+                    // 4 byte box type
+                    // optional 8-byte extended box length if box length=1
+                    // data
+                    length -= 2;
+                    if (length > 15) {
+                        byte[] data = new byte[length];
+                        int p = 0, v;
+                        while (p < data.length && (v=in.read(data, p, data.length - p)) >= 0) {
+                            p += v;
+                        }
+                        if (data[0] == 0x4a && data[1] == 0x50) {
+                            int id = (data[2]&0xFF)<<8 | (data[3]*0xFF);
+                            int seq = ((data[4]&0xFF)<<24) | ((data[5]&0xFF)<<16) | ((data[6]&0xFF)<<8) | ((data[7]&0xFF)<<0);
+                            int boxlen = ((data[8]&0xFF)<<24) | ((data[9]&0xFF)<<16) | ((data[10]&0xFF)<<8) | ((data[11]&0xFF)<<0);
+                            int boxtype = ((data[12]&0xFF)<<24) | ((data[13]&0xFF)<<16) | ((data[14]&0xFF)<<8) | ((data[15]&0xFF)<<0);
+                            //System.out.println("seglen="+length+" id="+id+" seq="+seq+" boxlen="+boxlen+" boxtype="+Box.typeToString(boxtype));
+                            if (boxtype == 0x6a756d62) { // "jumb"
+                                int skip = 8;
+                                if (app11.get(id) == null) {
+                                    app11.put(id, new UsefulByteArrayOutputStream());
+                                } else {
+                                    skip += 8;   // because boxlen and boxtype are repeated (with identical length) for every packet
+                                    if (boxlen == 1) {
+                                        skip += 8;
+                                    }
+                                }
+                                app11.get(id).write(data, skip, data.length - skip);
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+        };
+        readJPEG(new CountingInputStream(in), cb);
+        if (!app11.isEmpty()) {
+            // Pick the first
+            InputStream in2 = app11.values().iterator().next().toInputStream();
+            return (C2PAStore)new BoxFactory().load(in2);
+        }
+        return null;
+    }
+
+    private static interface Callback {
+        /**
+         * A JPEG segment has been read.
+         * @param table the table
+         * @param length the length of this segment, excluding the two-byte table header. May be 0 if no length applies to this table
+         * @param in the stream to read from, which will be limited to "length" bytes
+         * @return true if reading should continue
+         */
+        boolean segment(int table, int length, CountingInputStream in) throws IOException;
     }
 
     /**
      * if out is null, read an entire JPEG, extract any C2PA data and return it
      * if out is not null, copy until the first marker after the initial JFIF marker(s) then stop
      */
-    private static C2PAStore readJPEG(CountingInputStream in, boolean stop) throws IOException {
-        long start = in.tell();
-        Map<Integer,UsefulByteArrayOutputStream> app11 = new HashMap<Integer,UsefulByteArrayOutputStream>();
+    private static void readJPEG(CountingInputStream in, Callback callback) throws IOException {
         int table;
         do {
-            in.mark(2);
+            long start = in.tell();
             table = in.read();
             if (table < 0) {
                 break;
@@ -46,14 +105,10 @@ public class C2PAHelper {
                 throw new EOFException(Long.toString(in.tell()));
             }
             table = (table<<8) | v;
-            if (table != 0xFFE0 && table != 0xFFD8 && stop) {
-                in.reset();
-                return null;
-            }
-            long end = start + 2;
+            int length = 0;
             if (table == 0xFFDA) {
-                break;
-            } else if (table != 0xFF01 && table != 0xFFDA && (table < 0xFFD0 || table > 0xFFD8)) {
+                length = -1;
+            } else if (table != 0xFF01 && (table < 0xFFD0 || table > 0xFFD8)) {
                 int len = in.read();
                 if (len < 0) {
                     throw new EOFException();
@@ -62,66 +117,26 @@ public class C2PAHelper {
                 if (v < 0) {
                     throw new EOFException();
                 }
-                len = (len<<8) | v;
-                end += len;
+                length = (len<<8) | v;
             }
-            // System.out.println("* read table " + Integer.toHexString(table)+" at " + start+ " end="+end);
-            if (table == 0xFFEB) {
-                // 0xFFEB - app11 marker (already read)
-                // 2 byte length (already read)
-                // 2 byte ID, which is always 0x4a50
-                // 2 byte box instance number "disambiguates between JPEG XT marker segments"
-                // 4 byte packet sequence number, which C2PA requires they're in order
-                // 4 byte box length
-                // 4 byte box type
-                // optional 8-byte extended box length if box length=1
-                // data
-                int count = (int)(end - in.tell());
-                if (count > 15) {
-                    byte[] data = new byte[count];
-                    int p = 0;
-                    while (p < data.length && (v=in.read(data, p, data.length - p)) >= 0) {
-                        p += v;
-                    }
-                    if (data[0] == 0x4a && data[1] == 0x50) {
-                        int id = (data[2]&0xFF)<<8 | (data[3]*0xFF);
-                        int seq = ((data[4]&0xFF)<<24) | ((data[5]&0xFF)<<16) | ((data[6]&0xFF)<<8) | ((data[7]&0xFF)<<0);
-                        int boxlen = ((data[8]&0xFF)<<24) | ((data[9]&0xFF)<<16) | ((data[10]&0xFF)<<8) | ((data[11]&0xFF)<<0);
-                        int boxtype = ((data[12]&0xFF)<<24) | ((data[13]&0xFF)<<16) | ((data[14]&0xFF)<<8) | ((data[15]&0xFF)<<0);
-                        if (boxtype == 0x6a756d62) { // "jumb"
-                            int skip = 8;
-                            if (app11.get(id) == null) {
-                                app11.put(id, new UsefulByteArrayOutputStream());
-                            } else {
-                                skip += 8;   // because boxlen and boxtype are repeated (with identical length) for every packet
-                                if (boxlen == 1) {
-                                    skip += 8;
-                                }
-                            }
-                            app11.get(id).write(data, skip, data.length - skip);
-                        }
+            final long end = length < 0 ? -1 : start + length + 2;
+            // System.out.println("* seg=0x"+Integer.toHexString(table)+" start="+start+" len="+length+" end="+end);
+            in.limit(end);
+            if (callback != null && !callback.segment(table, length, in)) {
+                return;
+            }
+            in.limit(-1);
+            if (end < 0) {
+                // WTF - skip past EOF seems to fail on FileInputStream
+                while (in.read() >= 0);
+            } else {
+                while (in.tell() < end) {
+                    if (in.read() < 0) {
+                        break;
                     }
                 }
             }
-            byte[] data = new byte[8192];
-            int p = 0;
-            while (in.tell() < end && (v=in.read(data, 0, (int)Math.min(data.length, end - in.tell()))) >= 0) {
-            }
-            start = end;
         } while (table != 0xFFDA);
-        if (!app11.isEmpty()) {
-            // pick the first
-            InputStream in2 = app11.values().iterator().next().toInputStream();
-            //FileOutputStream fout = new FileOutputStream("/tmp/t2");
-            //int c;
-            //while ((c=in2.read())>=0) {
-            //    fout.write(c);
-            //}
-            //fout.close();
-            //in2 = app11.values().iterator().next().toInputStream();
-            return (C2PAStore)new BoxFactory().load(in2);
-        }
-        return null;
     }
 
     /**
@@ -144,11 +159,44 @@ public class C2PAHelper {
     public static List<C2PAStatus> signJPEG(C2PAStore store, PrivateKey key, List<X509Certificate> certs, InputStream input, OutputStream out, OutputStream rawout) throws IOException {
         List<C2PAStatus> status;
         // We have to read the stream twice, once to digest, once to write out.
-        // So we have to take a copy.
-        UsefulByteArrayOutputStream tmp = new UsefulByteArrayOutputStream();
-        tmp.write(input);
+        // So we have to take a copy. Copy it without any 0xFFED or 0xFFE1 segments
+        final UsefulByteArrayOutputStream tmp = new UsefulByteArrayOutputStream();
+        final int[] headerStart = new int[1];
+
+        readJPEG(new CountingInputStream(input), new Callback() {
+            boolean header = true;
+            @Override public boolean segment(int table, int length, CountingInputStream in) throws IOException {
+                if (header) {
+                    if (table != 0xFFE0 && table != 0xFFD8) {
+                        header = false;
+                    }
+                    headerStart[0] = (int)in.tell() - 4; // (int)in.tell() + length - 2;
+                }
+                if (table != 0xFFEB && table != 0xFFE1) {
+                    tmp.write(table>>8);
+                    tmp.write(table);
+                    if (length > 0) {
+                        tmp.write(length>>8);
+                        tmp.write(length);
+                    }
+                    long t = in.tell();
+                    int wrote = 0;
+                    byte[] buf = new byte[8192];
+                    int l;
+                    while ((l=in.read(buf)) >= 0) {
+                        tmp.write(buf, 0, l);
+                        wrote += l;
+                    }
+                }
+                return true;
+            }
+        });
+        final byte[] inputBytes = tmp.toByteArray();
+        // Now "inputbytes" is JPEG without any app1/app11 markers, and headerStart[0] is where to put our segments
+
         // contract says we leave it open, so do
 
+        // Initialize the store/manifest data
         if (store == null) {
             store = new C2PAStore();
         }
@@ -169,40 +217,49 @@ public class C2PAHelper {
         if (hash == null) {
             manifest.getAssertions().add(hash = new C2PA_AssertionHashData());
         }
+        boolean writexmp = true;        // c2patool needs this if there is > 1 manifest in store
+        byte[] xmpbytes = new byte[0];
+        if (writexmp) {
+            String s = "http://ns.adobe.com/xap/1.0/\u0000";
+            s += "<?xpacket begin=\"\ufeff\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?><x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" xmlns:dcterms=\"http://purl.org/dc/terms/\" dcterms:provenance=\"" + store.find(manifest) + "\"/></rdf:RDF></x:xmpmeta><?xpacket end=\"r\"?>";
+            byte[] b = s.getBytes("UTF-8");
+            int datalen = b.length + 2;
+            xmpbytes = new byte[datalen + 2];
+            xmpbytes[0] = (byte)0xff;
+            xmpbytes[1] = (byte)0xe1;
+            xmpbytes[2] = (byte)(datalen>>8);
+            xmpbytes[3] = (byte)datalen;
+            System.arraycopy(b, 0, xmpbytes, 4, b.length);
+        }
 
-        // Begin signing process
-        CountingInputStream in = new CountingInputStream(tmp.toInputStream());
-        readJPEG(in, true);
-        final int start = (int)in.tell();       // We stopped at the point to insert the app11 marker(s)
         // Dummy sign to determine length
         manifest.setInputStream(new ByteArrayInputStream(new byte[0]));
         manifest.getSignature().sign(key, certs);
         byte[] dummydata = store.getEncoded();
-        int length = dummydata.length;
-        final int maxsegmentlength = 65535;     // 65535 plus one for luck
+        int siglength = dummydata.length;
+        final int maxsegmentlength = 64012;     // 65535 plus one for luck
         final int segheaderlen = 20;            // bytes of overhead per segment
-        int numsegments = (int)Math.ceil((length - 8) / (float)(maxsegmentlength - segheaderlen));
-        hash.setExclusions(new long[] { start, (length - 8) + (numsegments * segheaderlen) });
+        int numsegments = (int)Math.ceil((siglength - 8) / (float)(maxsegmentlength - segheaderlen));
+        hash.setExclusions(new long[] { headerStart[0], (siglength - 8) + (numsegments * segheaderlen) });
         // Sign a second time now we have set exclusions
-        manifest.setInputStream(tmp.toInputStream());
+        manifest.setInputStream(new SequenceInputStream(new ByteArrayInputStream(inputBytes, 0, headerStart[0]), new SequenceInputStream(new ByteArrayInputStream(xmpbytes), new ByteArrayInputStream(inputBytes, headerStart[0], inputBytes.length - headerStart[0]))));
         status = manifest.getSignature().sign(key, certs);
         byte[] data = store.getEncoded();
-        if (data.length != length) {
+        if (data.length != siglength) {
             //System.out.println(((C2PAStore)new BoxFactory().load(new ByteArrayInputStream(dummydata))).toJson());
             //System.out.println(((C2PAStore)new BoxFactory().load(new ByteArrayInputStream(data))).toJson());
-            throw new IllegalStateException("Expected " + length + " bytes, second signing gave us " + data.length);
+            throw new IllegalStateException("Expected " + siglength + " bytes, second signing gave us " + data.length);
         }
 
         // Begin writing process; copy the bit we've already read
-        input = tmp.toInputStream();
-        for (int i=0;i<start;i++) {
-            out.write(input.read());
-        }
+        out.write(inputBytes, 0, headerStart[0]);
         // Write our C2PA as segments
-        for (int i=0;i<numsegments;i++) {
+        int segid = 0;
+        for (int i=0;i<numsegments;) {
             int start2 = 8 + (i * (maxsegmentlength - segheaderlen));
             int len = Math.min(maxsegmentlength - segheaderlen, data.length - start2);
             // System.out.println("WRITE " + i+"/"+numsegments+" start2="+start2+" len="+len+" to " + (start2+len)+"/"+data.length);
+            i++;        // c2patool wants packets to start at 1
             int seglen = len + segheaderlen - 2;  // excluding marker
             out.write(0xff);    // app11
             out.write(0xeb);
@@ -210,8 +267,8 @@ public class C2PAHelper {
             out.write(seglen);
             out.write(0x4a);    // 0x4a50 constant
             out.write(0x50);
-            out.write(0);       // two byte box instance number
-            out.write(0);
+            out.write(segid>>8);       // two byte box instance number
+            out.write(segid);
             out.write(i>>24); // four byte sequence number
             out.write(i>>16);
             out.write(i>>8);
@@ -219,11 +276,9 @@ public class C2PAHelper {
             out.write(data, 0, 8);      // this must be repeated each segment
             out.write(data, start2, len);
         }
-        // Write rest of file
-        byte[] buf = new byte[8192];
-        while ((length=input.read(buf, 0, buf.length)) >= 0) {
-            out.write(buf, 0, length);
-        }
+        out.write(xmpbytes);
+
+        out.write(inputBytes, headerStart[0], inputBytes.length - headerStart[0]);
         out.flush();
         if (rawout != null) {
             rawout.write(data);
@@ -295,7 +350,7 @@ public class C2PAHelper {
                     for (Certificate c : keystore.getCertificateChain(alias)) {
                         certs.add((X509Certificate)c);
                     }
-                    if (certs.size() > 0) {
+                    if (certs.size() > 1) {
                         // "The trust anchor’s certificate (also called the root certificate) should not be included."
                         certs.remove(certs.size() - 1);
                     }
@@ -334,6 +389,9 @@ public class C2PAHelper {
                             C2PA_AssertionIngredient ing;
                             manifest.getAssertions().add(ing = new C2PA_AssertionIngredient());
                             ing.setTargetManifest("parentOf", lastmanifest, laststatus);
+                            C2PA_AssertionActions act = new C2PA_AssertionActions();
+                            manifest.getAssertions().add(act);
+                            act.add("c2pa.repackaged", ing, null);
                         }
                         */
                         if (alg != null) {
@@ -379,28 +437,37 @@ public class C2PAHelper {
                     } else {
                         C2PAStore c2pa = extractFromJPEG(in);
                         if (c2pa != null) {
-                            C2PAManifest manifest = c2pa.getManifests().get(c2pa.getManifests().size() - 1);
-                            in = new FileInputStream(inname);
-                            manifest.setInputStream(in);
-                            if (debug) {
-                                System.out.println(c2pa.toJson().toString(new JsonWriteOptions().setPretty(true).setCborDiag("hex")));
+                            if (outc2pa != null) {
+                                OutputStream rawout = new BufferedOutputStream(new FileOutputStream(outc2pa));
+                                rawout.write(c2pa.getEncoded());
+                                rawout.close();
+                                outc2pa = null;
                             }
-                            if (boxdebug) {
-                                System.out.println(c2pa.dump(null, null));
+//                            List<C2PAManifest> manifests = c2pa.getManifests();
+                            List<C2PAManifest> manifests = Collections.<C2PAManifest>singletonList(c2pa.getActiveManifest());
+                            for (C2PAManifest manifest : manifests) {
+                                in = new FileInputStream(inname);
+                                manifest.setInputStream(in);
+                                if (debug) {
+                                    System.out.println(c2pa.toJson().toString(new JsonWriteOptions().setPretty(true).setCborDiag("hex")));
+                                }
+                                if (boxdebug) {
+                                    System.out.println(c2pa.dump(null, null));
+                                }
+                                System.out.println("# verifying " + (manifest == c2pa.getActiveManifest() ? "active " : "") + "manifest \"" + manifest.label() + "\"");
+                                List<C2PAStatus> status = manifest.getSignature().verify(null);
+                                boolean ok = true;
+                                for (C2PAStatus st : status) {
+                                    ok &= st.isOK();
+                                    System.out.println("# " + st);
+                                }
+                                if (ok) {
+                                    System.out.println(inname + ": VALIDATED");
+                                } else {
+                                    System.out.println(inname + ": VALIDATION FAILED");
+                                }
+                                System.out.println();
                             }
-                            System.out.println("# active manifest \"" + manifest.label() + "\"");
-                            List<C2PAStatus> status = manifest.getSignature().verify(null);
-                            boolean ok = true;
-                            for (C2PAStatus st : status) {
-                                ok &= st.isOK();
-                                System.out.println("# " + st);
-                            }
-                            if (ok) {
-                                System.out.println(inname + ": VALIDATED");
-                            } else {
-                                System.out.println(inname + ": VALIDATION FAILED");
-                            }
-                            System.out.println();
                         } 
                     }
                     while (++i < args.length) {
