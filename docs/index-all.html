@@ -79,7 +79,8 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="com/bfo/json/Json.html#bufferValue()" class="member-name-link">bufferValue()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
-<div class="block">Return the value of this node as a ByteBuffer.</div>
+<div class="block">
+ Return the value of this node as a ByteBuffer.</div>
 </dd>
 <dt><a href="com/bfo/json/Json.html#bufferValue(java.lang.Object)" class="member-name-link">bufferValue(Object)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
@@ -179,7 +180,7 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="com/bfo/json/Json.html#equals(java.lang.Object)" class="member-name-link">equals(Object)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
-<div class="block">Return true if the specified object is a Json object and has an equal <a href="com/bfo/json/Json.html#value()"><code>value</code></a></div>
+<div class="block">Return true if the specified object is a Json object and has an equal <a href="com/bfo/json/Json.html#value()"><code>value</code></a> and <a href="com/bfo/json/Json.html#getTag()"><code>tag</code></a></div>
 </dd>
 <dt><a href="com/bfo/json/Json.html#eval(java.lang.String)" class="member-name-link">eval(String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
@@ -560,6 +561,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/JsonWriteOptions.html#isSorted()" class="member-name-link">isSorted()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></dt>
 <dd>
 <div class="block">Return the "sorted" flag as set by <a href="com/bfo/json/JsonWriteOptions.html#setSorted(boolean)"><code>JsonWriteOptions.setSorted(boolean)</code></a></div>
+</dd>
+<dt><a href="com/bfo/json/JsonWriteOptions.html#isSpaceAfterColon()" class="member-name-link">isSpaceAfterColon()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></dt>
+<dd>
+<div class="block">Return the "spaceAfterColon" flag as set by <a href="com/bfo/json/JsonWriteOptions.html#setSpaceAfterColon(boolean)"><code>JsonWriteOptions.setSpaceAfterColon(boolean)</code></a></div>
 </dd>
 <dt><a href="com/bfo/json/JsonReadOptions.html#isStrictTypes()" class="member-name-link">isStrictTypes()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
 <dd>
@@ -982,6 +987,10 @@ loadScripts(document, 'script');</script>
 <div class="block">Whether to sort the keys in each map alphabetically
  when writing.</div>
 </dd>
+<dt><a href="com/bfo/json/JsonWriteOptions.html#setSpaceAfterColon(boolean)" class="member-name-link">setSpaceAfterColon(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></dt>
+<dd>
+<div class="block">Whether to add a space after each colon in Json serialization.</div>
+</dd>
 <dt><a href="com/bfo/json/JsonReadOptions.html#setStrictTypes(boolean)" class="member-name-link">setStrictTypes(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></dt>
 <dd>
 <div class="block">Determines whether objects read by the JsonReader will be loosely typed.</div>
@@ -1021,6 +1030,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/Json.html#size()" class="member-name-link">size()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Return the size of this object, or zero if this object is a number, string, buffer, boolean or null.</div>
+</dd>
+<dt><a href="com/bfo/json/Json.html#sort()" class="member-name-link">sort()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
+<dd>
+<div class="block">For Json objects that are maps, sort the map keys.</div>
 </dd>
 <dt><a href="com/bfo/json/Json.html#stringValue()" class="member-name-link">stringValue()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
