@@ -2435,11 +2435,15 @@ public class Json {
     }
 
     /**
-     * Return true if the specified object is a Json object and has an equal {@link #value() value}
+     * Return true if the specified object is a Json object and has an equal {@link #value() value} and {@link #getTag tag}
+     * @param o the object to compare to
      */
     public boolean equals(Object o) {
         if (o instanceof Json) {
             Json j = (Json)o;
+            if (j.getTag() != getTag()) {
+                return false;
+            }
             if (core == NULL || core == UNDEFINED) {
                 return j.core == core;
             } else if (core.getClass() == j.core.getClass()) {
