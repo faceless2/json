@@ -8,8 +8,9 @@ import java.nio.charset.*;
 
 class CborReader {
 
+    // private static final boolean DEBUG = false;
     private static final Number INDEFINITE = Float.intBitsToFloat(0x12345678);       // As good as any
-    private static final Json BREAK = new Json(INDEFINITE, null);
+    private static final Json BREAK = new Json(INDEFINITE, null) { @Override Json setStrict(boolean strict) { return this; } };
 
     private final CountingInputStream in;
     private final JsonReadOptions options;
@@ -38,6 +39,8 @@ class CborReader {
         if (v < 0) {
             return null;
         }
+        // final int origv = v;
+        // final long origtell = in.tell();
         Number n;
         Json j;
         List<Json> list;
@@ -245,7 +248,8 @@ class CborReader {
                         j = filter.createNumber(n);
                         break;
                     case 31:
-                        return BREAK;
+                        j = BREAK;
+                        break;
                     case 24:
                         v = in.read();
                         if (v < 0) {
@@ -263,6 +267,7 @@ class CborReader {
                 }
         }
         j.setStrict(strict);
+        // if (DEBUG) System.out.println("# [CBOR] off=" + origtell + " v=" + origv + " v>>5=" + (origv>>5) + " type=" + j.type() + " out=" + j.toString(new JsonWriteOptions().setCborDiag("hex")));
         return j;
     }
 

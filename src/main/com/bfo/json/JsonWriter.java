@@ -295,6 +295,9 @@ class JsonWriter {
                         write(new Json(key, null));
                     }
                     out.append(':');
+                    if (options.isSpaceAfterColon()) {
+                        out.append(' ');
+                    }
                     write(value);
                 }
                 filter.exit(key, ovalue);

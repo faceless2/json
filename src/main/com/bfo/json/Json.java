@@ -336,13 +336,15 @@ public class Json {
      *
      * @param factory the factory
      * @since 2
+     * @return this
      */
-    public void setFactory(JsonFactory factory) {
+    public Json setFactory(JsonFactory factory) {
         this.factory = factory;
         for (Iterator<Map.Entry<String,Json>> i = leafIterator();i.hasNext();) {
             Map.Entry<String,Json> e = i.next();
             e.getValue().factory = factory;
         }
+        return this;
     }
 
     /**
@@ -492,6 +494,9 @@ public class Json {
         if (options == null) {
             options = DEFAULTREADOPTIONS;
         }
+        if (!in.markSupported()) {
+            in = new BufferedInputStream(in);
+        }
         if (!(in instanceof CountingInputStream)) {
             in = new CountingInputStream(in);
         }
@@ -533,6 +538,9 @@ public class Json {
         }
         if (options == null) {
             options = DEFAULTREADOPTIONS;
+        }
+        if (!in.markSupported()) {
+            in = new BufferedInputStream(in);
         }
         if (!(in instanceof CountingInputStream)) {
             in = new CountingInputStream(in);
@@ -1205,10 +1213,12 @@ public class Json {
      * will be ignored when writing to Json. Although CBOR allows positive value tags of
      * any size, this implementation limits them to 63 bits.
      * @param tag the tag, or a negative number to remove the tag.
+     * @return this
      * @since 2
      */
-    public void setTag(long tag) {
+    public Json setTag(long tag) {
         this.tag = tag < 0 ? -1 : tag;
+        return this;
     }
 
     /**
@@ -1393,7 +1403,7 @@ public class Json {
 //                System.out.print("{A}");
             }
 
-            public boolean hasNext() {
+            @Override public boolean hasNext() {
 //                System.out.print("[");
                 if (hasAcross()) {
                     across();
@@ -1419,7 +1429,7 @@ public class Json {
                 return false;
             }
 
-            public Map.Entry<String,Json> next() {
+            @Override public Map.Entry<String,Json> next() {
                 StringBuilder sb = new StringBuilder();
                 for (int i=0;i<string.size();i++) {
                     if (string.get(i) instanceof String) {
@@ -1438,10 +1448,31 @@ public class Json {
                 return new AbstractMap.SimpleImmutableEntry<String,Json>(s, last);
             }
 
-            public void remove() {
+            @Override public void remove() {
                 throw new UnsupportedOperationException();
             }
         };
+    }
+
+    /**
+     * For Json objects that are maps, sort the map keys.
+     * For other types this is a no-op
+     * @return this
+     * @since 5
+     */
+    public Json sort() {
+        if (core instanceof Map) {
+            Map<Object,Json> o = _mapValue();
+            Map<Object,Json> m = new TreeMap<Object,Json>(new Comparator<Object>() {
+                public int compare(Object o1, Object o2) {
+                    return o1 instanceof Number && o2 instanceof Number ? Double.valueOf(((Number)o1).doubleValue()).compareTo(((Number)o2).doubleValue()) : o1.toString().compareTo(o2.toString());
+                }
+            });
+            m.putAll(o);
+            o.clear();
+            o.putAll(m);
+        }
+        return this;
     }
 
     private void convertToMap() {
@@ -1788,10 +1819,12 @@ public class Json {
      * System.out.println(a); // "string"
      * </pre>
      * @param json the json object that is the source of the intended value of this object
+     * @return this
      */
-    public void setValue(Json json) {
+    public Json setValue(Json json) {
         core = json == null ? NULL : json.core;
         setSimpleString(json != null && json.isSimpleString());
+        return this;
     }
 
     /**
@@ -1854,8 +1887,13 @@ public class Json {
     }
 
     /**
+     * <p>
      * Return the value of this node as a ByteBuffer. ByteBuffers only exist
-     * natively in the CBOR serialization.
+     * natively in the CBOR and Msgpack serialization. Note that every ByteBuffer created
+     * by the API will be backed by an array of the same size; it is guaranteed
+     * that
+     * <code>buffer.array().length == buffer.limit() &amp;&amp; buffer.arrayOffset() == 0</code>.
+     * </p>
      * <ul>
      * <li>A string will be decoded using Base64 (no padding) and, if valid
      * returned as a ByteBuffer. If invalid, a ClassCastException will be thrown</li>
@@ -2397,11 +2435,15 @@ public class Json {
     }
 
     /**
-     * Return true if the specified object is a Json object and has an equal {@link #value() value}
+     * Return true if the specified object is a Json object and has an equal {@link #value() value} and {@link #getTag tag}
+     * @param o the object to compare to
      */
     public boolean equals(Object o) {
         if (o instanceof Json) {
             Json j = (Json)o;
+            if (j.getTag() != getTag()) {
+                return false;
+            }
             if (core == NULL || core == UNDEFINED) {
                 return j.core == core;
             } else if (core.getClass() == j.core.getClass()) {

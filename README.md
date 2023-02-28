@@ -22,7 +22,7 @@ and fuzzed input, to make sure errors are handled properly.
 * the API has no external requirements. Although it compiles against the JsonPath implementation https://github.com/json-path/JsonPath, provided the "eval" methods are not used there is no need for those classes to be available at runtime. To build it, type "ant" (and if you'd prefer the Maven experience, type "ant" then go and do something else for two hours).
 
 ## Features
-* JSON, CBOR and Msgpack serialization are both available from the same object
+* JSON, CBOR and Msgpack serialization are all available from the same object (new in version 5 is CBOR-Diag pseudo-json)
 * non-string map keys since version 5, to support COSE. Non-string keys are convert to strings when serializing to JSON
 * Java Web Token (JWT) support class for reading/writing/signing/verifying.
 * COSE signed object support class for reading/writing/signing/verifying.
@@ -37,6 +37,7 @@ and fuzzed input, to make sure errors are handled properly.
 ## Building and Documentation
 * Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-5.jar](https://faceless2.github.io/json/dist/bfojson-5.jar)
 * The API docs will always be available at [https://faceless2.github.io/json/docs/](https://faceless2.github.io/json/docs/)
+* Compiles under Java 11 or later - the API supports EdDSA keys (new in Java 15) via reflection.
 * Or download with `git clone http://github.com/faceless2/json.git`. Type `ant`. Jar is in `dist`, docs are in `docs`
  
 ## Design Decisions
@@ -156,6 +157,8 @@ json = Json.parse("{\"a\":{\"b\":{\"c\":[10,20,30,40]}}}");
 json.eval("$..c[2]").intValue(); // 30
 ```
 
+### JWK and COSE
+
 In addition the JWT class adds basic support for [Java Web Tokens](https://jwt.io).
 With only a handful of methods it is trivial to use, but supports all JWT signing methods.
 Encryption with JWE is not supported
@@ -179,6 +182,27 @@ jwt.getPayload().clear();            // Modify the payload
 assert !jwt.verify(pubkey, "ES256"); // Signature is no longer valid
 ```
 
-Compiles under Java 11 or later - the API supports EdDSA keys (new in Java 15) via reflection.
+COSE was added in version 5. Signing with single or multiple signatures
+are supported, but counter-signing (for timestamps) is pending and encryption
+support is not currently planned.
+```java
+// Signing
+COSE cose = new COSE();
+cose.setPayload(ByteBuffer.wrap("Hello, World".getBytes("UTF-8")));
+cose.sign(privateKey);               // Sign using a private key, eg ES256
+cose.writeCBOR(..., null);           // Write COSE to stream, or...
+ByteBuffer buf = cose.toCbor();      // Write COSE to ByteBuffer
+
+// Verifying
+Json json = Json.readCBOR(..., null);     // Reload COSE
+cose = new COSE(json);
+String s = new String(cose.getPayload().array(), "UTF-8"); // Hello, World
+assert jwt.verify(publicKey) == 0;   // Verify with the public key
+```
+For both JWT and COSE, the [JWK](https://faceless2.github.io/json/docs/com/bfo/json/JWK.html) utility class can convert
+between the Java `PublicKey`, `PrivateKey` and `SecretKey` implementations and their JWK or COSE-key representations.
+
+
+-------
 
 This code is written by the team at [bfo.com](https://bfo.com). If you like it, come and see what else we do.

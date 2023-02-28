@@ -20,7 +20,7 @@ import java.io.*;
 public class JsonWriteOptions {
 
     private String floatformat = "%.8g", doubleformat = "%.16g";
-    private boolean pretty, allownan, sorted, nfc, base64standard;
+    private boolean pretty, allownan, sorted, nfc, base64standard, spaceAfterColon;
     private String cborDiag;
     private Filter filter;
     private int maxArraySize = 0, maxStringLength = 0;
@@ -87,6 +87,16 @@ public class JsonWriteOptions {
     }
 
     /**
+     * Whether to add a space after each colon in Json serialization.
+     * @param spaceAfterColon the flag
+     * @return this
+     */
+    public JsonWriteOptions setSpaceAfterColon(boolean spaceAfterColon) {
+        this.spaceAfterColon = spaceAfterColon;
+        return this;
+    }
+
+    /**
      * Set whether to normalize all Strings (including map keys) to Unicode {@link java.text.Normalizer.Form#NFC normal form C}
      * when writing. Note that collapsing Map keys down to NFC could theoretically result in two keys of the
      * same value being written out. This is not tested for during writing.
@@ -136,6 +146,14 @@ public class JsonWriteOptions {
      */
     public boolean isPretty() {
         return pretty;
+    }
+
+    /**
+     * Return the "spaceAfterColon" flag as set by {@link #setSpaceAfterColon}
+     * @return the flag
+     */
+    public boolean isSpaceAfterColon() {
+        return spaceAfterColon;
     }
 
     /**
