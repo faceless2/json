@@ -13,6 +13,8 @@ import com.bfo.json.*;
  */
 public class C2PAHelper {
 
+    private static final String APP1_XMP = "http://ns.adobe.com/xap/1.0/\u0000";
+
     /**
      * Given a JPEG, return any {@link C2PAStore} found in the file or null
      * @param in an InputStream containing a JPEG. The stream will be fully read but not closed
@@ -27,8 +29,8 @@ public class C2PAHelper {
         final Map<Integer,UsefulByteArrayOutputStream> app11 = new HashMap<Integer,UsefulByteArrayOutputStream>();
         Callback cb = new Callback() {
             public boolean segment(final int table, int length, final CountingInputStream in) throws IOException {
-                if (table == 0xFFEB) {
-                    // 0xFFEB - app11 marker (already read)
+                if (table == 0xffeb) {
+                    // 0xffeb - app11 marker (already read)
                     // 2 byte length (already read)
                     // 2 byte ID, which is always 0x4a50
                     // 2 byte box instance number "disambiguates between JPEG XT marker segments"
@@ -45,11 +47,11 @@ public class C2PAHelper {
                             p += v;
                         }
                         if (data[0] == 0x4a && data[1] == 0x50) {
-                            int id = (data[2]&0xFF)<<8 | (data[3]*0xFF);
-                            int seq = ((data[4]&0xFF)<<24) | ((data[5]&0xFF)<<16) | ((data[6]&0xFF)<<8) | ((data[7]&0xFF)<<0);
-                            int boxlen = ((data[8]&0xFF)<<24) | ((data[9]&0xFF)<<16) | ((data[10]&0xFF)<<8) | ((data[11]&0xFF)<<0);
-                            int boxtype = ((data[12]&0xFF)<<24) | ((data[13]&0xFF)<<16) | ((data[14]&0xFF)<<8) | ((data[15]&0xFF)<<0);
-                            //System.out.println("seglen="+length+" id="+id+" seq="+seq+" boxlen="+boxlen+" boxtype="+Box.typeToString(boxtype));
+                            int id = (data[2]&0xff)<<8 | (data[3]&0xff);
+                            int seq = ((data[4]&0xff)<<24) | ((data[5]&0xff)<<16) | ((data[6]&0xff)<<8) | ((data[7]&0xff)<<0);
+                            int boxlen = ((data[8]&0xff)<<24) | ((data[9]&0xff)<<16) | ((data[10]&0xff)<<8) | ((data[11]&0xff)<<0);
+                            int boxtype = ((data[12]&0xff)<<24) | ((data[13]&0xff)<<16) | ((data[14]&0xff)<<8) | ((data[15]&0xff)<<0);
+                            // System.out.println("seglen="+length+" id="+id+" seq="+seq+" boxlen="+boxlen+" boxtype="+Box.typeToString(boxtype));
                             if (boxtype == 0x6a756d62) { // "jumb"
                                 int skip = 8;
                                 if (app11.get(id) == null) {
@@ -106,9 +108,9 @@ public class C2PAHelper {
             }
             table = (table<<8) | v;
             int length = 0;
-            if (table == 0xFFDA) {
+            if (table == 0xffda) {
                 length = -1;
-            } else if (table != 0xFF01 && (table < 0xFFD0 || table > 0xFFD8)) {
+            } else if (table != 0xff01 && (table < 0xffd0 || table > 0xffd8)) {
                 int len = in.read();
                 if (len < 0) {
                     throw new EOFException();
@@ -136,7 +138,7 @@ public class C2PAHelper {
                     }
                 }
             }
-        } while (table != 0xFFDA);
+        } while (table != 0xffda);
     }
 
     /**
@@ -159,20 +161,34 @@ public class C2PAHelper {
     public static List<C2PAStatus> signJPEG(C2PAStore store, PrivateKey key, List<X509Certificate> certs, InputStream input, OutputStream out, OutputStream rawout) throws IOException {
         List<C2PAStatus> status;
         // We have to read the stream twice, once to digest, once to write out.
-        // So we have to take a copy. Copy it without any 0xFFED or 0xFFE1 segments
+        // So we have to take a copy. Copy it without any 0xffed or 0xffe1 segments
         final UsefulByteArrayOutputStream tmp = new UsefulByteArrayOutputStream();
         final int[] headerStart = new int[1];
+        if (!input.markSupported()) {
+            input = new BufferedInputStream(input);
+        }
 
         readJPEG(new CountingInputStream(input), new Callback() {
             boolean header = true;
             @Override public boolean segment(int table, int length, CountingInputStream in) throws IOException {
+                String init = null;
+                if (table == 0xffe1 || table == 0xffeb) {
+                    in.mark(32);
+                    byte[] buf = new byte[Math.min(length - 2, 32)];
+                    for (int i=0;i<buf.length;i++) {
+                        buf[i] = (byte)in.read();
+                    }
+                    init = new String(buf, "ISO-8859-1");
+                    in.reset();
+                }
                 if (header) {
-                    if (table != 0xFFE0 && table != 0xFFD8) {
+                    if (!(table == 0xffe0 || table == 0xffd8 || (table == 0xffe1 && init.startsWith("Exif\u0000\u0000")))) {
                         header = false;
                     }
                     headerStart[0] = (int)in.tell() - 4; // (int)in.tell() + length - 2;
                 }
-                if (table != 0xFFEB && table != 0xFFE1) {
+                if (!(table == 0xffeb && init.startsWith("\u004a\u0050")) && !(table == 0xffe1 && init.startsWith(APP1_XMP))) {
+                    // https://github.com/contentauth/c2pa-rs/issues/167
                     tmp.write(table>>8);
                     tmp.write(table);
                     if (length > 0) {
@@ -192,9 +208,9 @@ public class C2PAHelper {
             }
         });
         final byte[] inputBytes = tmp.toByteArray();
-        // Now "inputbytes" is JPEG without any app1/app11 markers, and headerStart[0] is where to put our segments
+        // Now "inputbytes" is JPEG without any problematic app1/app11 markers, and headerStart[0] is where to put our segments
 
-        // contract says we leave it open, so do
+        // contract says we leave "input" open, so do
 
         // Initialize the store/manifest data
         if (store == null) {
@@ -220,7 +236,7 @@ public class C2PAHelper {
         boolean writexmp = true;        // c2patool needs this if there is > 1 manifest in store
         byte[] xmpbytes = new byte[0];
         if (writexmp) {
-            String s = "http://ns.adobe.com/xap/1.0/\u0000";
+            String s = APP1_XMP;
             s += "<?xpacket begin=\"\ufeff\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?><x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" xmlns:dcterms=\"http://purl.org/dc/terms/\" dcterms:provenance=\"" + store.find(manifest) + "\"/></rdf:RDF></x:xmpmeta><?xpacket end=\"r\"?>";
             byte[] b = s.getBytes("UTF-8");
             int datalen = b.length + 2;
@@ -237,12 +253,12 @@ public class C2PAHelper {
         manifest.getSignature().sign(key, certs);
         byte[] dummydata = store.getEncoded();
         int siglength = dummydata.length;
-        final int maxsegmentlength = 64012;     // 65535 plus one for luck
-        final int segheaderlen = 20;            // bytes of overhead per segment
+        final int maxsegmentlength = 65535;
+        final int segheaderlen = 20;
         int numsegments = (int)Math.ceil((siglength - 8) / (float)(maxsegmentlength - segheaderlen));
         hash.setExclusions(new long[] { headerStart[0], (siglength - 8) + (numsegments * segheaderlen) });
         // Sign a second time now we have set exclusions
-        manifest.setInputStream(new SequenceInputStream(new ByteArrayInputStream(inputBytes, 0, headerStart[0]), new SequenceInputStream(new ByteArrayInputStream(xmpbytes), new ByteArrayInputStream(inputBytes, headerStart[0], inputBytes.length - headerStart[0]))));
+        manifest.setInputStream(new SequenceInputStream(new ByteArrayInputStream(inputBytes, 0, headerStart[0]), new SequenceInputStream(new ByteArrayInputStream(xmpbytes), new ByteArrayInputStream(inputBytes, headerStart[0], inputBytes.length - headerStart[0])))); //yuk
         status = manifest.getSignature().sign(key, certs);
         byte[] data = store.getEncoded();
         if (data.length != siglength) {
@@ -259,21 +275,21 @@ public class C2PAHelper {
             int start2 = 8 + (i * (maxsegmentlength - segheaderlen));
             int len = Math.min(maxsegmentlength - segheaderlen, data.length - start2);
             // System.out.println("WRITE " + i+"/"+numsegments+" start2="+start2+" len="+len+" to " + (start2+len)+"/"+data.length);
-            i++;        // c2patool wants packets to start at 1
+            i++;                   // c2patool wants packets to start at 1
             int seglen = len + segheaderlen - 2;  // excluding marker
-            out.write(0xff);    // app11
+            out.write(0xff);       // app11
             out.write(0xeb);
-            out.write(seglen>>8); // segment length
+            out.write(seglen>>8);  // segment length
             out.write(seglen);
-            out.write(0x4a);    // 0x4a50 constant
+            out.write(0x4a);       // 0x4a50 constant
             out.write(0x50);
-            out.write(segid>>8);       // two byte box instance number
+            out.write(segid>>8);   // two byte box instance number
             out.write(segid);
-            out.write(i>>24); // four byte sequence number
+            out.write(i>>24);      // four byte sequence number
             out.write(i>>16);
             out.write(i>>8);
             out.write(i);
-            out.write(data, 0, 8);      // this must be repeated each segment
+            out.write(data, 0, 8); // this must be repeated each segment
             out.write(data, start2, len);
         }
         out.write(xmpbytes);
@@ -443,8 +459,8 @@ public class C2PAHelper {
                                 rawout.close();
                                 outc2pa = null;
                             }
-//                            List<C2PAManifest> manifests = c2pa.getManifests();
-                            List<C2PAManifest> manifests = Collections.<C2PAManifest>singletonList(c2pa.getActiveManifest());
+//                            List<C2PAManifest> manifests = c2pa.getManifests();       // to validate ALL manifests
+                            List<C2PAManifest> manifests = Collections.<C2PAManifest>singletonList(c2pa.getActiveManifest());   // validate only current manifest
                             for (C2PAManifest manifest : manifests) {
                                 in = new FileInputStream(inname);
                                 manifest.setInputStream(in);
@@ -518,7 +534,7 @@ public class C2PAHelper {
         System.out.println("   --alg <algorithm>       if signing, the hash algorithm");
         System.out.println("   --creativework <path>   if signing, filename containing a JSON schema to embed");
         System.out.println("   --out <path>            if signing, filename to write signed output to (default will derive from input");
-        System.out.println("   --c2pa <path>           if signing, filename to dump the C2PA object to (default is not dumped");
+        System.out.println("   --c2pa <path>           if signing/verifying, filename to dump the C2PA object to (default is not dumped");
         System.out.println("   <path>                  the filename to sign or verify");
         System.out.println();
         System.exit(0);
