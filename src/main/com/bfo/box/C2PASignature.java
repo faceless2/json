@@ -317,6 +317,20 @@ public class C2PASignature extends CborContainerBox {
             purpose = "signing";
         }
 
+        // Note that the signing certificate must not be used to sign other certificates,
+        // which means it must not be self-signed. In other words the chain must be > 1 long.
+        // See https://github.com/contentauth/c2pa-rs/issues/192, or:
+        //
+        //   "You can generate your own certs, however the cert that signs the image must be
+        //    sub cert with the proper  EKU and KU fields specified per the spec.   It also
+        //    cannot have CA asserted True.  These are all listed in the spec.  So create a
+        //    test root CA, and any number of intermediate derived sub certificates, and finally
+        //    derive an end-entity cert that meets the spec.  The set of certs (minus the root)
+        //    represent the certificate chain."
+        //    -- https://discord.com/channels/983153151341371422/983153390781616159/1028065509759000636
+        if (certs.size() == 1) {
+            status.add(new C2PAStatus(C2PAStatus.Code.signingCredential_invalid, "self-signed " + purpose + " certificate are not allowed", "Cose_Sign1.x5chain[" + 0 + "]", null));
+        }
         for (int ix=0;ix<certs.size();ix++) {
             List<String> list = new ArrayList<String>();
             X509Certificate cert = certs.get(ix);
