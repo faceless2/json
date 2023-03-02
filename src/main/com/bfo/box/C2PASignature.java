@@ -328,9 +328,9 @@ public class C2PASignature extends CborContainerBox {
         //    derive an end-entity cert that meets the spec.  The set of certs (minus the root)
         //    represent the certificate chain."
         //    -- https://discord.com/channels/983153151341371422/983153390781616159/1028065509759000636
-        if (certs.size() == 1) {
-            status.add(new C2PAStatus(C2PAStatus.Code.signingCredential_invalid, "self-signed " + purpose + " certificate are not allowed", "Cose_Sign1.x5chain[" + 0 + "]", null));
-        }
+        //
+        // We test for this in the "Authority Key Identifier" test below
+        //
         for (int ix=0;ix<certs.size();ix++) {
             List<String> list = new ArrayList<String>();
             X509Certificate cert = certs.get(ix);
@@ -426,10 +426,15 @@ public class C2PASignature extends CborContainerBox {
                 // The Authority Key Identifier extension must be present in
                 // any certificate that is not self-signed. RFC 5280 section
                 // 4.2.1.1
-                if (cert.getSubjectX500Principal() != null && !cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal())) {
-                    if (cert.getExtensionValue("2.5.29.35") == null) {
+                if (cert.getExtensionValue("2.5.29.35") == null) {
+                    // the spec also says that signing certificates must not have "ca"
+                    // set, and that any certificate used to sign a certificate must have "ca"
+                    // set. Which means that the signing certificate cannot self sign.
+                    // the upshot is that this must be on the first certificate
+                    if (ix == 0) {
+                        list.add("Authority Key Identifier (2.5.29.35) missing on " + purpose + " certificate, which can't be self-signed");
+                    } else if (cert.getSubjectX500Principal() != null && !cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal())) {
                         list.add("Authority Key Identifier (2.5.29.35) missing and not self-signed");
-                        System.out.println(cert);
                     }
                 }
 

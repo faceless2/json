@@ -304,7 +304,7 @@ public class C2PAHelper {
     }
 
     public static void main(String[] args) throws Exception {
-        String storepath = null, password = "", storetype = "pkcs12", alias = null, alg = null, cw = null, outname = null, outc2pa = null;
+        String storepath = null, password = "", alias = null, alg = null, cw = null, outname = null, outc2pa = null;
         List<X509Certificate> certs = new ArrayList<X509Certificate>();
         PrivateKey key = null;
         boolean sign = false, debug = false, boxdebug = false;
@@ -331,8 +331,6 @@ public class C2PAHelper {
                 debug = false;
             } else if (s.equals("--noboxdebug")) {
                 boxdebug = false;
-            } else if (s.equals("--keystoretype")) {
-                storetype = args[++i];
             } else if (s.equals("--alias")) {
                 alias = args[++i];
             } else if (s.equals("--alg")) {
@@ -345,11 +343,17 @@ public class C2PAHelper {
                 outc2pa = args[++i];
             } else {
                 if (sign) {
-                    keystore = KeyStore.getInstance(storetype);
                     if (storepath == null) {
                         throw new IllegalStateException("no keystore");
                     }
-                    keystore.load(new FileInputStream(storepath), password.toCharArray());
+                    BufferedInputStream in = new BufferedInputStream(new FileInputStream(storepath));
+                    in.mark(4);
+                    int v = (in.read()<<24) | (in.read()<<16) | (in.read()<<8) | in.read();
+                    in.reset();
+                    String storetype = v == 0xfeedfeed ? "jks" : v == 0xcececece ? "jceks" : "pkcs12";
+                    keystore = KeyStore.getInstance(storetype);
+                    keystore.load(in, password.toCharArray());
+                    in.close();
                     if (alias == null) {
                         for (Enumeration<String> e = keystore.aliases();e.hasMoreElements();) {
                             alias = e.nextElement();
@@ -528,7 +532,6 @@ public class C2PAHelper {
         System.out.println("   --nodebug               turn off --debug");
         System.out.println("   --noboxdebug            turn off --boxdebug");
         System.out.println("   --keystore <path>       if signing, the path to Keystore to load credentials from");
-        System.out.println("   --keystoretype <type>   if signing, the keystore type - pkcs12 (default), jks or jceks");
         System.out.println("   --alias <name>          if signing, the alias from the keystore (default is the first one");
         System.out.println("   --password <password>   if signing, the password to open the keystore");
         System.out.println("   --alg <algorithm>       if signing, the hash algorithm");
