@@ -5,9 +5,42 @@ import java.util.*;
 import com.bfo.json.*;
 
 /**
+ * <p>
  * The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_c2pa_box_details">store box</a>
  * is the top-level box for any C2PA object. It contains one or more {@link C2PAManifest manifest boxes}
  * which must be added to {@link #getManifests}
+ * </p><p>
+ * Here's an example showing how to create a new C2PAStore. It uses the C2PAHelper class
+ * to embed the store in JPEG file.
+ * </p>
+ * <pre class="brush:java">
+ *  C2PAStore c2pa = new C2PAStore();
+ *  C2PAManifest manifest = new C2PAManifest("urn:manifestid");
+ *  C2PAClaim claim = manifest.getClaim();
+ *  C2PASignature sig = manifest.getSignature();
+ *  claim.setFormat("image/jpeg");
+ *  claim.setInstanceID("urn:instanceid");
+ *  manifest.getAssertions().add(new C2PA_AssertionHashData());
+ *  manifest.getAssertions().add(new C2PA_AssertionSchema("stds.schema-org.CreativeWork", schemaJson));
+ *  manifest.getSignature().setSigner(key, certs);
+ *
+ *  Json j = C2PAHelper.readJPEG(new FileInputStream("unsigned.jpg"));
+ *  C2PAHelper.writeJPEG(j, c2pa, new FileOutputStream("signed.jpg"));
+ * </pre>
+ * and here's an example showing how to read the file back and verify it
+ * <pre class="brush:java">
+ *  Json j = C2PAHelper.readJPEG(new FileInputStream("signed.jpg"));
+ *  C2PAStore c2pa = (C2PAStore)new BoxFactory().load(j.bufferValue("c2pa"));
+ *  C2PAManifest manifest = c2pa.getActiveManifest();
+ *  c2pa.setInputStream(new FileInputStream("out.jpg"));
+ *  boolean valid = true;
+ *  for (C2PAStatus status : manifest.getSignature().verify()) {
+ *    System.out.println(status);
+ *    if (status.isError()) {
+ *      valid = false;
+ *    }
+ *  }
+ * </pre>
  * @since 5
  */
 public class C2PAStore extends JUMBox {

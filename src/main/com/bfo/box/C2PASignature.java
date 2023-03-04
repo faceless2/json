@@ -16,6 +16,9 @@ import com.bfo.json.*;
  */
 public class C2PASignature extends CborContainerBox {
 
+    private PrivateKey privateKey;
+    private List<X509Certificate> privateKeyCerts;
+
     /**
      * Create a new uninitialized box, for loading. Don't call this constructor
      */
@@ -60,8 +63,28 @@ public class C2PASignature extends CborContainerBox {
     }
 
     /**
+     * Set the identity that will be used in a subsequent call to {@link #sign}.
+     * These values are not preserved in any way; they're only used by {@link #sign}.
+     * @param key the PrivateKey
+     * @param certs a list of X.509 certificates to include in the COSE object.
+     */
+    public void setSigner(PrivateKey key, List<X509Certificate> certs) {
+        this.privateKey = key;
+        this.privateKeyCerts = certs;
+    }
+
+    /**
+     * Return true if an identity has been set for signing with {@link #setSigner}
+     * @return whether the identity is set
+     */
+    public boolean hasSigner() {
+        return privateKey != null && privateKeyCerts != null && !privateKeyCerts.isEmpty();
+    }
+
+    /**
      * Sign the claim. Before signing
      * <ul>
+     * <li>the {@link #setSigner setSigner()} method must have been called with a key and non-empty certificates</li>
      * <li>If the {@link C2PAClaim#getAssertions claim's assertions} are empty, it will be initialized to all the {@link C2PAManifest#getAssertions manifest's assertions}</li>
      * <li>The assertions must be non-empty and include a "hash" type assertion</li>
      * <li>The {@link C2PAClaim#getFormat claim format} must be set</li>
@@ -70,18 +93,19 @@ public class C2PASignature extends CborContainerBox {
      * <li>If the {@link C2PAClaim#getGenerator generator} is not set, it will be initialized to a default value</li>
      * <li>The claim object is finalized and signed</li>
      * </ul>
-     * @param key the PrivateKey
-     * @param certs a list of X.509 certificates to include in the COSE object.
      * @return a list of status codes - if any of them are invalid, signing failed
      * @throws RuntimeException wrapping a GeneralSecurityException if signing fails
      * @throws IOException if signing fails due to an IOException
      */
-    public List<C2PAStatus> sign(PrivateKey key, List<X509Certificate> certs) throws IOException /*throws GeneralSecurityException*/ {
+    public List<C2PAStatus> sign() throws IOException /*throws GeneralSecurityException*/ {
         final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
         final COSE cose = cose();
         final C2PAManifest manifest = (C2PAManifest)parent();
         final C2PAClaim claim = manifest.getClaim();
         final List<C2PA_Assertion> assertions = claim.getAssertions();
+        if (!hasSigner()) {
+            throw new IllegalStateException("signer not set");
+        }
         if (claim.getFormat() == null) {
             throw new IllegalStateException("claim has no format");
         }
@@ -137,9 +161,9 @@ public class C2PASignature extends CborContainerBox {
         }
         claim.cbor().put("signature", manifest.find(this));
         cose.setPayload(generatePayload(getMinSize(), true, status), true);
-        cose.setCertificates(certs);
-        status.addAll(verifyCertificates(certs, "signing"));
-        cose.sign(key, null);
+        cose.setCertificates(privateKeyCerts);
+        status.addAll(verifyCertificates(privateKeyCerts, "signing"));
+        cose.sign(privateKey, null);
         status.add(0, new C2PAStatus(C2PAStatus.Code.claimSignature_validated, "signing succeeded", find(manifest), null));
         for (int i=0;i<status.size();i++) {
             if (status.get(i) == null) {
@@ -175,7 +199,7 @@ public class C2PASignature extends CborContainerBox {
      * @throws IOException if such an exception was thrown while computing the object digest
      * @return a list of validation status codes
      */
-    public List<C2PAStatus> verify(PublicKey key) throws IOException {
+    public List<C2PAStatus> verify() throws IOException {
         // It does say that it a) must be a SIGN1 and b) must have exactly one "credential" (X509 cert)
         final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
 
@@ -202,6 +226,7 @@ public class C2PASignature extends CborContainerBox {
             status.add(new C2PAStatus(C2PAStatus.Code.claimSignature_missing, "signature not in claim", claim.cbor().stringValue("signature"), null));
             return status;
         }
+        PublicKey key = null;
         if (key == null && cose.getCertificates() != null && !cose.getCertificates().isEmpty()) {
             key = cose.getCertificates().get(0).getPublicKey();
         } else if (key == null) {

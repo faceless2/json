@@ -9,27 +9,58 @@ import com.bfo.json.*;
 
 /**
  * A general Helper class for C2PA which functions as a main method, provides
- * utility methods for embedding C2PA in files
+ * utility methods for embedding C2PA in files.
  */
 public class C2PAHelper {
 
     private static final String APP1_XMP = "http://ns.adobe.com/xap/1.0/\u0000";
 
     /**
-     * Given a JPEG, return any {@link C2PAStore} found in the file or null
-     * @param in an InputStream containing a JPEG. The stream will be fully read but not closed
-     * @return the C2PAStore of found, or null
-     * @throws IOException if the file failed to read.
+     * Read a JPEG image from the supplied InputStream and return a Json
+     * object describing various aspects of it that are relevant for C2PA:
+     * <ul>
+     *  <li>
+     *   <b>c2pa</b> - if the JPEG image contains a C2PA object, this will
+     *   be set to a {@link Json#bufferValue buffer} containing the encoded C2PA object
+     *  </li>
+     *  <li>
+     *   <b>xmp</b> - if the JPEG image contains an XMP block, this will
+     *   be set to a {@link Json#bufferValue buffer} containing the XMP data
+     *  </li>
+     *  <li>
+     *   <b>data</b> - a {@link Json#bufferValue buffer} which contains
+     *   the image data after the C2PA and XMP are removed
+     *  </li>
+     *  <li>
+     *   <b>insert_offset</b> - an offset into the "data" object
+     *   that is the suggested location of any new C2PA or XMP data.
+     *  </li>
+     * </ul>
+     * @param in the InputStream (required)
+     * @return the data as described
      */
-    public static C2PAStore extractFromJPEG(InputStream in) throws IOException {
+    public static Json readJPEG(InputStream in) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("in is null");
+        }
         if (!in.markSupported()) {
             in = new BufferedInputStream(in);
         }
         CountingInputStream cin = new CountingInputStream(in);
-        final Map<Integer,UsefulByteArrayOutputStream> app11 = new HashMap<Integer,UsefulByteArrayOutputStream>();
-        Callback cb = new Callback() {
-            public boolean segment(final int table, int length, final CountingInputStream in) throws IOException {
-                if (table == 0xffeb) {
+
+        final Map<Integer,ByteArrayOutputStream> app11 = new HashMap<Integer,ByteArrayOutputStream>();
+        final long[] headerOffset = new long[] { 0 };
+        final ByteArrayOutputStream xmp = new ByteArrayOutputStream();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        readJPEG(new CountingInputStream(in), new Callback() {
+            boolean header = true;
+            @Override public boolean segment(final int table, final int length, final CountingInputStream in) throws IOException {
+                boolean write = true;
+                byte[] data = null;
+
+                if (table == 0xffeb && length > 17) {
+                    header = false;
                     // 0xffeb - app11 marker (already read)
                     // 2 byte length (already read)
                     // 2 byte ID, which is always 0x4a50
@@ -39,45 +70,238 @@ public class C2PAHelper {
                     // 4 byte box type
                     // optional 8-byte extended box length if box length=1
                     // data
-                    length -= 2;
-                    if (length > 15) {
-                        byte[] data = new byte[length];
-                        int p = 0, v;
-                        while (p < data.length && (v=in.read(data, p, data.length - p)) >= 0) {
-                            p += v;
-                        }
-                        if (data[0] == 0x4a && data[1] == 0x50) {
-                            int id = (data[2]&0xff)<<8 | (data[3]&0xff);
-                            int seq = ((data[4]&0xff)<<24) | ((data[5]&0xff)<<16) | ((data[6]&0xff)<<8) | ((data[7]&0xff)<<0);
-                            int boxlen = ((data[8]&0xff)<<24) | ((data[9]&0xff)<<16) | ((data[10]&0xff)<<8) | ((data[11]&0xff)<<0);
-                            int boxtype = ((data[12]&0xff)<<24) | ((data[13]&0xff)<<16) | ((data[14]&0xff)<<8) | ((data[15]&0xff)<<0);
-                            // System.out.println("seglen="+length+" id="+id+" seq="+seq+" boxlen="+boxlen+" boxtype="+Box.typeToString(boxtype));
-                            if (boxtype == 0x6a756d62) { // "jumb"
-                                int skip = 8;
-                                if (app11.get(id) == null) {
-                                    app11.put(id, new UsefulByteArrayOutputStream());
-                                } else {
-                                    skip += 8;   // because boxlen and boxtype are repeated (with identical length) for every packet
-                                    if (boxlen == 1) {
-                                        skip += 8;
-                                    }
+                    data = new byte[length - 2];
+                    int p = 0, v;
+                    while ((v=in.read(data, p, data.length - p)) >= 0) {
+                        p += v;
+                    }
+                    if (p != data.length) {
+                        throw new EOFException("Couldn't read segment");
+                    }
+                    if (data[0] == 0x4a && data[1] == 0x50) {
+                        write = false;
+                        int id = (data[2]&0xff)<<8 | (data[3]&0xff);
+                        int seq = ((data[4]&0xff)<<24) | ((data[5]&0xff)<<16) | ((data[6]&0xff)<<8) | ((data[7]&0xff)<<0);
+                        int boxlen = ((data[8]&0xff)<<24) | ((data[9]&0xff)<<16) | ((data[10]&0xff)<<8) | ((data[11]&0xff)<<0);
+                        int boxtype = ((data[12]&0xff)<<24) | ((data[13]&0xff)<<16) | ((data[14]&0xff)<<8) | ((data[15]&0xff)<<0);
+                        // System.out.println("seglen="+length+" id="+id+" seq="+seq+" boxlen="+boxlen+" boxtype="+Box.typeToString(boxtype));
+                        if (boxtype == 0x6a756d62) { // "jumb"
+                            int skip = 8;
+                            if (app11.get(id) == null) {
+                                app11.put(id, new ByteArrayOutputStream());
+                            } else {
+                                skip += 8;   // because boxlen and boxtype are repeated (with identical length) for every packet
+                                if (boxlen == 1) {
+                                    skip += 8;
                                 }
-                                app11.get(id).write(data, skip, data.length - skip);
                             }
+                            app11.get(id).write(data, skip, data.length - skip);
+                        }
+                    }
+                } else if (table == 0xffe1 && length > 6) {
+                    data = new byte[length - 2];
+                    int p = 0, v;
+                    while ((v=in.read(data, p, data.length - p)) >= 0) {
+                        p += v;
+                    }
+                    if (p != data.length) {
+                        throw new EOFException("Couldn't read segment");
+                    }
+                    if (data[0] != 'E' || data[1] != 'x' || data[2] != 'i' || data[3] != 'f' || data[4] != 0 || data[5] != 0) {
+                        header = false;
+                        boolean eq = data.length > APP1_XMP.length();
+                        for (int i=0;eq && i<APP1_XMP.length();i++) {
+                            if ((data[i] & 0xFF) != APP1_XMP.charAt(i)) {
+                                eq = false;
+                            }
+                        }
+                        if (eq) {
+                            write = false;
+                            xmp.write(data, APP1_XMP.length(), p - APP1_XMP.length());
+                        }
+                    }
+                } else if (table != 0xffe0 && table != 0xffd8) {
+                    header = false;
+                }
+                if (write) {
+                    out.write(table>>8);
+                    out.write(table);
+                    if (length > 0) {
+                        out.write(length >> 8);
+                        out.write(length);
+                    }
+                    if (data != null) {
+                        out.write(data);
+                    } else {
+                        byte[] buf = new byte[8192];
+                        int l;
+                        while ((l=in.read(buf)) >= 0) {
+                            out.write(buf, 0, l);
                         }
                     }
                 }
+                if (header) {
+                    headerOffset[0] = in.tell();
+                }
                 return true;
             }
-        };
-        readJPEG(new CountingInputStream(in), cb);
-        if (!app11.isEmpty()) {
-            // Pick the first
-            InputStream in2 = app11.values().iterator().next().toInputStream();
-            return (C2PAStore)new BoxFactory().load(in2);
+        });
+
+        Json json = Json.read("{}");
+        json.put("data", out.toByteArray());
+        json.put("insert_offset", headerOffset[0]);
+        if (xmp.size() > 0) {
+            json.put("xmp", xmp.toByteArray());
         }
-        return null;
+        if (!app11.isEmpty()) {
+            // Pick the first - surely there will be only one?
+            json.put("c2pa", app11.values().iterator().next().toByteArray());
+        }
+        return json;
     }
+
+    /**
+     * Save a JPEG, signing and inserting the supplied C2PAStore.
+     * <ul>
+     *  <li>
+     *   <b>data</b> - a {@link Json#bufferValue buffer} which contains
+     *   the image data after the C2PA and XMP are removed
+     *  </li>
+     *  <li>
+     *   <b>insert_offset</b> - the offset into the "data" object
+     *   that is the location of any the C2PA and XMP data.
+     *  </li>
+     *  <li>
+     *   <b>xmp</b> - (optional) a string or bytebuffer that contains the
+     *   XMP data to insert. If this value is zero length, or is any other
+     *   value other than null, a basic XMP will be created and inserted.
+     *  </li>
+     * </ul>
+     * After this method exits, the <code>image</code> parameter will be
+     * updated to add a <code>c2pa</code>, which is encoded version of the
+     * C2PA object that was written.
+     * </p><p>
+     * The C2PA store supplied must have an active manifest with a {@link C2PA_AssertionHashData}
+     * and that has had {@link C2PASignature#setSigner} called on it.
+     * </p>
+     *
+     * @param image the image data, which must have at least <code>data</code> and <code>insert_offset</code>
+     * @param store the C2PA store to insert
+     * @param out the OutputStream to write to
+     * @return the list of C2PA status codes from signing
+     */
+    public static List<C2PAStatus> writeJPEG(Json image, C2PAStore store, OutputStream out) throws IOException {
+        List<C2PAStatus> status;
+        if (out == null) {
+            throw new IllegalArgumentException("out is null");
+        }
+        if (!(image != null && image.isBuffer("data") && image.isNumber("insert_offset"))) {
+            throw new IllegalArgumentException("image is missing data and insert_offset");
+        }
+        if (store == null) {
+            out.write(image.bufferValue("data").array());
+            return null;
+        }
+
+        final byte[] inputBytes = image.bufferValue("data").array();
+        final int inputOffset = image.intValue("insert_offset");
+
+        C2PAManifest manifest = store.getActiveManifest();
+        if (manifest == null) {
+            throw new IllegalArgumentException("store has no active manifest");
+        }
+        if (!manifest.getSignature().hasSigner()) {
+            throw new IllegalArgumentException("manifest has no signing identity");
+        }
+        C2PA_AssertionHashData hash = null;
+        for (C2PA_Assertion a : manifest.getAssertions()) {
+            if (a instanceof C2PA_AssertionHashData) {
+                hash = (C2PA_AssertionHashData)a;
+                break;
+            }
+        }
+        if (hash == null) {
+            throw new IllegalArgumentException("active manifest has no hashData assertion");
+        }
+
+        // Set xmpbytes to the XMP segment. Presume only one.
+        byte[] xmpbytes = new byte[0];
+        if (image.isBuffer("xmp") || image.isString("xmp")) {
+            byte[] b = image.isBuffer("xmp") ? image.bufferValue("xmp").array() : image.stringValue("xmp").getBytes("UTF-8");
+            if (b.length == 0) {
+                String s = "<?xpacket begin=\"\ufeff\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?><x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" xmlns:dcterms=\"http://purl.org/dc/terms/\" dcterms:provenance=\"" + store.find(manifest) + "\"/></rdf:RDF></x:xmpmeta><?xpacket end=\"r\"?>";
+                b = s.getBytes("UTF-8");
+            }
+            int datalen = b.length + APP1_XMP.length() + 2;
+            if (datalen > 65535) {
+                throw new IllegalArgumentException("XMP too large (" + datalen + " bytes)");
+            }
+            xmpbytes = new byte[datalen + 2];
+            xmpbytes[0] = (byte)0xff;
+            xmpbytes[1] = (byte)0xe1;
+            xmpbytes[2] = (byte)(datalen>>8);
+            xmpbytes[3] = (byte)datalen;
+            System.arraycopy(APP1_XMP.getBytes("ISO-8859-1"), 0, xmpbytes, 4, APP1_XMP.length());
+            System.arraycopy(b, 0, xmpbytes, APP1_XMP.length() + 4, b.length);
+        }
+
+        // Dummy sign to determine length
+        manifest.setInputStream(new ByteArrayInputStream(new byte[0]));
+        manifest.getSignature().sign();
+        byte[] dummydata = store.getEncoded();
+        int siglength = dummydata.length;
+        final int maxsegmentlength = 65535;
+        final int segheaderlen = 20;
+        int numsegments = (int)Math.ceil((siglength - 8) / (float)(maxsegmentlength - segheaderlen));
+        hash.setExclusions(new long[] { inputOffset, (siglength - 8) + (numsegments * segheaderlen) });
+        // Sign a second time now we have set exclusions
+        manifest.setInputStream(new SequenceInputStream(new ByteArrayInputStream(inputBytes, 0, inputOffset), new SequenceInputStream(new ByteArrayInputStream(xmpbytes), new ByteArrayInputStream(inputBytes, inputOffset, inputBytes.length - inputOffset)))); //yuk
+        status = manifest.getSignature().sign();
+        byte[] data = store.getEncoded();
+        if (data.length != siglength) {
+            //System.out.println(((C2PAStore)new BoxFactory().load(new ByteArrayInputStream(dummydata))).toJson());
+            //System.out.println(((C2PAStore)new BoxFactory().load(new ByteArrayInputStream(data))).toJson());
+            throw new IllegalStateException("Expected " + siglength + " bytes, second signing gave us " + data.length);
+        }
+
+        // Begin writing process; copy the bit we've already read
+        out.write(inputBytes, 0, inputOffset);
+        // Write our C2PA as segments
+        int segid = 0;
+        for (int i=0;i<numsegments;) {
+            int start2 = 8 + (i * (maxsegmentlength - segheaderlen));
+            int len = Math.min(maxsegmentlength - segheaderlen, data.length - start2);
+            // System.out.println("WRITE " + i+"/"+numsegments+" start2="+start2+" len="+len+" to " + (start2+len)+"/"+data.length);
+            i++;                   // c2patool wants packets to start at 1
+            int seglen = len + segheaderlen - 2;  // excluding marker
+            out.write(0xff);       // app11
+            out.write(0xeb);
+            out.write(seglen>>8);  // segment length
+            out.write(seglen);
+            out.write(0x4a);       // 0x4a50 constant
+            out.write(0x50);
+            out.write(segid>>8);   // two byte box instance number
+            out.write(segid);
+            out.write(i>>24);      // four byte sequence number
+            out.write(i>>16);
+            out.write(i>>8);
+            out.write(i);
+            out.write(data, 0, 8); // this must be repeated each segment
+            out.write(data, start2, len);
+        }
+        out.write(xmpbytes);
+
+        out.write(inputBytes, inputOffset, inputBytes.length - inputOffset);
+        out.flush();
+        if (xmpbytes.length > 0) {
+            image.put("xmp", xmpbytes);
+        } else {
+            image.remove("xmp");
+        }
+        image.put("c2pa", data);
+        return status;
+    }
+
 
     private static interface Callback {
         /**
@@ -141,173 +365,12 @@ public class C2PAHelper {
         } while (table != 0xffda);
     }
 
-    /**
-     * Sign a JPEG by inserting a C2PA into the middle. The supplied store will have a manifest
-     * and data-hash assertions added if necessary. The supplied key will be used to sign twice,
-     * the first time with dummy data to determine the size of the object to insert.
-     * Once signed the C2PA store will be inserted as APP11 segment(s) after the initial JFIF
-     * marker.
-     *
-     * @param store the C2PA store, which will be created if null. If it already contains one or more
-     * manifests, the final manifest will be the one that's signed
-     * @param key the private key to sign with
-     * @param certs the certificates corresponding to that key to include
-     * @param input the InputStream containing the JPEG file, which will be fully read but left open
-     * @param out the OutputStream to write the signed JPEG file to, which will be flushed but left open
-     * @param rawout an optional OutputStream to write the raw C2PAStore object that was embedded, which will be flushed but left open
-     * @throws IOException if the JPEG could not be written or read.
-     * @return a list of status codes during signing, which should contain no error codes
-     */
-    public static List<C2PAStatus> signJPEG(C2PAStore store, PrivateKey key, List<X509Certificate> certs, InputStream input, OutputStream out, OutputStream rawout) throws IOException {
-        List<C2PAStatus> status;
-        // We have to read the stream twice, once to digest, once to write out.
-        // So we have to take a copy. Copy it without any 0xffed or 0xffe1 segments
-        final UsefulByteArrayOutputStream tmp = new UsefulByteArrayOutputStream();
-        final int[] headerStart = new int[1];
-        if (!input.markSupported()) {
-            input = new BufferedInputStream(input);
-        }
-
-        readJPEG(new CountingInputStream(input), new Callback() {
-            boolean header = true;
-            @Override public boolean segment(int table, int length, CountingInputStream in) throws IOException {
-                String init = null;
-                if (table == 0xffe1 || table == 0xffeb) {
-                    in.mark(32);
-                    byte[] buf = new byte[Math.min(length - 2, 32)];
-                    for (int i=0;i<buf.length;i++) {
-                        buf[i] = (byte)in.read();
-                    }
-                    init = new String(buf, "ISO-8859-1");
-                    in.reset();
-                }
-                if (header) {
-                    if (!(table == 0xffe0 || table == 0xffd8 || (table == 0xffe1 && init.startsWith("Exif\u0000\u0000")))) {
-                        header = false;
-                    }
-                    headerStart[0] = (int)in.tell() - 4; // (int)in.tell() + length - 2;
-                }
-                if (!(table == 0xffeb && init.startsWith("\u004a\u0050")) && !(table == 0xffe1 && init.startsWith(APP1_XMP))) {
-                    // https://github.com/contentauth/c2pa-rs/issues/167
-                    tmp.write(table>>8);
-                    tmp.write(table);
-                    if (length > 0) {
-                        tmp.write(length>>8);
-                        tmp.write(length);
-                    }
-                    long t = in.tell();
-                    int wrote = 0;
-                    byte[] buf = new byte[8192];
-                    int l;
-                    while ((l=in.read(buf)) >= 0) {
-                        tmp.write(buf, 0, l);
-                        wrote += l;
-                    }
-                }
-                return true;
-            }
-        });
-        final byte[] inputBytes = tmp.toByteArray();
-        // Now "inputbytes" is JPEG without any problematic app1/app11 markers, and headerStart[0] is where to put our segments
-
-        // contract says we leave "input" open, so do
-
-        // Initialize the store/manifest data
-        if (store == null) {
-            store = new C2PAStore();
-        }
-        if (store.getManifests().isEmpty()) {
-            store.getManifests().add(new C2PAManifest("urn:uuid:" + UUID.randomUUID().toString()));
-        }
-        C2PAManifest manifest = store.getManifests().get(store.getManifests().size() - 1);
-        if (manifest.getClaim().getInstanceID() == null) {
-            manifest.getClaim().setInstanceID("urn:uuid:" + UUID.randomUUID().toString());
-        }
-        C2PA_AssertionHashData hash = null;
-        for (C2PA_Assertion a : manifest.getAssertions()) {
-            if (a instanceof C2PA_AssertionHashData) {
-                hash = (C2PA_AssertionHashData)a;
-                break;
-            }
-        }
-        if (hash == null) {
-            manifest.getAssertions().add(hash = new C2PA_AssertionHashData());
-        }
-        boolean writexmp = true;        // c2patool needs this if there is > 1 manifest in store
-        byte[] xmpbytes = new byte[0];
-        if (writexmp) {
-            String s = APP1_XMP;
-            s += "<?xpacket begin=\"\ufeff\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?><x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description rdf:about=\"\" xmlns:dcterms=\"http://purl.org/dc/terms/\" dcterms:provenance=\"" + store.find(manifest) + "\"/></rdf:RDF></x:xmpmeta><?xpacket end=\"r\"?>";
-            byte[] b = s.getBytes("UTF-8");
-            int datalen = b.length + 2;
-            xmpbytes = new byte[datalen + 2];
-            xmpbytes[0] = (byte)0xff;
-            xmpbytes[1] = (byte)0xe1;
-            xmpbytes[2] = (byte)(datalen>>8);
-            xmpbytes[3] = (byte)datalen;
-            System.arraycopy(b, 0, xmpbytes, 4, b.length);
-        }
-
-        // Dummy sign to determine length
-        manifest.setInputStream(new ByteArrayInputStream(new byte[0]));
-        manifest.getSignature().sign(key, certs);
-        byte[] dummydata = store.getEncoded();
-        int siglength = dummydata.length;
-        final int maxsegmentlength = 65535;
-        final int segheaderlen = 20;
-        int numsegments = (int)Math.ceil((siglength - 8) / (float)(maxsegmentlength - segheaderlen));
-        hash.setExclusions(new long[] { headerStart[0], (siglength - 8) + (numsegments * segheaderlen) });
-        // Sign a second time now we have set exclusions
-        manifest.setInputStream(new SequenceInputStream(new ByteArrayInputStream(inputBytes, 0, headerStart[0]), new SequenceInputStream(new ByteArrayInputStream(xmpbytes), new ByteArrayInputStream(inputBytes, headerStart[0], inputBytes.length - headerStart[0])))); //yuk
-        status = manifest.getSignature().sign(key, certs);
-        byte[] data = store.getEncoded();
-        if (data.length != siglength) {
-            //System.out.println(((C2PAStore)new BoxFactory().load(new ByteArrayInputStream(dummydata))).toJson());
-            //System.out.println(((C2PAStore)new BoxFactory().load(new ByteArrayInputStream(data))).toJson());
-            throw new IllegalStateException("Expected " + siglength + " bytes, second signing gave us " + data.length);
-        }
-
-        // Begin writing process; copy the bit we've already read
-        out.write(inputBytes, 0, headerStart[0]);
-        // Write our C2PA as segments
-        int segid = 0;
-        for (int i=0;i<numsegments;) {
-            int start2 = 8 + (i * (maxsegmentlength - segheaderlen));
-            int len = Math.min(maxsegmentlength - segheaderlen, data.length - start2);
-            // System.out.println("WRITE " + i+"/"+numsegments+" start2="+start2+" len="+len+" to " + (start2+len)+"/"+data.length);
-            i++;                   // c2patool wants packets to start at 1
-            int seglen = len + segheaderlen - 2;  // excluding marker
-            out.write(0xff);       // app11
-            out.write(0xeb);
-            out.write(seglen>>8);  // segment length
-            out.write(seglen);
-            out.write(0x4a);       // 0x4a50 constant
-            out.write(0x50);
-            out.write(segid>>8);   // two byte box instance number
-            out.write(segid);
-            out.write(i>>24);      // four byte sequence number
-            out.write(i>>16);
-            out.write(i>>8);
-            out.write(i);
-            out.write(data, 0, 8); // this must be repeated each segment
-            out.write(data, start2, len);
-        }
-        out.write(xmpbytes);
-
-        out.write(inputBytes, headerStart[0], inputBytes.length - headerStart[0]);
-        out.flush();
-        if (rawout != null) {
-            rawout.write(data);
-            rawout.flush();
-        }
-        return status;
-    }
 
     public static void main(String[] args) throws Exception {
         String storepath = null, password = "", alias = null, alg = null, cw = null, outname = null, outc2pa = null;
         List<X509Certificate> certs = new ArrayList<X509Certificate>();
         PrivateKey key = null;
-        boolean sign = false, debug = false, boxdebug = false;
+        boolean sign = false, debug = false, boxdebug = false, repackage = false;
 
         // No apologies for this, it's a quick and nasty test
         KeyStore keystore = null;
@@ -337,12 +400,15 @@ public class C2PAHelper {
                 alg = args[++i];
             } else if (s.equals("--creativework")) {
                 cw = args[++i];
+            } else if (s.equals("--repackage")) {
+                repackage = true;
             } else if (s.equals("--out")) {
                 outname = args[++i];
             } else if (s.equals("--c2pa")) {
                 outc2pa = args[++i];
             } else {
                 if (sign) {
+                    // This block loads the private key and certificates
                     if (storepath == null) {
                         throw new IllegalStateException("no keystore");
                     }
@@ -380,63 +446,65 @@ public class C2PAHelper {
 //                    System.out.println(inname);
                     InputStream in = new FileInputStream(inname);
                     if (sign) {
-                        if (key == null) {
-                            throw new IllegalStateException("no key");
+                        if (outname == null) {
+                            outname = inname.indexOf(".") > 0 ? inname.substring(0, inname.lastIndexOf(".")) + "-signed" + inname.substring(inname.lastIndexOf(".")) : inname + "-signed.jpg";
                         }
-                        if (certs.isEmpty()) {
-                            throw new IllegalStateException("no certs");
-                        }
+
+                        // Load image
+                        final Json img = readJPEG(in);
+                        img.put("xmp", "");
+                        in = new FileInputStream(inname);
+
+                        // Prepare store
                         C2PAStore c2pa = new C2PAStore();
-                        /*
-                        C2PAStore original = extractFromJPEG(in);
-                        C2PAManifest lastmanifest = null;
-                        List<C2PAStatus> laststatus = null;
-                        if (original != null) {
-                            lastmanifest = original.getActiveManifest();
-                            lastmanifest.setInputStream(new FileInputStream(inname));
-                            laststatus = lastmanifest.getSignature().verify(null);
-                            for (C2PAManifest mf : original.getManifests()) {
-                                lastmanifest = (C2PAManifest)mf.duplicate();
-                                c2pa.getManifests().add(lastmanifest);
-                            }
-                        }
-                        */
                         C2PAManifest manifest = new C2PAManifest("urn:uuid:" + UUID.randomUUID().toString());
                         c2pa.getManifests().add(manifest);
+                        manifest.getClaim().setInstanceID("urn:uuid:" + UUID.randomUUID().toString());
                         manifest.getClaim().setFormat("image/jpeg");
-                        /*
-                        if (original != null) {
-                            C2PA_AssertionIngredient ing;
-                            manifest.getAssertions().add(ing = new C2PA_AssertionIngredient());
+                        if (alg != null) {
+                            manifest.getClaim().setHashAlgorithm(alg);
+                        }
+                        manifest.getAssertions().add(new C2PA_AssertionHashData());
+                        if (cw != null) {
+                            Json j = Json.read(new FileInputStream(cw), null);
+                            manifest.getAssertions().add(new C2PA_AssertionSchema("stds.schema-org.CreativeWork", j));
+                        }
+                        manifest.getSignature().setSigner(key, certs);
+                        if (repackage && img.isBuffer("c2pa")) {
+                            C2PAStore original = (C2PAStore)new BoxFactory().load(img.bufferValue("c2pa"));
+                            C2PAManifest lastmanifest = original.getActiveManifest();
+                            lastmanifest.setInputStream(new FileInputStream(inname));
+                            List<C2PAStatus> laststatus = lastmanifest.getSignature().verify();
+                            for (C2PAManifest mf : original.getManifests()) {
+                                lastmanifest = (C2PAManifest)mf.duplicate();
+                                lastmanifest.insertBefore(manifest);
+                            }
+                            C2PA_AssertionIngredient ing = new C2PA_AssertionIngredient();
+                            manifest.getAssertions().add(ing);
                             ing.setTargetManifest("parentOf", lastmanifest, laststatus);
                             C2PA_AssertionActions act = new C2PA_AssertionActions();
                             manifest.getAssertions().add(act);
                             act.add("c2pa.repackaged", ing, null);
                         }
-                        */
-                        if (alg != null) {
-                            manifest.getClaim().setHashAlgorithm(alg);
-                        }
-                        if (cw != null) {
-                            Json j = Json.read(new FileInputStream(cw), null);
-                            manifest.getAssertions().add(new C2PA_AssertionSchema("stds.schema-org.CreativeWork", j));
-                        }
-                        if (outname == null) {
-                            outname = inname.indexOf(".") > 0 ? inname.substring(0, inname.lastIndexOf(".")) + "-signed" + inname.substring(inname.lastIndexOf(".")) : inname + "-signed.jpg";
-                        }
-                        in = new FileInputStream(inname);
+
+                        // Save image
                         OutputStream out = new BufferedOutputStream(new FileOutputStream(outname));
-                        OutputStream rawout = null;
+                        List<C2PAStatus> status = writeJPEG(img, c2pa, out);
+                        out.close();
+                        out = null;
                         if (outc2pa != null) {
-                            rawout = new BufferedOutputStream(new FileOutputStream(outc2pa));
+                            OutputStream rawout = new FileOutputStream(outc2pa);
+                            rawout.write(img.bufferValue("c2pa").array());
+                            rawout.close();
+                            outc2pa = null;
                         }
-                        List<C2PAStatus> status = signJPEG(c2pa, key, certs, in, out, rawout);
                         if (debug) {
                             System.out.println(c2pa.toJson().toString(new JsonWriteOptions().setPretty(true).setCborDiag("hex")));
                         }
                         if (boxdebug) {
                             System.out.println(c2pa.dump(null, null));
                         }
+
                         boolean ok = true;
                         for (C2PAStatus st : status) {
                             ok &= st.isOK();
@@ -448,14 +516,12 @@ public class C2PAHelper {
                             System.out.println(inname + ": SIGNED WITH ERRORS, wrote to \"" + outname + "\"");
                         }
                         System.out.println();
-                        out.close();
-                        out = null;
-                        if (rawout != null) {
-                            rawout.close();
-                            outc2pa = null;
-                        }
                     } else {
-                        C2PAStore c2pa = extractFromJPEG(in);
+                        Json j = readJPEG(new FileInputStream(inname));
+                        C2PAStore c2pa = null;
+                        if (j.isBuffer("c2pa")) {
+                            c2pa = (C2PAStore)new BoxFactory().load(j.bufferValue("c2pa"));
+                        }
                         if (c2pa != null) {
                             if (outc2pa != null) {
                                 OutputStream rawout = new BufferedOutputStream(new FileOutputStream(outc2pa));
@@ -475,7 +541,7 @@ public class C2PAHelper {
                                     System.out.println(c2pa.dump(null, null));
                                 }
                                 System.out.println("# verifying " + (manifest == c2pa.getActiveManifest() ? "active " : "") + "manifest \"" + manifest.label() + "\"");
-                                List<C2PAStatus> status = manifest.getSignature().verify(null);
+                                List<C2PAStatus> status = manifest.getSignature().verify();
                                 boolean ok = true;
                                 for (C2PAStatus st : status) {
                                     ok &= st.isOK();

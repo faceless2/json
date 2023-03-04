@@ -2,6 +2,7 @@ package com.bfo.box;
 
 import java.util.*;
 import java.io.*;
+import java.nio.*;
 import com.bfo.json.*;
 
 /**
@@ -141,11 +142,30 @@ public class BoxFactory {
      * stream after this method, the stream <b>must support mark/reset</b>. Otherwise this
      * method will buffer the stream.
      *
+     * @param buffer the byte buffer to load from
+     * @return the box, or <code>null</code> if the stream is fully consumed
+     * @throws IOException if the stream is corrupt or fails to read
+     */
+    public Box load(ByteBuffer data) throws IOException {
+        if (data == null) {
+            throw new NullPointerException("data is null");
+        }
+        return load(new ByteBufferInputStream(data));
+    }
+
+    /**
+     * Read a Box from the InputStream. If you are planning to load more from the
+     * stream after this method, the stream <b>must support mark/reset</b>. Otherwise this
+     * method will buffer the stream.
+     *
      * @param stream the InputStream, which should ideally support mark/reset
      * @return the box, or <code>null</code> if the stream is fully consumed
      * @throws IOException if the stream is corrupt or fails to read
      */
     public Box load(InputStream stream) throws IOException {
+        if (stream == null) {
+            throw new NullPointerException("stream is null");
+        }
         if (!stream.markSupported()) {
             stream = new BufferedInputStream(stream);
         }

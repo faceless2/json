@@ -57,7 +57,7 @@ public class TestC2PA {
             for (C2PAManifest manifest : manifests) {
                 manifest.setInputStream(TestC2PA.class.getResourceAsStream(s.replaceAll(".c2pa", "")));
                 System.out.println("    manifest " + manifest.label());
-                List<C2PAStatus> status = manifest.getSignature().verify(null);
+                List<C2PAStatus> status = manifest.getSignature().verify();
                 boolean verified = true;
                 for (C2PAStatus st : status) {
                     verified &= st.isOK();
