@@ -208,8 +208,9 @@ between the Java `PublicKey`, `PrivateKey` and `SecretKey` implementations and t
 
 Version 5 adds the `com.bfo.box` package, which contains a general purpose parser for the
 _ISO Base Media Format_, or _BMFF_. This is a standard box model used in a number of file formats,
-including MP4, JP2. The parser is very general, and will not unrecognised boxes into memory so
-can be used to scan large files for metadata.
+including MP4, JP2 etc. The parser is very general, and will not unrecognised boxes into memory so
+can be used to scan large files for metadata (which is the primary reason we use it; most of the
+currently recognised boxes have metadata focus).
 
 ```java
 import com.bfo.box.*;
@@ -229,15 +230,18 @@ void traverse(Box box, String prefix) {
 }
 ```
 
-A specific subclass of BMFF is used by C2PA (https://c2pa.org), and the bulk of this package is
+A specific subclass of BMFF is used by [C2PA](https://c2pa.org), and the bulk of this package is
 classes to read and write C2PA objects ("stores"), including helper classes to embed them into JPEG.
-While the C2PA format uses the BMFF, those boxes typically contain Json and the signature is COSE,
+While the C2PA format is built on BMFF boxes, those boxes typically contain Json and the signature is COSE,
 so this package makes heavy use of `com.bfo.json`.
 
 The [C2PAStore](https://faceless2.github.io/json/docs/com/bfo/box/C2PAStore.html) class is the top
 level entrypoint into the C2PA package. Here's a quick example showing verifying a JPEG
 
 ```java
+import com.bfo.box.*;
+import com.bfo.json.*;
+
 Json json = C2PAHelper.readJPEG(new FileInputStream(file));
 if (json.has("c2pa")) {
     C2PAStore c2pa = (C2PAStore)new BoxFactory().load(json.bufferValue("c2pa"));
@@ -256,6 +260,9 @@ if (json.has("c2pa")) {
 and here's how to sign a JPEG with the bare minimum single assertion.
 
 ```java
+import com.bfo.box.*;
+import com.bfo.json.*;
+
 PrivateKey key = ...
 List<X509Certificate> certs = ...
 C2PAStore c2pa = new C2PAStore();
