@@ -28,6 +28,7 @@ loadScripts(document, 'script');</script>
 <div class="skip-nav"><a href="#skip-navbar-top" title="Skip navigation links">Skip navigation links</a></div>
 <div class="about-language">BFO Json API 5</div>
 <ul id="navbar-top-firstrow" class="nav-list" title="Navigation">
+<li><a href="../../../../index.html">Overview</a></li>
 <li><a href="../package-summary.html">Package</a></li>
 <li><a href="../Json.html" title="class in com.bfo.json">Class</a></li>
 <li class="nav-bar-cell1-rev">Use</li>
@@ -50,8 +51,161 @@ loadScripts(document, 'script');</script>
 <div class="header">
 <h1 title="Uses of Class com.bfo.json.Json" class="title">Uses of Class<br>com.bfo.json.Json</h1>
 </div>
+<div class="caption"><span>Packages that use <a href="../Json.html" title="class in com.bfo.json">Json</a></span></div>
+<div class="summary-table two-column-summary">
+<div class="table-header col-first">Package</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><a href="#com.bfo.box">com.bfo.box</a></div>
+<div class="col-last even-row-color">
+<div class="block">Package relating to the ISO "BMFF" box structure, including C2PA</div>
+</div>
+<div class="col-first odd-row-color"><a href="#com.bfo.json">com.bfo.json</a></div>
+<div class="col-last odd-row-color">
+<div class="block">Package relating to Json, Cbor, Msgpack, and all classes relating to JWK and COSE</div>
+</div>
+</div>
 <section class="class-uses">
 <ul class="block-list">
+<li>
+<section class="detail" id="com.bfo.box">
+<h2>Uses of <a href="../Json.html" title="class in com.bfo.json">Json</a> in <a href="../../box/package-summary.html">com.bfo.box</a></h2>
+<div class="caption"><span>Methods in <a href="../../box/package-summary.html">com.bfo.box</a> that return <a href="../Json.html" title="class in com.bfo.json">Json</a></span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Method</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">CborBox.</span><code><a href="../../box/CborBox.html#cbor()" class="member-name-link">cbor</a>()</code></div>
+<div class="col-last even-row-color">
+<div class="block">Return the CBOR object contained in this struture.</div>
+</div>
+<div class="col-first odd-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">CborContainerBox.</span><code><a href="../../box/CborContainerBox.html#cbor()" class="member-name-link">cbor</a>()</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Return the CBOR object stored within this container</div>
+</div>
+<div class="col-first even-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">JsonBox.</span><code><a href="../../box/JsonBox.html#json()" class="member-name-link">json</a>()</code></div>
+<div class="col-last even-row-color">
+<div class="block">Return the <a href="../Json.html" title="class in com.bfo.json"><code>Json</code></a> object from this Box.</div>
+</div>
+<div class="col-first odd-row-color"><code>final <a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">JsonContainerBox.</span><code><a href="../../box/JsonContainerBox.html#json()" class="member-name-link">json</a>()</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Return the JSON object stored in the <a href="../../box/JsonContainerBox.html#getBox()"><code>JsonBox</code></a></div>
+</div>
+<div class="col-first even-row-color"><code>static <a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">C2PAHelper.</span><code><a href="../../box/C2PAHelper.html#readJPEG(java.io.InputStream)" class="member-name-link">readJPEG</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a>&nbsp;in)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Read a JPEG image from the supplied InputStream and return a Json
+ object describing various aspects of it that are relevant for C2PA:
+ 
+  
+   <b>c2pa</b> - if the JPEG image contains a C2PA object, this will
+   be set to a <a href="../Json.html#bufferValue()"><code>buffer</code></a> containing the encoded C2PA object
+  
+  
+   <b>xmp</b> - if the JPEG image contains an XMP block, this will
+   be set to a <a href="../Json.html#bufferValue()"><code>buffer</code></a> containing the XMP data
+  
+  
+   <b>data</b> - a <a href="../Json.html#bufferValue()"><code>buffer</code></a> which contains
+   the image data after the C2PA and XMP are removed
+  
+  
+   <b>insert_offset</b> - an offset into the "data" object
+   that is the suggested location of any new C2PA or XMP data.</div>
+</div>
+<div class="col-first odd-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">C2PAStatus.</span><code><a href="../../box/C2PAStatus.html#toJson()" class="member-name-link">toJson</a>()</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Return a representation of this object as Json</div>
+</div>
+<div class="col-first even-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">C2PAStore.</span><code><a href="../../box/C2PAStore.html#toJson()" class="member-name-link">toJson</a>()</code></div>
+<div class="col-last even-row-color">
+<div class="block">Return a representation of this store as a single Json object.</div>
+</div>
+</div>
+<div class="caption"><span>Methods in <a href="../../box/package-summary.html">com.bfo.box</a> with parameters of type <a href="../Json.html" title="class in com.bfo.json">Json</a></span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Method</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>void</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">C2PA_AssertionActions.</span><code><a href="../../box/C2PA_AssertionActions.html#add(java.lang.String,com.bfo.box.C2PA_AssertionIngredient,com.bfo.json.Json)" class="member-name-link">add</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;action,
+ <a href="../../box/C2PA_AssertionIngredient.html" title="class in com.bfo.box">C2PA_AssertionIngredient</a>&nbsp;ingredient,
+ <a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;parameters)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Add a new action to the list.</div>
+</div>
+<div class="col-first odd-row-color"><code>void</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">CborBox.</span><code><a href="../../box/CborBox.html#setCbor(com.bfo.json.Json)" class="member-name-link">setCbor</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;cbor)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Replace the CBOR object on this struture.</div>
+</div>
+<div class="col-first even-row-color"><code>void</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">C2PAClaim.</span><code><a href="../../box/C2PAClaim.html#setGenerator(java.lang.String,com.bfo.json.Json)" class="member-name-link">setGenerator</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;generator,
+ <a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;properties)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Set the "claim generator", a user-agent string identifying the tooling
+ that created this C2PA claim.</div>
+</div>
+<div class="col-first odd-row-color"><code>void</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">JsonBox.</span><code><a href="../../box/JsonBox.html#setJson(com.bfo.json.Json)" class="member-name-link">setJson</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Set a new Json object to replace the one in this box</div>
+</div>
+<div class="col-first even-row-color"><code>static <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../../box/C2PAStatus.html" title="class in com.bfo.box">C2PAStatus</a>&gt;</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">C2PAHelper.</span><code><a href="../../box/C2PAHelper.html#writeJPEG(com.bfo.json.Json,com.bfo.box.C2PAStore,java.io.OutputStream)" class="member-name-link">writeJPEG</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;image,
+ <a href="../../box/C2PAStore.html" title="class in com.bfo.box">C2PAStore</a>&nbsp;store,
+ <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/OutputStream.html" title="class or interface in java.io" class="external-link">OutputStream</a>&nbsp;out)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Save a JPEG, signing and inserting the supplied C2PAStore.</div>
+</div>
+</div>
+<div class="caption"><span>Constructors in <a href="../../box/package-summary.html">com.bfo.box</a> with parameters of type <a href="../Json.html" title="class in com.bfo.json">Json</a></span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier</div>
+<div class="table-header col-second">Constructor</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../../box/C2PA_AssertionIngredient.html#%3Cinit%3E(java.lang.String,com.bfo.json.Json)" class="member-name-link">C2PA_AssertionIngredient</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;label,
+ <a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Create a new assertion</div>
+</div>
+<div class="col-first odd-row-color"><code>&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../../box/C2PA_AssertionSchema.html#%3Cinit%3E(java.lang.String,com.bfo.json.Json)" class="member-name-link">C2PA_AssertionSchema</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;schema,
+ <a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Create a new assertion</div>
+</div>
+<div class="col-first even-row-color"><code>&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../../box/CborBox.html#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">CborBox</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;cbor)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Create a new CborBox</div>
+</div>
+<div class="col-first odd-row-color"><code>&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../../box/CborContainerBox.html#%3Cinit%3E(java.lang.String,com.bfo.json.Json)" class="member-name-link">CborContainerBox</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;label,
+ <a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Create a new CBOR container box</div>
+</div>
+<div class="col-first even-row-color"><code>&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../../box/JsonBox.html#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">JsonBox</a><wbr>(<a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Create a new JsonBox</div>
+</div>
+<div class="col-first odd-row-color"><code>&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../../box/JsonContainerBox.html#%3Cinit%3E(java.lang.String,com.bfo.json.Json)" class="member-name-link">JsonContainerBox</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;label,
+ <a href="../Json.html" title="class in com.bfo.json">Json</a>&nbsp;json)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Create a new JsonContainerBox</div>
+</div>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="com.bfo.json">
 <h2>Uses of <a href="../Json.html" title="class in com.bfo.json">Json</a> in <a href="../package-summary.html">com.bfo.json</a></h2>
