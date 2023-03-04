@@ -279,7 +279,7 @@ C2PAHelper.writeJPEG(json, c2pa, new FileOutputStream("signed.jpg"));
 ```
 
 There is a `main()` method on the `C2PAHelper` class which can be used for basic
-operations on JPEG files. To run it, download the Jar then
+operations on JPEG files. To run it, download the [Jar](https://faceless2.github.io/json/dist/bfojson-5.jar) then
 `java -cp bfojson-5.jar com.bfo.box.C2PAHelper`
 
 ```
