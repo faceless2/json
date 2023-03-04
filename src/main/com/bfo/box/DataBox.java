@@ -4,8 +4,8 @@ import com.bfo.json.*;
 import java.io.*;
 
 /**
- * A general Box that stores its content as a byte array
- * Subclasses of DataBox can always be written with {@link Box#write} or {@link Box#getEncoded}
+ * A general Box that stores its content as a byte array.
+ * Subclasses of DataBox can always be serialized with {@link Box#getEncoded}.
  * There is no "setData()" method - a subclass of the approriate type should be created.
  * @since 5
  */
