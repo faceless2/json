@@ -1,6 +1,8 @@
-# BFO JSON/CBOR Parser
+# JSON, CBOR, Msgpack, BMFF and C2PA toolkit 
 
-The BFO JSON/CBOR/Msgpack Parser is yet another Java JSON parser, with the follow emphasis:
+The BFO JSON package is yet another Java JSON parser, that has grown to add a few more formats.
+
+The JSON and CBOR package is in `com.bfo.json`. It has the follow emphasis:
 
 ### simple
 * the API is essentially a single class, with a few helper classes that are all optional. Items are added with `put`, retrieved with `get`, read with `read` and written with `write`. Collections are used for maps and lists, and you can use the whole API with no more than about 5 or 6 methods. Which means although the API is [fully documented](https://faceless2.github.io/json/docs/), you can probably get away without reading any of it.
