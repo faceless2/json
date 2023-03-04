@@ -36,6 +36,7 @@ import java.math.BigInteger;
  *   byte[] data = box.getEncoded(); // if box and all its descendents are stored, write as a byte array.
  * }
  * </pre>
+ * @see BoxFactory
  * @see C2PAStore
  * @since 5
  */
