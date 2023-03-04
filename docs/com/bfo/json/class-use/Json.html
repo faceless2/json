@@ -98,23 +98,7 @@ loadScripts(document, 'script');</script>
 <div class="col-second even-row-color"><span class="type-name-label">C2PAHelper.</span><code><a href="../../box/C2PAHelper.html#readJPEG(java.io.InputStream)" class="member-name-link">readJPEG</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a>&nbsp;in)</code></div>
 <div class="col-last even-row-color">
 <div class="block">Read a JPEG image from the supplied InputStream and return a Json
- object describing various aspects of it that are relevant for C2PA:
- 
-  
-   <b>c2pa</b> - if the JPEG image contains a C2PA object, this will
-   be set to a <a href="../Json.html#bufferValue()"><code>buffer</code></a> containing the encoded C2PA object
-  
-  
-   <b>xmp</b> - if the JPEG image contains an XMP block, this will
-   be set to a <a href="../Json.html#bufferValue()"><code>buffer</code></a> containing the XMP data
-  
-  
-   <b>data</b> - a <a href="../Json.html#bufferValue()"><code>buffer</code></a> which contains
-   the image data after the C2PA and XMP are removed
-  
-  
-   <b>insert_offset</b> - an offset into the "data" object
-   that is the suggested location of any new C2PA or XMP data.</div>
+ object describing various aspects of it that are relevant for C2PA.</div>
 </div>
 <div class="col-first odd-row-color"><code><a href="../Json.html" title="class in com.bfo.json">Json</a></code></div>
 <div class="col-second odd-row-color"><span class="type-name-label">C2PAStatus.</span><code><a href="../../box/C2PAStatus.html#toJson()" class="member-name-link">toJson</a>()</code></div>

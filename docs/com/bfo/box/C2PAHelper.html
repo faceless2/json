@@ -82,6 +82,14 @@ loadScripts(document, 'script');</script>
 <div class="block">A general Helper class for C2PA which functions as a main method, provides
  utility methods for embedding C2PA in files. See <a href="C2PAStore.html" title="class in com.bfo.box"><code>C2PAStore</code></a> for 
  details on how to use it</div>
+<dl class="notes">
+<dt>See Also:</dt>
+<dd>
+<ul class="see-list">
+<li><a href="C2PAStore.html" title="class in com.bfo.box"><code>C2PAStore</code></a></li>
+</ul>
+</dd>
+</dl>
 </section>
 <section class="summary">
 <ul class="summary-list">
@@ -116,23 +124,7 @@ loadScripts(document, 'script');</script>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#readJPEG(java.io.InputStream)" class="member-name-link">readJPEG</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a>&nbsp;in)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Read a JPEG image from the supplied InputStream and return a Json
- object describing various aspects of it that are relevant for C2PA:
- 
-  
-   <b>c2pa</b> - if the JPEG image contains a C2PA object, this will
-   be set to a <a href="../json/Json.html#bufferValue()"><code>buffer</code></a> containing the encoded C2PA object
-  
-  
-   <b>xmp</b> - if the JPEG image contains an XMP block, this will
-   be set to a <a href="../json/Json.html#bufferValue()"><code>buffer</code></a> containing the XMP data
-  
-  
-   <b>data</b> - a <a href="../json/Json.html#bufferValue()"><code>buffer</code></a> which contains
-   the image data after the C2PA and XMP are removed
-  
-  
-   <b>insert_offset</b> - an offset into the "data" object
-   that is the suggested location of any new C2PA or XMP data.</div>
+ object describing various aspects of it that are relevant for C2PA.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="C2PAStatus.html" title="class in com.bfo.box">C2PAStatus</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#writeJPEG(com.bfo.json.Json,com.bfo.box.C2PAStore,java.io.OutputStream)" class="member-name-link">writeJPEG</a><wbr>(<a href="../json/Json.html" title="class in com.bfo.json">Json</a>&nbsp;image,
@@ -178,7 +170,7 @@ loadScripts(document, 'script');</script>
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="../json/Json.html" title="class in com.bfo.json">Json</a></span>&nbsp;<span class="element-name">readJPEG</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a>&nbsp;in)</span>
                      throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
 <div class="block">Read a JPEG image from the supplied InputStream and return a Json
- object describing various aspects of it that are relevant for C2PA:
+ object describing various aspects of it that are relevant for C2PA.
  <ul>
   <li>
    <b>c2pa</b> - if the JPEG image contains a C2PA object, this will

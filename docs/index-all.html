@@ -1406,23 +1406,7 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/box/C2PAHelper.html#readJPEG(java.io.InputStream)" class="member-name-link">readJPEG(InputStream)</a> - Static method in class com.bfo.box.<a href="com/bfo/box/C2PAHelper.html" title="class in com.bfo.box">C2PAHelper</a></dt>
 <dd>
 <div class="block">Read a JPEG image from the supplied InputStream and return a Json
- object describing various aspects of it that are relevant for C2PA:
- 
-  
-   <b>c2pa</b> - if the JPEG image contains a C2PA object, this will
-   be set to a <a href="com/bfo/json/Json.html#bufferValue()"><code>buffer</code></a> containing the encoded C2PA object
-  
-  
-   <b>xmp</b> - if the JPEG image contains an XMP block, this will
-   be set to a <a href="com/bfo/json/Json.html#bufferValue()"><code>buffer</code></a> containing the XMP data
-  
-  
-   <b>data</b> - a <a href="com/bfo/json/Json.html#bufferValue()"><code>buffer</code></a> which contains
-   the image data after the C2PA and XMP are removed
-  
-  
-   <b>insert_offset</b> - an offset into the "data" object
-   that is the suggested location of any new C2PA or XMP data.</div>
+ object describing various aspects of it that are relevant for C2PA.</div>
 </dd>
 <dt><a href="com/bfo/json/Json.html#readMsgpack(java.io.InputStream,com.bfo.json.JsonReadOptions)" class="member-name-link">readMsgpack(InputStream, JsonReadOptions)</a> - Static method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
