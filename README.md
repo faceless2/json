@@ -202,6 +202,76 @@ assert jwt.verify(publicKey) == 0;   // Verify with the public key
 For both JWT and COSE, the [JWK](https://faceless2.github.io/json/docs/com/bfo/json/JWK.html) utility class can convert
 between the Java `PublicKey`, `PrivateKey` and `SecretKey` implementations and their JWK or COSE-key representations.
 
+# ISO BMFF and C2PA 
+
+Version 5 adds the `com.bfo.box` package, which contains a general purpose parser for the
+_ISO Base Media Format_, or _BMFF_. This is a standard box model used in a number of file formats,
+including MP4, JP2. The parser is very general, and will not unrecognised boxes into memory so
+can be used to scan large files for metadata.
+
+```java
+import com.bfo.box.*;
+
+Box box;
+BoxFactory factory = new BoxFactory();
+InputStream in = new BufferedInputStream(new FileInputStream("file.mpf"));
+while ((box=factory.load(in)) != null) {
+    traverse(box, "");
+}
+
+void traverse(Box box, String prefix) {
+    System.out.println(prefix + box);
+    for (Box b=box.first();b!=null;b=b.next()) {
+        traverse(box, prefix + " ");
+    }
+}
+```
+
+A specific subclass of BMFF is used by C2PA (https://c2pa.org), and the bulk of this package is
+classes to read and write C2PA objects ("stores"), including helper classes to embed them into JPEG.
+While the C2PA format uses the BMFF, those boxes typically contain Json and the signature is COSE,
+so this package makes heavy use of `com.bfo.json`.
+
+The [C2PAStore](https://faceless2.github.io/json/docs/com/bfo/box/C2PAStore.html) class is the top
+level entrypoint into the C2PA package. Here's a quick example showing verifying a JPEG
+
+```java
+Json json = C2PAHelper.readJPEG(new FileInputStream(file));
+if (json.has("c2pa")) {
+    C2PAStore c2pa = (C2PAStore)new BoxFactory().load(json.bufferValue("c2pa"));
+    C2PAManifest manifest = c2pa.getActiveManifest();
+    manifest.setInputStream(new FileInputStream(file));
+    boolean valid = true;
+    for (C2PAStatus status : manifest.getSignature().verify(keystore)) {
+        System.out.println(status);
+        if (status.isError()) {
+            valid = false;
+        }
+    }
+}
+```
+
+and here's how to sign a JPEG with the bare minimum single assertion.
+
+```java
+PrivateKey key = ...
+List<X509Certificate> certs = ...
+C2PAStore c2pa = new C2PAStore();
+C2PAManifest manifest = new C2PAManifest("urn:manifestid");
+c2pa.getManifests().add(manifest);
+C2PAClaim claim = manifest.getClaim();
+C2PASignature sig = manifest.getSignature();
+claim.setFormat("image/jpeg");
+claim.setInstanceID("urn:instanceid");
+manifest.getAssertions().add(new C2PA_AssertionHashData());
+manifest.getSignature().setSigner(key, certs);
+Json json = C2PAHelper.readJPEG(new FileInputStream("unsigned.jpg"));
+C2PAHelper.writeJPEG(json, c2pa, new FileOutputStream("signed.jpg"));
+```
+
+The C2PA classes have been developed against C2PA 1.2; output from earlier versions may not verify.
+
+NOTE: <i>These classes are under development</i>
 
 -------
 
