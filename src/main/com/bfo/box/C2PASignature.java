@@ -5,6 +5,7 @@ import java.util.*;
 import java.nio.*;
 import java.security.*;
 import java.security.cert.*;
+import java.security.cert.Certificate;
 import java.security.interfaces.*;
 import java.security.spec.*;
 import com.bfo.json.*;
@@ -18,6 +19,7 @@ public class C2PASignature extends CborContainerBox {
 
     private PrivateKey privateKey;
     private List<X509Certificate> privateKeyCerts;
+    private long timestamp;
 
     /**
      * Create a new uninitialized box, for loading. Don't call this constructor
@@ -162,7 +164,7 @@ public class C2PASignature extends CborContainerBox {
         claim.cbor().put("signature", manifest.find(this));
         cose.setPayload(generatePayload(getMinSize(), true, status), true);
         cose.setCertificates(privateKeyCerts);
-        status.addAll(verifyCertificates(privateKeyCerts, "signing"));
+        status.addAll(verifyCertificates(privateKeyCerts, "signing", System.currentTimeMillis(), null));
         cose.sign(privateKey, null);
         status.add(0, new C2PAStatus(C2PAStatus.Code.claimSignature_validated, "signing succeeded", find(manifest), null));
         for (int i=0;i<status.size();i++) {
@@ -191,15 +193,33 @@ public class C2PASignature extends CborContainerBox {
     }
 
     /**
+     * If the signature does not contain a timestamp, set the time that the signature
+     * was applied. Without this information and a timestamp, the signature will be
+     * verified against the current time
+     * @param when the timestamp of the signature, or 0 to use the default (the current time)
+     */
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    /**
+     * Return the timestamp the signature was applied at, or 0 if not known.
+     * @return the timestamp
+     */
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    /**
      * Verify the cryptographic aspects of the claim. Note for full verification, each
      * asseration in the claim's list must also be verified, see {@link C2PA_Assertion#verify}
-     * @param key the public key; if null, it will be extracted (if possible) from any certificates in the signature
+     * @param keystore if not null, the final certificate in the chain will be verified against the trusted roots in this KeyStore
      * @throws IllegalArgumentException if no key is available to verify
      * @throws IllegalStateException if the signature is not signed or has been incorrectly set up
      * @throws IOException if such an exception was thrown while computing the object digest
      * @return a list of validation status codes
      */
-    public List<C2PAStatus> verify() throws IOException {
+    public List<C2PAStatus> verify(KeyStore keystore) throws IOException {
         // It does say that it a) must be a SIGN1 and b) must have exactly one "credential" (X509 cert)
         final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
 
@@ -241,7 +261,7 @@ public class C2PASignature extends CborContainerBox {
                 }
             }
         }
-        status.addAll(verifyCertificates(cose.getCertificates(), "signing"));
+        status.addAll(verifyCertificates(cose.getCertificates(), "signing", timestamp != 0 ? timestamp : System.currentTimeMillis(),  keystore));
         ByteBuffer payload = generatePayload(getMinSize(), false, status);
         cose.setPayload(payload, true);
         boolean b = cose.verify(key) >= 0;
@@ -334,13 +354,16 @@ public class C2PASignature extends CborContainerBox {
      * Verify that the supplied certificate chain is allowed for use with C2PA.
      * @param certs the list of certificates, in order, with the signing certificate first
      * @param purpose the purpose of this chain - either "ocsp", "timestamp" or anything else for "signing"
+     * @param when the verified time the signature was applied, or 0 if unknown
+     * @param keystore if not null, the KeyStore containing trusted roots against which the chain should be verified
      * @return a list of failures for the specified certificates, or an empty list if they're valid.
      */
-    private  static List<C2PAStatus> verifyCertificates(List<X509Certificate> certs, String purpose) {
+    private static List<C2PAStatus> verifyCertificates(List<X509Certificate> certs, String purpose, long when, KeyStore keystore) {
         final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
         if (!"timestamp".equals(purpose) && !"ocsp".equals(purpose)) {
             purpose = "signing";
         }
+        final String origpurpose = purpose;
 
         // Note that the signing certificate must not be used to sign other certificates,
         // which means it must not be self-signed. In other words the chain must be > 1 long.
@@ -360,6 +383,23 @@ public class C2PASignature extends CborContainerBox {
             List<String> list = new ArrayList<String>();
             X509Certificate cert = certs.get(ix);
             try {
+
+                if (when > 0) {
+                    // "If the sigTst header is not present, the claim is valid if the current
+                    //  time is within the validity period of the signer’s credential. If it is
+                    //  not, the claim must be rejected with a failure code of
+                    //  signingCredential.expired."
+                    //
+                    // Which means when should always be set externally.
+                    if (when < cert.getNotBefore().getTime() || when > cert.getNotAfter().getTime()) {
+                        if (origpurpose.equals("timestamp")) {
+                            
+                            status.add(new C2PAStatus(C2PAStatus.Code.timeStamp_outsideValidity, null, "Cose_Sign1.x5chain[" + ix + "]", null));
+                        } else {
+                            status.add(new C2PAStatus(C2PAStatus.Code.signingCredential_expired, null, "Cose_Sign1.x5chain[" + ix + "]", null));
+                        }
+                    }
+                }
 
                 //
                 // The algorithm field of the signatureAlgorithm field shall be one of the following values:
@@ -562,6 +602,44 @@ public class C2PASignature extends CborContainerBox {
             }
             list.clear();
             purpose = "ca";
+        }
+        if (keystore != null) {
+            boolean ok = false;
+            int ix = certs.size() - 1;
+            try {
+                X509Certificate target = certs.get(ix);
+                for (Enumeration<String> e = keystore.aliases(); e.hasMoreElements();) {
+                    String alias = e.nextElement();
+                    if (keystore.isCertificateEntry(alias)) {
+                        Certificate s = keystore.getCertificate(alias);
+                        if (s instanceof X509Certificate) {
+                            try {
+                                X509Certificate signer = (X509Certificate)s;
+                                if (target.getIssuerX500Principal().equals(signer.getSubjectX500Principal())) {
+                                    signer.verify(signer.getPublicKey());
+                                    if (when > 0 && (when < signer.getNotBefore().getTime() || when > signer.getNotAfter().getTime())) {
+                                        if (origpurpose.equals("timestamp")) {
+
+                                            status.add(new C2PAStatus(C2PAStatus.Code.timeStamp_outsideValidity, null, "Cose_Sign1.x5chain[" + ix + "]", null));
+                                        } else {
+                                            status.add(new C2PAStatus(C2PAStatus.Code.signingCredential_expired, null, "Cose_Sign1.x5chain[" + ix + "]", null));
+                                        }
+                                    } else {
+                                        status.add(new C2PAStatus(origpurpose.equals("timestamp") ? C2PAStatus.Code.timeStamp_trusted : C2PAStatus.Code.signingCredential_trusted, null, "Cose_Sign1.x5chain[" + ix + "]", null));
+                                    }
+                                    ok = true;
+                                    break;
+                                }
+                            } catch (Exception ex) { }
+                        }
+                    }
+                }
+                if (!ok) {
+                    status.add(new C2PAStatus(origpurpose.equals("timestamp") ? C2PAStatus.Code.timeStamp_untrusted : C2PAStatus.Code.signingCredential_untrusted, null, "Cose_Sign1.x5chain[" + ix + "]", null));
+                }
+            } catch (KeyStoreException e) {
+                throw new RuntimeException(e);
+            }
         }
         return status;
     }

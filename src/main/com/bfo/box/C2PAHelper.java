@@ -474,7 +474,7 @@ public class C2PAHelper {
                             C2PAStore original = (C2PAStore)new BoxFactory().load(img.bufferValue("c2pa"));
                             C2PAManifest lastmanifest = original.getActiveManifest();
                             lastmanifest.setInputStream(new FileInputStream(inname));
-                            List<C2PAStatus> laststatus = lastmanifest.getSignature().verify();
+                            List<C2PAStatus> laststatus = lastmanifest.getSignature().verify(null);
                             for (C2PAManifest mf : original.getManifests()) {
                                 lastmanifest = (C2PAManifest)mf.duplicate();
                                 lastmanifest.insertBefore(manifest);
@@ -541,7 +541,7 @@ public class C2PAHelper {
                                     System.out.println(c2pa.dump(null, null));
                                 }
                                 System.out.println("# verifying " + (manifest == c2pa.getActiveManifest() ? "active " : "") + "manifest \"" + manifest.label() + "\"");
-                                List<C2PAStatus> status = manifest.getSignature().verify();
+                                List<C2PAStatus> status = manifest.getSignature().verify(null);
                                 boolean ok = true;
                                 for (C2PAStatus st : status) {
                                     ok &= st.isOK();

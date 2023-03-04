@@ -16,6 +16,7 @@ import com.bfo.json.*;
  * <pre class="brush:java">
  *  C2PAStore c2pa = new C2PAStore();
  *  C2PAManifest manifest = new C2PAManifest("urn:manifestid");
+ *  c2pa.getManifests().add(manifest);
  *  C2PAClaim claim = manifest.getClaim();
  *  C2PASignature sig = manifest.getSignature();
  *  claim.setFormat("image/jpeg");
@@ -32,9 +33,9 @@ import com.bfo.json.*;
  *  Json j = C2PAHelper.readJPEG(new FileInputStream("signed.jpg"));
  *  C2PAStore c2pa = (C2PAStore)new BoxFactory().load(j.bufferValue("c2pa"));
  *  C2PAManifest manifest = c2pa.getActiveManifest();
- *  c2pa.setInputStream(new FileInputStream("out.jpg"));
+ *  manifest.setInputStream(new FileInputStream("out.jpg"));
  *  boolean valid = true;
- *  for (C2PAStatus status : manifest.getSignature().verify()) {
+ *  for (C2PAStatus status : manifest.getSignature().verify(null)) {
  *    System.out.println(status);
  *    if (status.isError()) {
  *      valid = false;

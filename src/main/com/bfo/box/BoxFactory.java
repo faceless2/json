@@ -138,9 +138,7 @@ public class BoxFactory {
     }
 
     /**
-     * Read a Box from the InputStream. If you are planning to load more from the
-     * stream after this method, the stream <b>must support mark/reset</b>. Otherwise this
-     * method will buffer the stream.
+     * Read a Box from a ByteBuffer.
      *
      * @param buffer the byte buffer to load from
      * @return the box, or <code>null</code> if the stream is fully consumed
