@@ -91,7 +91,7 @@ loadScripts(document, 'script');</script>
  Here's an example showing how to create a new C2PAStore. It uses the C2PAHelper class
  to embed the store in JPEG file.
  </p>
- <pre class="brush:java">
+ <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
   C2PAStore c2pa = new C2PAStore();
   C2PAManifest manifest = new C2PAManifest("urn:manifestid");
   c2pa.getManifests().add(manifest);
@@ -115,7 +115,7 @@ loadScripts(document, 'script');</script>
   C2PAHelper.writeJPEG(j, c2pa, new FileOutputStream("signed.jpg"));
  </pre>
  and here's an example showing how to read the file back and verify it
- <pre class="brush:java">
+ <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
   Json j = C2PAHelper.readJPEG(new FileInputStream("signed.jpg"));
   if (j.has("c2pa")) {
     C2PAStore c2pa = (C2PAStore)new BoxFactory().load(j.bufferValue("c2pa"));
