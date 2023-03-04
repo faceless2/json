@@ -230,13 +230,16 @@ void traverse(Box box, String prefix) {
 }
 ```
 
-A specific use of BMFF is [C2PA](https://c2pa.org), and the most of this package are
-classes to read and write C2PA objects ("stores"), including helper classes to embed them into JPEG.
+A specific use of BMFF is [C2PA](https://c2pa.org), and most of this package are
+classes to read and write C2PA objects ("stores"), including a
+[helper class](https://faceless2.github.io/json/docs/com/bfo/box/C2PAHelper.html)
+to deal with embdding them into JPEG.
 While the C2PA format is built on BMFF boxes, those boxes typically contain JSON or CBOR
-and the signature is COSE, so this package makes heavy use of `com.bfo.json`.
+and the signature is COSE. So this package makes heavy use of `com.bfo.json`.
 
 The [C2PAStore](https://faceless2.github.io/json/docs/com/bfo/box/C2PAStore.html) class is the top
-level entrypoint into the C2PA package. Here's a quick example showing verifying a JPEG
+level entrypoint into the C2PA package. Here's a quick example showing how to verify C2PA embedded
+in a JPEG
 
 ```java
 import com.bfo.box.*;
