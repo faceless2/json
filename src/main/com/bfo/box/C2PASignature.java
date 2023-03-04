@@ -14,6 +14,7 @@ import com.bfo.json.*;
  * The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_digital_signatures">C2PA signature</a>
  * is applied to each {@link C2PAManifest manifest} to sign it. There is one signature per manifest.
  * @since 5
+ * @see COSE
  */
 public class C2PASignature extends CborContainerBox {
 

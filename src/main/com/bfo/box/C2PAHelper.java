@@ -11,6 +11,7 @@ import com.bfo.json.*;
  * A general Helper class for C2PA which functions as a main method, provides
  * utility methods for embedding C2PA in files. See {@link C2PAStore} for 
  * details on how to use it
+ * @see C2PAStore
  */
 public class C2PAHelper {
 
@@ -18,7 +19,7 @@ public class C2PAHelper {
 
     /**
      * Read a JPEG image from the supplied InputStream and return a Json
-     * object describing various aspects of it that are relevant for C2PA:
+     * object describing various aspects of it that are relevant for C2PA.
      * <ul>
      *  <li>
      *   <b>c2pa</b> - if the JPEG image contains a C2PA object, this will

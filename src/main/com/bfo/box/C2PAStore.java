@@ -52,6 +52,8 @@ import com.bfo.json.*;
  *    }
  *  }
  * </pre>
+ * @see C2PAHelper
+ * @see BoxFactory
  * @since 5
  */
 public class C2PAStore extends JUMBox {
