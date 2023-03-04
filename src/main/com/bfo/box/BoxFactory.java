@@ -140,7 +140,7 @@ public class BoxFactory {
     /**
      * Read a Box from a ByteBuffer.
      *
-     * @param buffer the byte buffer to load from
+     * @param data the byte buffer to load from
      * @return the box, or <code>null</code> if the stream is fully consumed
      * @throws IOException if the stream is corrupt or fails to read
      */

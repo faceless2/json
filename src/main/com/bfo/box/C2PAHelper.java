@@ -9,7 +9,8 @@ import com.bfo.json.*;
 
 /**
  * A general Helper class for C2PA which functions as a main method, provides
- * utility methods for embedding C2PA in files.
+ * utility methods for embedding C2PA in files. See {@link C2PAStore} for 
+ * details on how to use it
  */
 public class C2PAHelper {
 
@@ -38,6 +39,7 @@ public class C2PAHelper {
      * </ul>
      * @param in the InputStream (required)
      * @return the data as described
+     * @throws IOException if the object failed to load
      */
     public static Json readJPEG(InputStream in) throws IOException {
         if (in == null) {
@@ -177,6 +179,7 @@ public class C2PAHelper {
      *   value other than null, a basic XMP will be created and inserted.
      *  </li>
      * </ul>
+     * <p>
      * After this method exits, the <code>image</code> parameter will be
      * updated to add a <code>c2pa</code>, which is encoded version of the
      * C2PA object that was written.
@@ -189,6 +192,7 @@ public class C2PAHelper {
      * @param store the C2PA store to insert
      * @param out the OutputStream to write to
      * @return the list of C2PA status codes from signing
+     * @throws IOException if the object failed to save
      */
     public static List<C2PAStatus> writeJPEG(Json image, C2PAStore store, OutputStream out) throws IOException {
         List<C2PAStatus> status;

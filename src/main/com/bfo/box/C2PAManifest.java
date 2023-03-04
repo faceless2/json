@@ -7,36 +7,12 @@ import com.bfo.json.*;
 
 /**
  * <p>
- * The  <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_manifests">manifest box</a>
+ * The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_manifests">manifest box</a>
  * represents a signed sequence of assertions. There is at least one manifest for any {@link C2PAStore store box}.
  * A valid manifest has one or more assertions, a {@link C2PAClaim claim box} which lists some or all of those assertions
  * along with some additional metadata, and a {@link C2PASignature signature box} which signs the claim.
  * </p>
- * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
- * C2PAStore store = new C2PAStore();
- * <i>// Add a manifest to the store</i>
- * C2PAManifest manifest = new C2PAManifest("urn:foo");
- * store.getManifests().add(manifest);
- * <i>// Set some assertions on the manifest</i>
- * Json j = Json.read("{\"@context\":\"https://schema.org/\",\"@type\":\"VideoObject\",\"name\":\"LearnJSON-LD\",\"author\":{\"@type\":\"Person\",\"name\":\"Foo Bar\"}}");
- * manifest.getAssertions().add(new JsonContainerBox("stds.schema-org.CreativeWork", j));
- * <i>// Initialize the claim</i>
- * manifest.getClaim().setFormat("video/mp4");          // required
- * manifest.getClaim().setInstanceID("urn:foo");        // required
- * <i>// Sign the manifest's claim</i>
- * KeyStore keystore = KeyStore.getInstance("PKCS12");
- * keystore.load(new FileInputStream(keystorefile), keystorepassword);
- * PrivateKey key = (PrivateKey)keystore.getKey(keystorealias, keystorepassword);
- * List&lt;gX509Certificate&gt; certs = new ArrayList&lt;X509Certificate&gt;();
- * for (Certificate c : keystore.getCertificateChain(keystorealias)) {
- *     if (c instanceof X509Certificate) {
- *         certs.add((X509Certificate)c);
- *     }
- * }
- * manifest.getSignature().sign(key, certs);
- * <i>All done!</i>
- * byte[] c2pa = store.getEncoded();
- * </pre>
+ * @see C2PAStore
  * @since 5
  */
 public class C2PAManifest extends JUMBox {

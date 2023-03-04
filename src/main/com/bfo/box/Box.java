@@ -161,7 +161,7 @@ public class Box {
     /**
      * Add this box to the end of the list of children
      * @param box the box, which must not be already part of a tree
-     * @throws IllegalStateExeption if box is already part of a tree
+     * @throws IllegalStateException if box is already part of a tree
      */
     public void add(Box box) {
         if (box.parent != null) {
@@ -209,7 +209,7 @@ public class Box {
     /**
      * Insert this box before the specified box. If this box already exists
      * @param other the Box to insert this box before. The box must have a parent.
-     * @throws IllegalStateExeption if this box is already part of a tree, or other has no parent
+     * @throws IllegalStateException if this box is already part of a tree, or other has no parent
      */
     public void insertBefore(Box other) {
         if (parent != null) {
@@ -367,6 +367,7 @@ public class Box {
     /**
      * Return a deep duplicate of this box, duplicating all its children too
      * if necessary.
+     * @return the duplicated box
      */
     public Box duplicate() {
         try {

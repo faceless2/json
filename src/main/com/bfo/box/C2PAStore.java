@@ -22,23 +22,33 @@ import com.bfo.json.*;
  *  claim.setFormat("image/jpeg");
  *  claim.setInstanceID("urn:instanceid");
  *  manifest.getAssertions().add(new C2PA_AssertionHashData());
+ *  Json schemaJson = Json.read("{\"@context\":\"https://schema.org/\",\"@type\":\"VideoObject\",\"name\":\"LearnJSON-LD\",\"author\":{\"@type\":\"Person\",\"name\":\"Foo Bar\"}}");
  *  manifest.getAssertions().add(new C2PA_AssertionSchema("stds.schema-org.CreativeWork", schemaJson));
- *  manifest.getSignature().setSigner(key, certs);
  *
+ *  KeyStore keystore = KeyStore.getInstance("PKCS12");
+ *  keystore.load(new FileInputStream(keystorefile), keystorepassword);
+ *  PrivateKey key = (PrivateKey)keystore.getKey(keystorealias, keystorepassword);
+ *  List&lt;gX509Certificate&gt; certs = new ArrayList&lt;X509Certificate&gt;();
+ *  for (Certificate c : keystore.getCertificateChain(keystorealias)) {
+ *      certs.add((X509Certificate)c);
+ *  }
+ *  manifest.getSignature().setSigner(key, certs);
  *  Json j = C2PAHelper.readJPEG(new FileInputStream("unsigned.jpg"));
  *  C2PAHelper.writeJPEG(j, c2pa, new FileOutputStream("signed.jpg"));
  * </pre>
  * and here's an example showing how to read the file back and verify it
  * <pre class="brush:java">
  *  Json j = C2PAHelper.readJPEG(new FileInputStream("signed.jpg"));
- *  C2PAStore c2pa = (C2PAStore)new BoxFactory().load(j.bufferValue("c2pa"));
- *  C2PAManifest manifest = c2pa.getActiveManifest();
- *  manifest.setInputStream(new FileInputStream("out.jpg"));
- *  boolean valid = true;
- *  for (C2PAStatus status : manifest.getSignature().verify(null)) {
- *    System.out.println(status);
- *    if (status.isError()) {
- *      valid = false;
+ *  if (j.has("c2pa")) {
+ *    C2PAStore c2pa = (C2PAStore)new BoxFactory().load(j.bufferValue("c2pa"));
+ *    C2PAManifest manifest = c2pa.getActiveManifest();
+ *    manifest.setInputStream(new FileInputStream("signed.jpg"));
+ *    boolean valid = true;
+ *    for (C2PAStatus status : manifest.getSignature().verify(null)) {
+ *      System.out.println(status);
+ *      if (status.isError()) {
+ *        valid = false;
+ *      }
  *    }
  *  }
  * </pre>

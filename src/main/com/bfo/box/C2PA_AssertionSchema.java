@@ -6,6 +6,9 @@ import java.util.*;
 
 /**
  * A C2PA Assertion for the "stds.exif", "stds.iptc", "stds.schema-org.ClaimReview", "stds.schema-org.CreativeWork" types
+ * <p>
+ * <b>Note</b>: no validation is made on the schema; any Json object is accepted.
+ * </p>
  * @since 5
  */
 public class C2PA_AssertionSchema extends JsonContainerBox implements C2PA_Assertion {

@@ -196,7 +196,7 @@ public class C2PASignature extends CborContainerBox {
      * If the signature does not contain a timestamp, set the time that the signature
      * was applied. Without this information and a timestamp, the signature will be
      * verified against the current time
-     * @param when the timestamp of the signature, or 0 to use the default (the current time)
+     * @param timestamp the timestamp of the signature, or 0 to use the default (the current time)
      */
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
@@ -354,11 +354,11 @@ public class C2PASignature extends CborContainerBox {
      * Verify that the supplied certificate chain is allowed for use with C2PA.
      * @param certs the list of certificates, in order, with the signing certificate first
      * @param purpose the purpose of this chain - either "ocsp", "timestamp" or anything else for "signing"
-     * @param when the verified time the signature was applied, or 0 if unknown
+     * @param timestamp the verified time the signature was applied, or 0 if unknown
      * @param keystore if not null, the KeyStore containing trusted roots against which the chain should be verified
      * @return a list of failures for the specified certificates, or an empty list if they're valid.
      */
-    private static List<C2PAStatus> verifyCertificates(List<X509Certificate> certs, String purpose, long when, KeyStore keystore) {
+    private static List<C2PAStatus> verifyCertificates(List<X509Certificate> certs, String purpose, long timestamp, KeyStore keystore) {
         final List<C2PAStatus> status = new ArrayList<C2PAStatus>();
         if (!"timestamp".equals(purpose) && !"ocsp".equals(purpose)) {
             purpose = "signing";
@@ -384,14 +384,14 @@ public class C2PASignature extends CborContainerBox {
             X509Certificate cert = certs.get(ix);
             try {
 
-                if (when > 0) {
+                if (timestamp > 0) {
                     // "If the sigTst header is not present, the claim is valid if the current
                     //  time is within the validity period of the signer’s credential. If it is
                     //  not, the claim must be rejected with a failure code of
                     //  signingCredential.expired."
                     //
-                    // Which means when should always be set externally.
-                    if (when < cert.getNotBefore().getTime() || when > cert.getNotAfter().getTime()) {
+                    // Which means timestamp should always be set externally.
+                    if (timestamp < cert.getNotBefore().getTime() || timestamp > cert.getNotAfter().getTime()) {
                         if (origpurpose.equals("timestamp")) {
                             
                             status.add(new C2PAStatus(C2PAStatus.Code.timeStamp_outsideValidity, null, "Cose_Sign1.x5chain[" + ix + "]", null));
@@ -617,7 +617,7 @@ public class C2PASignature extends CborContainerBox {
                                 X509Certificate signer = (X509Certificate)s;
                                 if (target.getIssuerX500Principal().equals(signer.getSubjectX500Principal())) {
                                     signer.verify(signer.getPublicKey());
-                                    if (when > 0 && (when < signer.getNotBefore().getTime() || when > signer.getNotAfter().getTime())) {
+                                    if (timestamp > 0 && (timestamp < signer.getNotBefore().getTime() || timestamp > signer.getNotAfter().getTime())) {
                                         if (origpurpose.equals("timestamp")) {
 
                                             status.add(new C2PAStatus(C2PAStatus.Code.timeStamp_outsideValidity, null, "Cose_Sign1.x5chain[" + ix + "]", null));

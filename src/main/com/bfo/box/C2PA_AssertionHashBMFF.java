@@ -6,6 +6,9 @@ import java.util.*;
 
 /**
  * A C2PA Assertion for the "c2pa.hash.bmff" or "c2pa.hash.bmff.v2" types
+ * <p>
+ * <b>Note</b>: this is a placeholder class; verify and sign will throw an {@link UnsupportedOperationException}
+ * </p>
  * @since 5
  */
 public class C2PA_AssertionHashBMFF extends CborContainerBox implements C2PA_Assertion {

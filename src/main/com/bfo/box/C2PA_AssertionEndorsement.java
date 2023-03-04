@@ -6,6 +6,9 @@ import java.util.*;
 
 /**
  * A C2PA Assertion for the "c2pa.endorsement" type
+ * <p>
+ * <b>Note</b>: this is a placeholder class; verify will throw an {@link UnsupportedOperationException}
+ * </p>
  * @since 5
  */
 public class C2PA_AssertionEndorsement extends CborContainerBox implements C2PA_Assertion {

@@ -5,7 +5,10 @@ import java.io.*;
 import java.util.*;
 
 /**
- * A C2PA Assertion that will be used for unknown types
+ * A C2PA Assertion that will be used for unknown types of assertion
+ * <p>
+ * <b>Note</b>: this is a placeholder class; verify will return without error
+ * </p>
  * @since 5
  */
 public class C2PA_AssertionUnknown extends JUMBox implements C2PA_Assertion {
