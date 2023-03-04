@@ -278,6 +278,30 @@ Json json = C2PAHelper.readJPEG(new FileInputStream("unsigned.jpg"));
 C2PAHelper.writeJPEG(json, c2pa, new FileOutputStream("signed.jpg"));
 ```
 
+There is a `main()` method on the `C2PAHelper` class which can be used for basic
+operations on JPEG files. To run it, download the Jar then
+`java -cp bfojson-5.jar com.bfo.box.C2PAHelper`
+
+```
+java com.bfo.box.C2PAHelper args...
+   --help                  this help
+   --verify                switch to verify mode (the default)
+   --sign                  switch to signing mode
+   --debug                 turn on debug to dump the c2pa store as CBOR-diag
+   --boxdebug              turn on debug to dump the c2pa store as a box tree
+   --nodebug               turn off --debug
+   --noboxdebug            turn off --boxdebug
+   --repackage             if signing a file with an existing C2PA, reference it from a 'repackage' action
+   --keystore <path>       if signing, the path to Keystore to load credentials from
+   --alias <name>          if signing, the alias from the keystore (default is the first one
+   --password <password>   if signing, the password to open the keystore
+   --alg <algorithm>       if signing, the hash algorithm
+   --creativework <path>   if signing, filename containing a JSON schema to embed
+   --out <path>            if signing, filename to write signed output to (default will derive from input
+   --c2pa <path>           if signing/verifying, filename to dump the C2PA object to (default is not dumped
+   <path>                  the filename to sign or verify
+```
+
 The C2PA classes have been developed against C2PA 1.2; output from earlier versions may not verify.
 
 NOTE: <i>These classes are under development</i>
