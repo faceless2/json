@@ -379,6 +379,9 @@ public class C2PAHelper {
 
         // No apologies for this, it's a quick and nasty test
         KeyStore keystore = null;
+        if (args.length == 0) {
+            help();
+        }
         for (int i=0;i<args.length;i++) {
             String s = args[i];
             if (s.equals("--keystore")) {
@@ -596,12 +599,14 @@ public class C2PAHelper {
 
     private static void help() {
         System.out.println("java com.bfo.box.C2PAHelper args...");
+        System.out.println("   --help                  this help");
         System.out.println("   --verify                switch to verify mode (the default)");
         System.out.println("   --sign                  switch to signing mode");
         System.out.println("   --debug                 turn on debug to dump the c2pa store as CBOR-diag");
         System.out.println("   --boxdebug              turn on debug to dump the c2pa store as a box tree");
         System.out.println("   --nodebug               turn off --debug");
         System.out.println("   --noboxdebug            turn off --boxdebug");
+        System.out.println("   --repackage             if signing a file with an existing C2PA, reference it from a 'repackage' action");
         System.out.println("   --keystore <path>       if signing, the path to Keystore to load credentials from");
         System.out.println("   --alias <name>          if signing, the alias from the keystore (default is the first one");
         System.out.println("   --password <password>   if signing, the password to open the keystore");
