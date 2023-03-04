@@ -85,8 +85,8 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">DataBox</span>
 <span class="extends-implements">extends <a href="Box.html" title="class in com.bfo.box">Box</a></span></div>
-<div class="block">A general Box that stores its content as a byte array
- Subclasses of DataBox can always be written with <code>Box.write(java.io.OutputStream)</code> or <a href="Box.html#getEncoded()"><code>Box.getEncoded()</code></a>
+<div class="block">A general Box that stores its content as a byte array.
+ Subclasses of DataBox can always be serialized with <a href="Box.html#getEncoded()"><code>Box.getEncoded()</code></a>.
  There is no "setData()" method - a subclass of the approriate type should be created.</div>
 <dl class="notes">
 <dt>Since:</dt>
