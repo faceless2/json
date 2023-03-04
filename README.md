@@ -208,9 +208,9 @@ between the Java `PublicKey`, `PrivateKey` and `SecretKey` implementations and t
 
 Version 5 adds the `com.bfo.box` package, which contains a general purpose parser for the
 _ISO Base Media Format_, or _BMFF_. This is a standard box model used in a number of file formats,
-including MP4, JP2 etc. The parser is very general, and will not unrecognised boxes into memory so
+including MP4, JP2 etc. The parser is very general, and will not load unrecognised boxes into memory so
 can be used to scan large files for metadata (which is the primary reason we use it; most of the
-currently recognised boxes have metadata focus).
+currently recognised boxes have a metadata focus).
 
 ```java
 import com.bfo.box.*;
@@ -230,10 +230,10 @@ void traverse(Box box, String prefix) {
 }
 ```
 
-A specific subclass of BMFF is used by [C2PA](https://c2pa.org), and the bulk of this package is
+A specific use of BMFF is [C2PA](https://c2pa.org), and the most of this package are
 classes to read and write C2PA objects ("stores"), including helper classes to embed them into JPEG.
-While the C2PA format is built on BMFF boxes, those boxes typically contain Json and the signature is COSE,
-so this package makes heavy use of `com.bfo.json`.
+While the C2PA format is built on BMFF boxes, those boxes typically contain JSON or CBOR
+and the signature is COSE, so this package makes heavy use of `com.bfo.json`.
 
 The [C2PAStore](https://faceless2.github.io/json/docs/com/bfo/box/C2PAStore.html) class is the top
 level entrypoint into the C2PA package. Here's a quick example showing verifying a JPEG
@@ -293,18 +293,18 @@ java com.bfo.box.C2PAHelper args...
    --noboxdebug            turn off --boxdebug
    --repackage             if signing a file with an existing C2PA, reference it from a 'repackage' action
    --keystore <path>       if signing, the path to Keystore to load credentials from
-   --alias <name>          if signing, the alias from the keystore (default is the first one
+   --alias <name>          if signing, the alias from the keystore (default is the first one)
    --password <password>   if signing, the password to open the keystore
    --alg <algorithm>       if signing, the hash algorithm
    --creativework <path>   if signing, filename containing a JSON schema to embed
-   --out <path>            if signing, filename to write signed output to (default will derive from input
-   --c2pa <path>           if signing/verifying, filename to dump the C2PA object to (default is not dumped
+   --out <path>            if signing, filename to write signed output to (default will derive from input)
+   --c2pa <path>           if signing/verifying, filename to dump the C2PA object to (default is not dumped)
    <path>                  the filename to sign or verify
 ```
 
 The C2PA classes have been developed against C2PA 1.2; output from earlier versions may not verify.
 
-NOTE: <i>These classes are under development</i>
+NOTE: <i>The C2PA classes are under development, so changes are likely</i>
 
 -------
 
