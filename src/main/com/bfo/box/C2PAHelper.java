@@ -608,12 +608,12 @@ public class C2PAHelper {
         System.out.println("   --noboxdebug            turn off --boxdebug");
         System.out.println("   --repackage             if signing a file with an existing C2PA, reference it from a 'repackage' action");
         System.out.println("   --keystore <path>       if signing, the path to Keystore to load credentials from");
-        System.out.println("   --alias <name>          if signing, the alias from the keystore (default is the first one");
+        System.out.println("   --alias <name>          if signing, the alias from the keystore (default is the first one)");
         System.out.println("   --password <password>   if signing, the password to open the keystore");
         System.out.println("   --alg <algorithm>       if signing, the hash algorithm");
         System.out.println("   --creativework <path>   if signing, filename containing a JSON schema to embed");
-        System.out.println("   --out <path>            if signing, filename to write signed output to (default will derive from input");
-        System.out.println("   --c2pa <path>           if signing/verifying, filename to dump the C2PA object to (default is not dumped");
+        System.out.println("   --out <path>            if signing, filename to write signed output to (default will derive from input)");
+        System.out.println("   --c2pa <path>           if signing/verifying, filename to dump the C2PA object to (default is not dumped)");
         System.out.println("   <path>                  the filename to sign or verify");
         System.out.println();
         System.exit(0);
