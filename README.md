@@ -167,26 +167,26 @@ Encryption with JWE is not supported
 
 ```java
 JWT jwt = new JWT(Json.parse("{\"iss\":\"foo\"}"));
-byte[] key = ...
-jwt.sign(key, "HS256");           // Sign using a symmetric key
-jwt = new JWT(jwt.toString());    // Encode then decode
-assert jwt.verify(key, null);     // Verify using the same symmetric key
+byte[] secretkeydata = ...
+SecretKey key = new JWK(secretkeydata, "HS256").getSecretKey();
+jwt.sign(key);                       // Sign using a symmetric key
+jwt = new JWT(jwt.toString());       // Encode then decode
+assert jwt.verify(key);              // Verify using the same symmetric key
 
-byte[] pubkey = ...
-byte[] prikey = ...
+PublicKey pubkey = ...
+PrivateKey prikey = ...
 jwt.getHeader().put("x5u", ...);     // Add custom content to header
-jwt.sign(prikey, "ES256");           // Sign using a asymmetric key
-assert jwt.verify(pubkey, "ES256");  // Verify using corresponding key
-PublicKey pubkeyobj = ...
-assert jwt.verify(pubkeyobj, "ES256", null); // or use a java.security.Key
+jwt.sign(prikey);                    // Sign using a assymmetric key
+assert jwt.verify(pubkey);           // Verify using corresponding key
 
 jwt.getPayload().clear();            // Modify the payload
-assert !jwt.verify(pubkey, "ES256"); // Signature is no longer valid
+assert !jwt.verify(pubkey);          // Signature is no longer valid
 ```
 
 COSE was added in version 5. Signing with single or multiple signatures
 are supported, but counter-signing (for timestamps) is pending and encryption
 support is not currently planned.
+
 ```java
 // Signing
 COSE cose = new COSE();
@@ -201,6 +201,7 @@ cose = new COSE(json);
 String s = new String(cose.getPayload().array(), "UTF-8"); // Hello, World
 assert jwt.verify(publicKey) == 0;   // Verify with the public key
 ```
+
 For both JWT and COSE, the [JWK](https://faceless2.github.io/json/docs/com/bfo/json/JWK.html) utility class can convert
 between the Java `PublicKey`, `PrivateKey` and `SecretKey` implementations and their JWK or COSE-key representations.
 
