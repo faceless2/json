@@ -35,6 +35,8 @@ import javax.crypto.spec.SecretKeySpec;
  * jwt.getPayload().clear();              // Modify the payload
  * assert !jwt.verify(pubkey);            // Signature is no longer valid
  *
+ * assert jwt.isValidAt(jwt.getIssuedAt()); // check JWT time is not expired
+ *
  * System.out.println(jwt.getPayload());
  * System.out.println(jwt.getAlgorithm());
  * </pre>
@@ -185,6 +187,8 @@ public class JWT {
                 signature = sig.sign();
                 if (alg.equals("ES256")) {
                     signature = der2cat(signature, 32);
+                } else if (alg.equals("ES256K")) {
+                    signature = der2cat(signature, 32);
                 } else if (alg.equals("ES384")) {
                     signature = der2cat(signature, 48);
                 } else if (alg.equals("ES512")) {
@@ -208,6 +212,207 @@ public class JWT {
      */
     public String getAlgorithm() {
         return header.isString("alg") ? header.get("alg").stringValue() : null;
+    }
+
+    /**
+     * Return the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.
+     * @return the time or 0 if not set
+     * @since 5
+     */
+    public long getIssuedAt() {
+        return header.isNumber("iat") ? header.get("iat").longValue() : 0;
+    }
+
+    /**
+     * Return the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.
+     * @return the time or 0 if not set
+     * @since 5
+     */
+    public long getNotBefore() {
+        return header.isNumber("nbf") ? header.get("nbf").longValue() : 0;
+    }
+
+    /**
+     * Return the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.
+     * @return the time or 0 if not set
+     * @since 5
+     */
+    public long getExpiry() {
+        return header.isNumber("exp") ? header.get("exp").longValue() : 0;
+    }
+
+    /**
+     * Return the <i>issuer claim</i> ("iss")
+     * @return the issuer or null if not set
+     * @since 5
+     */
+    public String getIssuer() {
+        return header.isString("iss") ? header.stringValue("iss") : null;
+    }
+
+    /**
+     * Return the <i>subject claim</i> ("sub")
+     * @return the subject or null if not set
+     * @since 5
+     */
+    public String getSubject() {
+        return header.isString("sub") ? header.stringValue("sub") : null;
+    }
+
+    /**
+     * Return the <i>audience claim</i> ("aud")
+     * @return the audience claim, or an empty list if not set
+     * @since 5
+     */
+    public List<String> getAudience() {
+        Json aud = header.get("aud");
+        if (aud == null) {
+            return Collections.<String>emptyList();
+        } else if (aud.isString("aud")) {
+            return Collections.<String>singletonList(header.stringValue("aud"));
+        } else if (header.isList("aud")) {
+            List<String> l = new ArrayList<String>();
+            for (int i=0;i<aud.size();i++) {
+                if (aud.get(i).isString()) {
+                    l.add(aud.get(i).stringValue());
+                }
+            }
+            return l;
+        } else {
+            return Collections.<String>emptyList();
+        }
+    }
+
+    /**
+     * Return the <i>unique id claim</i> ("jti")
+     * @return the unique id or null if not set
+     * @since 5
+     */
+    public String getUniqueID() {
+        return header.isString("sub") ? header.stringValue("sub") : null;
+    }
+
+    /**
+     * Set the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.
+     * @param ms the time, or 0 to unset it
+     * @since 5
+     */
+    public void setIssuedAt(long ms) {
+        if (ms <= 0) {
+            header.remove("iat");
+        } else {
+            header.put("iat", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+        }
+    }
+
+    /**
+     * Set the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.
+     * @param ms the time, or 0 to unset it
+     * @since 5
+     */
+    public void setNotBefore(long ms) {
+        if (ms <= 0) {
+            header.remove("nbf");
+        } else {
+            header.put("nbf", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+        }
+    }
+
+    /**
+     * Set the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.
+     * @param ms the time, or 0 to unset it
+     * @since 5
+     */
+    public void setExpiry(long ms) {
+        if (ms <= 0) {
+            header.remove("exp");
+        } else {
+            header.put("exp", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+        }
+    }
+
+    /**
+     * Set the <i>issuer claim</i> ("iss")
+     * @param val the issuer, or null to unset it
+     * @since 5
+     */
+    public void setIssuer(String val) {
+        if (val == null) {
+            header.remove("iss");
+        } else {
+            header.put("iss", val);
+        }
+    }
+
+    /**
+     * Set the <i>subject claim</i> ("sub")
+     * @param val the issuer, or null to unset it
+     * @since 5
+     */
+    public void setSubject(String val) {
+        if (val == null) {
+            header.remove("sub");
+        } else {
+            header.put("sub", val);
+        }
+    }
+
+    /**
+     * Set the <i>audience claim</i> ("aud")
+     * @param val the audience claim; null or an empty list will unset it
+     * @since 5
+     */
+    public void setAudience(List<String> val) {
+        if (val == null) {
+            header.remove("aud");
+        } else {
+            Json j = Json.read("[]");
+            for (String s : val) {
+                if (s != null) {
+                    j.put(j.size(), s);
+                }
+            }
+            if (j.size() == 0) {
+                header.remove("aud");
+            } else {
+                header.put("aud", j);
+            }
+        }
+    }
+
+    /**
+     * Set the <i>unique id claim</i> ("jti")
+     * @param val the unique id, or null to unset it
+     * @since 5
+     */
+    public void setUniqueID(String val) {
+        if (val == null) {
+            header.remove("jti");
+        } else {
+            header.put("jti", val);
+        }
+    }
+
+    /**
+     * Check the token was valid at the specified time.
+     * If the supplied time is 0, the current time will be used.
+     * If the token has an expiry time and/or not-before time, they
+     * will be compared to the supplied time and false returned if
+     * they are out of rang. If they are not specified, true is returned.
+     * @param time the token issued-at time, or 0 to use the current time
+     * @return if the key can not be determined as invalid at the specified time
+     */
+    public boolean isValidAt(long time) {
+        if (time == 0) {
+            time = System.currentTimeMillis();
+        }
+        if (getExpiry() != 0 && getExpiry() < time) {
+            return false;
+        }
+        if (getNotBefore() != 0 && getNotBefore() > time) {
+            return false;
+        }
+        return true;
     }
 
     /**
