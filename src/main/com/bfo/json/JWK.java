@@ -16,7 +16,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 
 /**
- * A class representing a single "JSON Web Key", a JSON representation of an assymetric or symmetric key.
+ * A class representing a single "JSON Web Key", a JSON representation of an asymmetric key/keypair, or a symmetric key.
  * It may contain one <code>java.security.Key</code> or two (public AND private). Currently supports
  * <ul>
  *  <li>Elliptic Curve - ES256, ES384, ES512. ES256K (prior to its removal in Java 15)</li>
