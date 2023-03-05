@@ -76,6 +76,98 @@ public class JWK extends Json {
     }
 
     /**
+     * Create a new JWK key from a DER encoded secret, public or private key, or
+     * PEM encoded versions of public, private or both keys
+     * @param data the DER or PEM encoded key
+     * @param alg the algorithm - required for secret keys, optional for public/private
+     * @since 5
+     */
+    public JWK(byte[] data, String alg) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        super(Collections.EMPTY_MAP);
+        if (data == null || data.length == 0) {
+            throw new NullPointerException("data is null");
+        }
+        String datastring = new String(data, StandardCharsets.ISO_8859_1);
+        List<Key> keys = new ArrayList<Key>();
+        do {
+            boolean privkey = false;
+            int ix = datastring.indexOf("-----BEGIN");
+            if (ix >= 0) {
+                while (datastring.length() > 0 && " \t\r\n".indexOf(datastring.charAt(0)) >= 0) {
+                    datastring = datastring.substring(1);
+                }
+                int ix2 = datastring.indexOf("-----END", ix);
+                if (ix2 > 0) {
+                    privkey = datastring.startsWith("-----BEGIN PRIVATE");
+                    data = Base64.getMimeDecoder().decode(datastring.substring(datastring.indexOf('\n', ix) + 1, ix2));
+                    ix2 = datastring.indexOf('\n', ix2);
+                    if (ix2 > 0) {
+                        datastring = datastring.substring(ix2 + 1);
+                        while (datastring.length() > 0 && " \t\r\n".indexOf(datastring.charAt(0)) >= 0) {
+                            datastring = datastring.substring(1);
+                        }
+                    } else {
+                        datastring = "";
+                    }
+                }
+            } else {
+                datastring = "";
+            }
+            if (alg == null) {
+                // Generated 1000 keys of each, checked what's in common. No need for ASN.1 here
+                String s = JWT.hex(data, 0, Math.min(data.length, 32));
+                if (s.contains("300d06092a864886f70d010101050003")) {            // RSA public 10224/2048/4096
+                    alg = "RSA"; privkey = false;
+                } else if (s.contains("0100300d06092a864886f70d010101050004")) { // RSA private 10224/2048/4096
+                    alg = "RSA"; privkey = true;
+                } else if (s.contains("20100301006072a8648ce3d020106")) {       // EC private sec256/384/521r1
+                    alg = "EC"; privkey = true;
+                } else if (s.contains("06072a8648ce3d020106")) {                // EC public sec256/384/521r1
+                    alg = "EC"; privkey = false;
+                } else if (s.startsWith("302a300506032b6570032100")) {         // Ed25519 public
+                    alg = "EdDSA"; privkey = false;
+                } else if (s.startsWith("3043300506032b6571033a00")) {         // Ed558 public
+                    alg = "EdDSA"; privkey = false;
+                } else if (s.startsWith("302e020100300506032b657004220420")) { // Ed25519 private
+                    alg = "EdDSA"; privkey = false;
+                } else if (s.startsWith("3047020100300506032b6571043b0439")) { // Ed448 private
+                    alg = "EdDSA"; privkey = false;
+                }
+            }
+            Key key = null;
+            if ("HS256".equals(alg) || "HS384".equals(alg) || "HS512".equals(alg)) {
+                key = new SecretKeySpec(data, "HmacSHA" + alg.substring(2));
+            } else if ("RS256".equals(alg) || "RS384".equals(alg) || "RS512".equals(alg)) {
+                alg = "RSA";
+            } else if ("PS256".equals(alg) || "PS384".equals(alg) || "PS512".equals(alg)) {
+                alg = "RSA";
+            } else if ("ES256".equals(alg) || "ES384".equals(alg) || "ES512".equals(alg)) {
+                alg = "EC";
+            } else if ("Ed25519".equals(alg) || "Ed448".equals(alg) || "EdDSA".equals(alg)) {
+                alg = "EdDSA";
+            }
+            if (key == null) {
+                KeyFactory keyfactory = KeyFactory.getInstance(alg);
+                if (privkey) {
+                    key = keyfactory.generatePrivate(new PKCS8EncodedKeySpec(data));
+                } else {
+                    key = keyfactory.generatePublic(new X509EncodedKeySpec(data));
+                }
+            }
+            if (key != null) {
+                keys.add(key);
+            } else {
+                throw new IllegalArgumentException("invalid key or invalid alg \"" + alg + "\"");
+            }
+        } while (datastring.length() > 0);
+        if (!keys.isEmpty()) {
+            setKeys(keys);
+        } else {
+            throw new IllegalStateException("no keys");
+        }
+    }
+
+    /**
      * Convert a COSE Key
      * (<a href="https://datatracker.ietf.org/doc/html/rfc9052#section-7">https://datatracker.ietf.org/doc/html/rfc9052#section-7</a>)
      * to a JWT version
@@ -1055,45 +1147,6 @@ public class JWK extends Json {
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid " + type.trim() + " param " + param, e);
             }
-        }
-    }
-
-    /**
-     * Parse a PKCS#8 text key into a Java key
-     */
-    static Key toKey(byte[] key, String alg, boolean pub, Provider provider) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        if (key == null || key.length == 0) {
-            return null;
-        }
-        int i = 0;
-        while (i < key.length && " \t\r\n".indexOf(key[i]) >= 0) {
-            i++;
-        }
-        if (key[i] == '-') {
-            String s = new String(key, i, key.length, StandardCharsets.ISO_8859_1);
-            if (s.startsWith("-----BEGIN") && (i = s.indexOf("-----END")) >= 0) {
-                s = s.substring(s.indexOf('\n') + 1, i);
-                key = Base64.getMimeDecoder().decode(s);
-            }
-        }
-        if ("HS256".equals(alg) || "HS384".equals(alg) || "HS512".equals(alg)) {
-            return new SecretKeySpec(key, "HmacSHA" + alg.substring(2));
-        } else if ("RS256".equals(alg) || "RS384".equals(alg) || "RS512".equals(alg)) {
-            alg = "RSA";
-        } else if ("PS256".equals(alg) || "PS384".equals(alg) || "PS512".equals(alg)) {
-            alg = "RSA";
-        } else if ("ES256".equals(alg) || "ES384".equals(alg) || "ES512".equals(alg)) {
-            alg = "EC";
-        } else if ("Ed25519".equals(alg) || "Ed448".equals(alg) || "EdDSA".equals(alg)) {
-            alg = "EdDSA";
-        } else {
-            return null;
-        }
-        KeyFactory keyfactory = provider == null ? KeyFactory.getInstance(alg) : KeyFactory.getInstance(alg, provider);
-        if (pub) {
-            return keyfactory.generatePublic(new X509EncodedKeySpec(key));
-        } else {
-            return keyfactory.generatePrivate(new PKCS8EncodedKeySpec(key));
         }
     }
 
