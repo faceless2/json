@@ -130,16 +130,22 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color">
 <div class="block">Create a new, empty JWK</div>
 </div>
-<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">JWK</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;jwk)</code></div>
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(byte%5B%5D,java.lang.String)" class="member-name-link">JWK</a><wbr>(byte[]&nbsp;data,
+ <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;alg)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Create a new JWK key from a DER encoded secret, public or private key, or
+ PEM encoded versions of public, private or both keys</div>
+</div>
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">JWK</a><wbr>(<a href="Json.html" title="class in com.bfo.json">Json</a>&nbsp;jwk)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Create a new JWK from the specified Json, sharing its content</div>
 </div>
-<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.security.Key)" class="member-name-link">JWK</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Key.html" title="class or interface in java.security" class="external-link">Key</a>&nbsp;key)</code></div>
-<div class="col-last even-row-color">
+<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(java.security.Key)" class="member-name-link">JWK</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Key.html" title="class or interface in java.security" class="external-link">Key</a>&nbsp;key)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Create a new JWK from the supplied Key</div>
 </div>
-<div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(java.security.KeyPair)" class="member-name-link">JWK</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/KeyPair.html" title="class or interface in java.security" class="external-link">KeyPair</a>&nbsp;pair)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.security.KeyPair)" class="member-name-link">JWK</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/KeyPair.html" title="class or interface in java.security" class="external-link">KeyPair</a>&nbsp;pair)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Create a new JWK from the supplied KeyPair</div>
 </div>
 </div>
@@ -309,6 +315,27 @@ loadScripts(document, 'script');</script>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>jwk</code> - the JWK</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="&lt;init&gt;(byte[],java.lang.String)">
+<h3>JWK</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">JWK</span><wbr><span class="parameters">(byte[]&nbsp;data,
+ <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;alg)</span>
+    throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/NoSuchAlgorithmException.html" title="class or interface in java.security" class="external-link">NoSuchAlgorithmException</a>,
+<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/spec/InvalidKeySpecException.html" title="class or interface in java.security.spec" class="external-link">InvalidKeySpecException</a></span></div>
+<div class="block">Create a new JWK key from a DER encoded secret, public or private key, or
+ PEM encoded versions of public, private or both keys</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>data</code> - the DER or PEM encoded key</dd>
+<dd><code>alg</code> - the algorithm - required for secret keys, optional for public/private</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/NoSuchAlgorithmException.html" title="class or interface in java.security" class="external-link">NoSuchAlgorithmException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/spec/InvalidKeySpecException.html" title="class or interface in java.security.spec" class="external-link">InvalidKeySpecException</a></code></dd>
+<dt>Since:</dt>
+<dd>5</dd>
 </dl>
 </section>
 </li>

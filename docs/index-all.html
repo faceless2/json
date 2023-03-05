@@ -1234,6 +1234,11 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Create a new, empty JWK</div>
 </dd>
+<dt><a href="com/bfo/json/JWK.html#%3Cinit%3E(byte%5B%5D,java.lang.String)" class="member-name-link">JWK(byte[], String)</a> - Constructor for class com.bfo.json.<a href="com/bfo/json/JWK.html" title="class in com.bfo.json">JWK</a></dt>
+<dd>
+<div class="block">Create a new JWK key from a DER encoded secret, public or private key, or
+ PEM encoded versions of public, private or both keys</div>
+</dd>
 <dt><a href="com/bfo/json/JWK.html#%3Cinit%3E(com.bfo.json.Json)" class="member-name-link">JWK(Json)</a> - Constructor for class com.bfo.json.<a href="com/bfo/json/JWK.html" title="class in com.bfo.json">JWK</a></dt>
 <dd>
 <div class="block">Create a new JWK from the specified Json, sharing its content</div>
@@ -1703,17 +1708,13 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Sign the claim.</div>
 </dd>
-<dt><a href="com/bfo/json/JWT.html#sign(byte%5B%5D,java.lang.String)" class="member-name-link">sign(byte[], String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dt><a href="com/bfo/json/JWT.html#sign(java.security.Key)" class="member-name-link">sign(Key)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
 <dd>
 <div class="block">Sign the JWT.</div>
 </dd>
 <dt><a href="com/bfo/json/COSE.html#sign(java.security.Key,java.lang.String)" class="member-name-link">sign(Key, String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>
 <div class="block">Sign the COSE.</div>
-</dd>
-<dt><a href="com/bfo/json/JWT.html#sign(java.security.Key,java.lang.String)" class="member-name-link">sign(Key, String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
-<dd>
-<div class="block">Sign the JWT.</div>
 </dd>
 <dt><a href="com/bfo/json/COSE.html#sign(java.util.Map)" class="member-name-link">sign(Map&lt;Key, String&gt;)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>
@@ -1904,11 +1905,7 @@ the order they are declared.</div>
 <dd>&nbsp;</dd>
 <dt><a href="com/bfo/box/C2PA_AssertionIngredient.html#verify()" class="member-name-link">verify()</a> - Method in class com.bfo.box.<a href="com/bfo/box/C2PA_AssertionIngredient.html" title="class in com.bfo.box">C2PA_AssertionIngredient</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="com/bfo/json/JWT.html#verify(byte%5B%5D,java.lang.String)" class="member-name-link">verify(byte[], String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
-<dd>
-<div class="block">Verify the JWT.</div>
-</dd>
-<dt><a href="com/bfo/json/JWT.html#verify(java.security.Key,java.lang.String)" class="member-name-link">verify(Key, String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dt><a href="com/bfo/json/JWT.html#verify(java.security.Key)" class="member-name-link">verify(Key)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
 <dd>
 <div class="block">Verify the JWT.</div>
 </dd>
