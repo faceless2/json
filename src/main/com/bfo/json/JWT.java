@@ -220,7 +220,7 @@ public class JWT {
      * @since 5
      */
     public long getIssuedAt() {
-        return header.isNumber("iat") ? header.get("iat").longValue() : 0;
+        return payload.isNumber("iat") ? payload.get("iat").longValue() : 0;
     }
 
     /**
@@ -229,7 +229,7 @@ public class JWT {
      * @since 5
      */
     public long getNotBefore() {
-        return header.isNumber("nbf") ? header.get("nbf").longValue() : 0;
+        return payload.isNumber("nbf") ? payload.get("nbf").longValue() : 0;
     }
 
     /**
@@ -238,7 +238,7 @@ public class JWT {
      * @since 5
      */
     public long getExpiry() {
-        return header.isNumber("exp") ? header.get("exp").longValue() : 0;
+        return payload.isNumber("exp") ? payload.get("exp").longValue() : 0;
     }
 
     /**
@@ -247,7 +247,7 @@ public class JWT {
      * @since 5
      */
     public String getIssuer() {
-        return header.isString("iss") ? header.stringValue("iss") : null;
+        return payload.isString("iss") ? payload.stringValue("iss") : null;
     }
 
     /**
@@ -256,7 +256,7 @@ public class JWT {
      * @since 5
      */
     public String getSubject() {
-        return header.isString("sub") ? header.stringValue("sub") : null;
+        return payload.isString("sub") ? payload.stringValue("sub") : null;
     }
 
     /**
@@ -265,12 +265,12 @@ public class JWT {
      * @since 5
      */
     public List<String> getAudience() {
-        Json aud = header.get("aud");
+        Json aud = payload.get("aud");
         if (aud == null) {
             return Collections.<String>emptyList();
         } else if (aud.isString("aud")) {
-            return Collections.<String>singletonList(header.stringValue("aud"));
-        } else if (header.isList("aud")) {
+            return Collections.<String>singletonList(payload.stringValue("aud"));
+        } else if (payload.isList("aud")) {
             List<String> l = new ArrayList<String>();
             for (int i=0;i<aud.size();i++) {
                 if (aud.get(i).isString()) {
@@ -289,7 +289,7 @@ public class JWT {
      * @since 5
      */
     public String getUniqueID() {
-        return header.isString("sub") ? header.stringValue("sub") : null;
+        return payload.isString("sub") ? payload.stringValue("sub") : null;
     }
 
     /**
@@ -299,9 +299,9 @@ public class JWT {
      */
     public void setIssuedAt(long ms) {
         if (ms <= 0) {
-            header.remove("iat");
+            payload.remove("iat");
         } else {
-            header.put("iat", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+            payload.put("iat", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
         }
     }
 
@@ -312,9 +312,9 @@ public class JWT {
      */
     public void setNotBefore(long ms) {
         if (ms <= 0) {
-            header.remove("nbf");
+            payload.remove("nbf");
         } else {
-            header.put("nbf", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+            payload.put("nbf", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
         }
     }
 
@@ -325,9 +325,9 @@ public class JWT {
      */
     public void setExpiry(long ms) {
         if (ms <= 0) {
-            header.remove("exp");
+            payload.remove("exp");
         } else {
-            header.put("exp", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+            payload.put("exp", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
         }
     }
 
@@ -338,9 +338,9 @@ public class JWT {
      */
     public void setIssuer(String val) {
         if (val == null) {
-            header.remove("iss");
+            payload.remove("iss");
         } else {
-            header.put("iss", val);
+            payload.put("iss", val);
         }
     }
 
@@ -351,9 +351,9 @@ public class JWT {
      */
     public void setSubject(String val) {
         if (val == null) {
-            header.remove("sub");
+            payload.remove("sub");
         } else {
-            header.put("sub", val);
+            payload.put("sub", val);
         }
     }
 
@@ -364,7 +364,7 @@ public class JWT {
      */
     public void setAudience(List<String> val) {
         if (val == null) {
-            header.remove("aud");
+            payload.remove("aud");
         } else {
             Json j = Json.read("[]");
             for (String s : val) {
@@ -373,9 +373,9 @@ public class JWT {
                 }
             }
             if (j.size() == 0) {
-                header.remove("aud");
+                payload.remove("aud");
             } else {
-                header.put("aud", j);
+                payload.put("aud", j);
             }
         }
     }
@@ -387,9 +387,9 @@ public class JWT {
      */
     public void setUniqueID(String val) {
         if (val == null) {
-            header.remove("jti");
+            payload.remove("jti");
         } else {
-            header.put("jti", val);
+            payload.put("jti", val);
         }
     }
 
