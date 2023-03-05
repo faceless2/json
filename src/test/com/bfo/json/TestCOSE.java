@@ -115,6 +115,9 @@ public class TestCOSE {
         System.out.println("----- BEGIN JWK+COSE TESTS -----");
         for (int i=0;i<TestJWT.jwktests.length;i++) {
             String s = TestJWT.jwktests[i];
+            if (s == null) {
+                continue;
+            }
             Json j = Json.read(s);
             String error = j.has("error") ? j.remove("error").stringValue() : null;
             try {

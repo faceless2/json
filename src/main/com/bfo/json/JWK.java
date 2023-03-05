@@ -80,86 +80,93 @@ public class JWK extends Json {
      * PEM encoded versions of public, private or both keys
      * @param data the DER or PEM encoded key
      * @param alg the algorithm - required for secret keys, optional for public/private
+     * @throws IllegalArgumentException if the key cannot be parsed
      * @since 5
      */
-    public JWK(byte[] data, String alg) throws NoSuchAlgorithmException, InvalidKeySpecException {
+    public JWK(byte[] data, String alg) {
         super(Collections.EMPTY_MAP);
         if (data == null || data.length == 0) {
             throw new NullPointerException("data is null");
         }
-        String datastring = new String(data, StandardCharsets.ISO_8859_1);
         List<Key> keys = new ArrayList<Key>();
-        do {
-            boolean privkey = false;
-            int ix = datastring.indexOf("-----BEGIN");
-            if (ix >= 0) {
-                while (datastring.length() > 0 && " \t\r\n".indexOf(datastring.charAt(0)) >= 0) {
-                    datastring = datastring.substring(1);
-                }
-                int ix2 = datastring.indexOf("-----END", ix);
-                if (ix2 > 0) {
-                    privkey = datastring.startsWith("-----BEGIN PRIVATE");
-                    data = Base64.getMimeDecoder().decode(datastring.substring(datastring.indexOf('\n', ix) + 1, ix2));
-                    ix2 = datastring.indexOf('\n', ix2);
+        try {
+            String datastring = new String(data, StandardCharsets.ISO_8859_1);
+            do {
+                boolean privkey = false;
+                int ix = datastring.indexOf("-----BEGIN");
+                if (ix >= 0) {
+                    while (datastring.length() > 0 && " \t\r\n".indexOf(datastring.charAt(0)) >= 0) {
+                        datastring = datastring.substring(1);
+                    }
+                    int ix2 = datastring.indexOf("-----END", ix);
                     if (ix2 > 0) {
-                        datastring = datastring.substring(ix2 + 1);
-                        while (datastring.length() > 0 && " \t\r\n".indexOf(datastring.charAt(0)) >= 0) {
-                            datastring = datastring.substring(1);
+                        privkey = datastring.startsWith("-----BEGIN PRIVATE");
+                        data = Base64.getMimeDecoder().decode(datastring.substring(datastring.indexOf('\n', ix) + 1, ix2));
+                        ix2 = datastring.indexOf('\n', ix2);
+                        if (ix2 > 0) {
+                            datastring = datastring.substring(ix2 + 1);
+                            while (datastring.length() > 0 && " \t\r\n".indexOf(datastring.charAt(0)) >= 0) {
+                                datastring = datastring.substring(1);
+                            }
+                        } else {
+                            datastring = "";
                         }
-                    } else {
-                        datastring = "";
+                    }
+                } else {
+                    datastring = "";
+                }
+                if (alg == null) {
+                    // Generated 1000 keys of each, checked what's in common. No need for ASN.1 here
+                    String s = JWT.hex(data, 0, Math.min(data.length, 32));
+                    if (s.contains("300d06092a864886f70d010101050003")) {            // RSA public 10224/2048/4096
+                        alg = "RSA"; privkey = false;
+                    } else if (s.contains("0100300d06092a864886f70d010101050004")) { // RSA private 10224/2048/4096
+                        alg = "RSA"; privkey = true;
+                    } else if (s.contains("20100301006072a8648ce3d020106")) {       // EC private sec256/384/521r1
+                        alg = "EC"; privkey = true;
+                    } else if (s.contains("06072a8648ce3d020106")) {                // EC public sec256/384/521r1
+                        alg = "EC"; privkey = false;
+                    } else if (s.startsWith("302a300506032b6570032100")) {         // Ed25519 public
+                        alg = "EdDSA"; privkey = false;
+                    } else if (s.startsWith("3043300506032b6571033a00")) {         // Ed558 public
+                        alg = "EdDSA"; privkey = false;
+                    } else if (s.startsWith("302e020100300506032b657004220420")) { // Ed25519 private
+                        alg = "EdDSA"; privkey = false;
+                    } else if (s.startsWith("3047020100300506032b6571043b0439")) { // Ed448 private
+                        alg = "EdDSA"; privkey = false;
                     }
                 }
-            } else {
-                datastring = "";
-            }
-            if (alg == null) {
-                // Generated 1000 keys of each, checked what's in common. No need for ASN.1 here
-                String s = JWT.hex(data, 0, Math.min(data.length, 32));
-                if (s.contains("300d06092a864886f70d010101050003")) {            // RSA public 10224/2048/4096
-                    alg = "RSA"; privkey = false;
-                } else if (s.contains("0100300d06092a864886f70d010101050004")) { // RSA private 10224/2048/4096
-                    alg = "RSA"; privkey = true;
-                } else if (s.contains("20100301006072a8648ce3d020106")) {       // EC private sec256/384/521r1
-                    alg = "EC"; privkey = true;
-                } else if (s.contains("06072a8648ce3d020106")) {                // EC public sec256/384/521r1
-                    alg = "EC"; privkey = false;
-                } else if (s.startsWith("302a300506032b6570032100")) {         // Ed25519 public
-                    alg = "EdDSA"; privkey = false;
-                } else if (s.startsWith("3043300506032b6571033a00")) {         // Ed558 public
-                    alg = "EdDSA"; privkey = false;
-                } else if (s.startsWith("302e020100300506032b657004220420")) { // Ed25519 private
-                    alg = "EdDSA"; privkey = false;
-                } else if (s.startsWith("3047020100300506032b6571043b0439")) { // Ed448 private
-                    alg = "EdDSA"; privkey = false;
+                Key key = null;
+                if ("HS256".equals(alg) || "HS384".equals(alg) || "HS512".equals(alg)) {
+                    key = new SecretKeySpec(data, "HmacSHA" + alg.substring(2));
+                } else if ("RS256".equals(alg) || "RS384".equals(alg) || "RS512".equals(alg)) {
+                    alg = "RSA";
+                } else if ("PS256".equals(alg) || "PS384".equals(alg) || "PS512".equals(alg)) {
+                    alg = "RSA";
+                } else if ("ES256".equals(alg) || "ES384".equals(alg) || "ES512".equals(alg)) {
+                    alg = "EC";
+                } else if ("Ed25519".equals(alg) || "Ed448".equals(alg) || "EdDSA".equals(alg)) {
+                    alg = "EdDSA";
                 }
-            }
-            Key key = null;
-            if ("HS256".equals(alg) || "HS384".equals(alg) || "HS512".equals(alg)) {
-                key = new SecretKeySpec(data, "HmacSHA" + alg.substring(2));
-            } else if ("RS256".equals(alg) || "RS384".equals(alg) || "RS512".equals(alg)) {
-                alg = "RSA";
-            } else if ("PS256".equals(alg) || "PS384".equals(alg) || "PS512".equals(alg)) {
-                alg = "RSA";
-            } else if ("ES256".equals(alg) || "ES384".equals(alg) || "ES512".equals(alg)) {
-                alg = "EC";
-            } else if ("Ed25519".equals(alg) || "Ed448".equals(alg) || "EdDSA".equals(alg)) {
-                alg = "EdDSA";
-            }
-            if (key == null) {
-                KeyFactory keyfactory = KeyFactory.getInstance(alg);
-                if (privkey) {
-                    key = keyfactory.generatePrivate(new PKCS8EncodedKeySpec(data));
+                if (key == null) {
+                    KeyFactory keyfactory = KeyFactory.getInstance(alg);
+                    if (privkey) {
+                        key = keyfactory.generatePrivate(new PKCS8EncodedKeySpec(data));
+                    } else {
+                        key = keyfactory.generatePublic(new X509EncodedKeySpec(data));
+                    }
+                }
+                if (key != null) {
+                    keys.add(key);
                 } else {
-                    key = keyfactory.generatePublic(new X509EncodedKeySpec(data));
+                    throw new IllegalArgumentException("invalid key or invalid alg \"" + alg + "\"");
                 }
-            }
-            if (key != null) {
-                keys.add(key);
-            } else {
-                throw new IllegalArgumentException("invalid key or invalid alg \"" + alg + "\"");
-            }
-        } while (datastring.length() > 0);
+            } while (datastring.length() > 0);
+        } catch (InvalidKeySpecException e) {
+            throw new IllegalArgumentException("Invalid key", e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalArgumentException("Unknown algorithm", e);
+        }
         if (!keys.isEmpty()) {
             setKeys(keys);
         } else {
@@ -755,6 +762,8 @@ public class JWK extends Json {
                 ECParameterSpec params;
                 if ("P-256".equals(crv)) {
                     params = ECSPEC_P256;
+                } else if ("secp256k1".equals(crv)) {
+                    params = ECSPEC_P256K;
                 } else if ("P-384".equals(crv)) {
                     params = ECSPEC_P384;
                 } else if ("P-521".equals(crv)) {
@@ -968,6 +977,9 @@ public class JWK extends Json {
                 if (eq(spec, ECSPEC_P256)) {
                     put("crv", "P-256");
                     alg = "ES256";
+                } else if (eq(spec, ECSPEC_P256K)) {
+                    put("crv", "secp256k1");    // Note this one is deprecated in Java 15+
+                    alg = "ES256K";
                 } else if (eq(spec, ECSPEC_P384)) {
                     put("crv", "P-384");
                     alg = "ES384";
@@ -1171,6 +1183,8 @@ public class JWK extends Json {
             params = new PSSParameterSpec("SHA-512", "MGF1", MGF1ParameterSpec.SHA512, 64, 1);
         } else if ("ES256".equals(alg) || "ES384".equals(alg) || "ES512".equals(alg)) {
             alg = "SHA" + alg.substring(2) + "withECDSA";
+        } else if ("ES256K".equals(alg)) {
+            alg = "SHA256withECDSA";
         } else if ("EdDSA".equals(alg)) {
             alg = "EdDSA";
         } else {
