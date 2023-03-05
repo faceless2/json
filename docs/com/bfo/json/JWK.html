@@ -84,7 +84,7 @@ loadScripts(document, 'script');</script>
 <div class="block">A class representing a single "JSON Web Key", a JSON representation of an assymetric or symmetric key.
  It may contain one <code>java.security.Key</code> or two (public AND private). Currently supports
  <ul>
-  <li>Elliptic Curve - ES256, ES384, ES512</li>
+  <li>Elliptic Curve - ES256, ES384, ES512. ES256K (prior to its removal in Java 15)</li>
   <li>RSASSA-PSS - PS256, PS384, PS512</li>
   <li>RSA - RS256, RS384, RS512 (not used in COSE, only JWT)</li>
   <li>EdDSA - Ed25519 and Ed448 (requires Java 15 or later)</li>
