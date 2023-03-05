@@ -21,18 +21,19 @@ import javax.crypto.spec.SecretKeySpec;
  * <h2>Examples</h2>
  * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
  * JWT jwt = new JWT(Json.parse("{....}"));
- * jwt.sign(key, "HS256");           // Sign using a symmetric key
+ * SecretKey key = new JWK(bytearray, "HS256").getSecretKey();
+ * jwt.sign(key);                    // Sign using a symmetric key
  * jwt = new JWT(jwt.toString());    // Encode then decode
- * assert jwt.verify(key, null);     // Verify using the same symmetric key
+ * assert jwt.verify(key);           // Verify using the same symmetric key
  *
- * byte[] pubkey = ...
- * byte[] prikey = ...
+ * PublicKey pubkey = ...
+ * PrivateKey privkey = ...
  * jwt.getHeader().put("x5u", ...);       // Add custom content to header
- * jwt.sign(prikey, "ES256");             // Sign using a asymmetric key
- * assert jwt.verify(pubkey, "ES256");    // Verify using corresponding key
+ * jwt.sign(prikey);                      // Sign using a asymmetric key
+ * assert jwt.verify(pubkey);             // Verify using corresponding key
  *
  * jwt.getPayload().clear();              // Modify the payload
- * assert !jwt.verify(pubkey, "ES256");   // Signature is no longer valid
+ * assert !jwt.verify(pubkey);            // Signature is no longer valid
  *
  * System.out.println(jwt.getPayload());
  * System.out.println(jwt.getAlgorithm());
@@ -119,35 +120,14 @@ public class JWT {
 
     /**
      * Verify the JWT.
-     * @param key the key. A raw HMAC key, or DER/PEM encoded public key. Missing keys or keys of the wrong type will cause this method to return false.
-     * @param alg the algorithm name. If <code>null</code> it will default to {@link #getAlgorithm}. <b>Should always be specified</b> to avoid security risks.
-     * @return true if the JWT is verified, false if it failed to verify.
-     * @throws RuntimeException wrapping a GeneralSecurityException if there are cryptographic problems when verifying or if the key failed to decode.
-     */
-    public boolean verify(byte[] key, String alg) {
-        try {
-            return verify(JWK.toKey(key, alg != null ? alg : getAlgorithm(), true, provider), alg);
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Verify the JWT.
      * @param key the key. A {@link SecretKey}, {@link PublicKey}, or null if the algorithm is "none". Missing keys or keys of the wrong type will cause this method to return false; specifically, if the algorithm is "none" the key <i>must</i> be null.
-     * @param alg the algorithm name. If <code>null</code> it will default to {@link #getAlgorithm}. <b>Should always be specified</b> to avoid security risks.
      * @return true if the JWT is verified, false if it failed to verify.
      * @throws RuntimeException wrapping a GeneralSecurityException if there are cryptographic problems when verifying.
      */
-    public boolean verify(Key key, String alg) {
+    public boolean verify(Key key) {
         String typ = header.isString("typ") ? header.get("typ").stringValue() : null;
         if ("JWT".equalsIgnoreCase(typ)) {
-            if (alg == null) {
-                alg = getAlgorithm();
-                if (alg == null) {
-                    throw new NullPointerException("Algorithm is null");
-                }
-            }
+            String alg = getAlgorithm();
             byte[] data = ((base64encode(header.toString()) + "." + base64encode(payload.toString())).getBytes(StandardCharsets.UTF_8));
             try {
                 if (alg.equals("none")) {
@@ -179,33 +159,12 @@ public class JWT {
 
     /**
      * Sign the JWT. Sets the "alg" key in the header and updates the signature.
-     * @param key the key. A raw HMAC key, a DER/PEM encoded private key, or null if the algorithm is "none". Required.
-     * @param alg the algorithm name. Required.
-     * @throws RuntimeException wrapping a GeneralSecurityException if there are cryptographic problems when signing or if the key failed to decode.
-     * @return this
-     */
-    public JWT sign(byte[] key, String alg) {
-        try {
-            return sign(JWK.toKey(key, alg, false, provider), alg);
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Sign the JWT. Sets the "alg" key in the header and updates the signature.
-     * @param key the key. A {@link SecretKey} or {@link PrivateKey}, or null if the algorithm is "none". Required.
-     * @param alg the algorithm name. Required.
+     * @param key the key. A {@link SecretKey} or {@link PrivateKey}, or null if the algorithm is to be "none"
      * @throws RuntimeException wrapping a GeneralSecurityException if there are cryptographic problems when signing.
      * @return this
      */
-    public JWT sign(Key key, String alg) {
-        if (alg == null) {
-            alg = new JWK(key).getAlgorithm();
-            if (alg == null) {
-                throw new IllegalArgumentException("algorithm not specified and cannot derive from " + new JWK(key));
-            }
-        }
+    public JWT sign(Key key) {
+        String alg = key == null ? "none" : new JWK(key).getAlgorithm();
         Json newheader = Json.read(header.toString());
         newheader.put("alg", alg);
         byte[] data = ((base64encode(newheader.toString()) + "." + base64encode(payload.toString())).getBytes(StandardCharsets.UTF_8));
@@ -293,9 +252,13 @@ public class JWT {
     }
 
     static String hex(byte[] in) {
-        char[] c = new char[in.length * 2];
-        for (int i=0;i<in.length;i++) {
-            int v = in[i] & 0xFF;
+        return hex(in, 0, in.length);
+    }
+
+    static String hex(byte[] in, int off, int len) {
+        char[] c = new char[len * 2];
+        for (int i=0;i<len;i++) {
+            int v = in[off + i] & 0xFF;
             int q = v >> 4;
             c[i*2] = (char)(q < 10 ? q + '0' : q + 'A' - 10);
             q = v & 0xF;

@@ -10,13 +10,13 @@ public class TestJWT {
         System.out.println("----- BEGIN JWT TESTS -----");
         for (int i=0;i<tests.length;) {
             String msg = tests[i++];
-            byte[] pub = tests[i++].getBytes("UTF-8");
-            byte[] pri = tests[i++].getBytes("UTF-8");
-
             JWT jwt = new JWT(msg);
-            assert jwt.verify(pub, null) : "Verify " + jwt.getAlgorithm();
-            jwt.sign(pri, jwt.getAlgorithm());
-            assert jwt.verify(pub, null) : "Sign+Verify " + jwt.getAlgorithm();
+            String alg = jwt.getAlgorithm();
+            JWK pub = new JWK(tests[i++].getBytes("UTF-8"), alg);
+            JWK pri = new JWK(tests[i++].getBytes("UTF-8"), alg);
+            assert jwt.verify(pub.getSecretKey() != null ? pub.getSecretKey() : pub.getPublicKey()) : "Verify " + jwt.getAlgorithm();
+            jwt.sign(pri.getSecretKey() != null ? pri.getSecretKey() : pri.getPrivateKey());
+            assert jwt.verify(pub.getSecretKey() != null ? pub.getSecretKey() : pub.getPublicKey()) : "Sign+Verify " + jwt.getAlgorithm();
             System.out.println("* sign+verify " + jwt.getAlgorithm());
         }
         System.out.println("----- END JWT TESTS -----");
@@ -31,12 +31,12 @@ public class TestJWT {
                 if (jwk.getPrivateKey() != null && jwk.getPublicKey() != null) {
                     Json msg = new Json("Hello, World");
                     JWT jwt = new JWT(msg);
-                    jwt.sign(jwk.getPrivateKey(), null);
-                    assert jwt.verify(jwk.getPublicKey(), null) : "Sign+Verify " + jwk.get("kid");
+                    jwt.sign(jwk.getPrivateKey());
+                    assert jwt.verify(jwk.getPublicKey()) : "Sign+Verify " + jwk.get("kid");
                     System.out.println("* sign+verify " + jwk.get("kid") +" "+jwt.getAlgorithm());
                     JWK jwk2 = new JWK(new KeyPair(jwk.getPublicKey(), jwk.getPrivateKey()));
                     jwk2.put("kid", jwk.get("kid"));
-                    assert jwt.verify(jwk2.getPublicKey(), null) : "Sign+Verify with cloned key " + jwk2.get("kid");
+                    assert jwt.verify(jwk2.getPublicKey()) : "Sign+Verify with cloned key " + jwk2.get("kid");
                     System.out.println("* sign+verify on cloned key " + jwk2.get("kid") +" " + jwk2.getAlgorithm());
                 }
             } catch (Exception e) {
