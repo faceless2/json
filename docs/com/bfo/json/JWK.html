@@ -322,9 +322,7 @@ loadScripts(document, 'script');</script>
 <section class="detail" id="&lt;init&gt;(byte[],java.lang.String)">
 <h3>JWK</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">JWK</span><wbr><span class="parameters">(byte[]&nbsp;data,
- <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;alg)</span>
-    throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/NoSuchAlgorithmException.html" title="class or interface in java.security" class="external-link">NoSuchAlgorithmException</a>,
-<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/spec/InvalidKeySpecException.html" title="class or interface in java.security.spec" class="external-link">InvalidKeySpecException</a></span></div>
+ <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;alg)</span></div>
 <div class="block">Create a new JWK key from a DER encoded secret, public or private key, or
  PEM encoded versions of public, private or both keys</div>
 <dl class="notes">
@@ -332,8 +330,7 @@ loadScripts(document, 'script');</script>
 <dd><code>data</code> - the DER or PEM encoded key</dd>
 <dd><code>alg</code> - the algorithm - required for secret keys, optional for public/private</dd>
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/NoSuchAlgorithmException.html" title="class or interface in java.security" class="external-link">NoSuchAlgorithmException</a></code></dd>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/spec/InvalidKeySpecException.html" title="class or interface in java.security.spec" class="external-link">InvalidKeySpecException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/IllegalArgumentException.html" title="class or interface in java.lang" class="external-link">IllegalArgumentException</a></code> - if the key cannot be parsed</dd>
 <dt>Since:</dt>
 <dd>5</dd>
 </dl>

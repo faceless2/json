@@ -644,6 +644,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return a live list of <i>assertions</i>, which can be edited.</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.html#getAudience()" class="member-name-link">getAudience()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Return the <i>audience claim</i> ("aud")</div>
+</dd>
 <dt><a href="com/bfo/box/CborContainerBox.html#getBox()" class="member-name-link">getBox()</a> - Method in class com.bfo.box.<a href="com/bfo/box/CborContainerBox.html" title="class in com.bfo.box">CborContainerBox</a></dt>
 <dd>
 <div class="block">Return the <a href="com/bfo/box/CborBox.html" title="class in com.bfo.box"><code>CborBox</code></a> child</div>
@@ -698,6 +702,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return a <code>byte[]</code> array containing the encoded box structure.</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.html#getExpiry()" class="member-name-link">getExpiry()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Return the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.</div>
+</dd>
 <dt><a href="com/bfo/json/COSE.html#getExternalProtectedAttributes()" class="member-name-link">getExternalProtectedAttributes()</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>
 <div class="block">Return the external protected attributes, as set by <a href="com/bfo/json/COSE.html#setExternalProtectedAttributes(com.bfo.json.Json)"><code>COSE.setExternalProtectedAttributes(com.bfo.json.Json)</code></a></div>
@@ -751,6 +759,14 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return the instance ID, as loaded or set by <a href="com/bfo/box/C2PAClaim.html#setInstanceID(java.lang.String)"><code>C2PAClaim.setInstanceID(java.lang.String)</code></a></div>
 </dd>
+<dt><a href="com/bfo/json/JWT.html#getIssuedAt()" class="member-name-link">getIssuedAt()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Return the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.html#getIssuer()" class="member-name-link">getIssuer()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Return the <i>issuer claim</i> ("iss")</div>
+</dd>
 <dt><a href="com/bfo/json/JWK.html#getKeys()" class="member-name-link">getKeys()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWK.html" title="class in com.bfo.json">JWK</a></dt>
 <dd>
 <div class="block">Retrieve the Keys specified in this JWK.</div>
@@ -780,6 +796,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/box/C2PAStatus.html#getMessage()" class="member-name-link">getMessage()</a> - Method in class com.bfo.box.<a href="com/bfo/box/C2PAStatus.html" title="class in com.bfo.box">C2PAStatus</a></dt>
 <dd>
 <div class="block">Return the message if specified, or null</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.html#getNotBefore()" class="member-name-link">getNotBefore()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Return the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.</div>
 </dd>
 <dt><a href="com/bfo/json/COSE.html#getNumSignatures()" class="member-name-link">getNumSignatures()</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>
@@ -848,6 +868,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return the Code enum, if this is a standard code, or null otherwise</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.html#getSubject()" class="member-name-link">getSubject()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Return the <i>subject claim</i> ("sub")</div>
+</dd>
 <dt><a href="com/bfo/json/Json.html#getTag()" class="member-name-link">getTag()</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Return the tag for this item.</div>
@@ -864,6 +888,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/box/C2PASignature.html#getTimestamp()" class="member-name-link">getTimestamp()</a> - Method in class com.bfo.box.<a href="com/bfo/box/C2PASignature.html" title="class in com.bfo.box">C2PASignature</a></dt>
 <dd>
 <div class="block">Return the timestamp the signature was applied at, or 0 if not known.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.html#getUniqueID()" class="member-name-link">getUniqueID()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Return the <i>unique id claim</i> ("jti")</div>
 </dd>
 <dt><a href="com/bfo/json/COSE.html#getUnprotectedAttributes()" class="member-name-link">getUnprotectedAttributes()</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>
@@ -1108,6 +1136,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/box/C2PA_AssertionHashBMFF.html#isV2()" class="member-name-link">isV2()</a> - Method in class com.bfo.box.<a href="com/bfo/box/C2PA_AssertionHashBMFF.html" title="class in com.bfo.box">C2PA_AssertionHashBMFF</a></dt>
 <dd>
 <div class="block">Return whether this BMFF is version 2</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.html#isValidAt(long)" class="member-name-link">isValidAt(long)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Check the token was valid at the specified time.</div>
 </dd>
 </dl>
 <h2 class="title" id="I:J">J</h2>
@@ -1471,6 +1503,10 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#setArrayIndex(java.lang.Object,int,java.lang.Object)" class="member-name-link">setArrayIndex(Object, int, Object)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/bfo/json/JWT.html#setAudience(java.util.List)" class="member-name-link">setAudience(List&lt;String&gt;)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Set the <i>audience claim</i> ("aud")</div>
+</dd>
 <dt><a href="com/bfo/json/JsonWriteOptions.html#setBase64Standard(boolean)" class="member-name-link">setBase64Standard(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></dt>
 <dd>
 <div class="block">
@@ -1528,6 +1564,10 @@ loadScripts(document, 'script');</script>
 <div class="block">Set the exclusion range, a sequence of [start, length] pairs
  determining which bytes from the InputStream read by <a href="com/bfo/box/C2PA_AssertionHashData.html#verify()"><code>C2PA_AssertionHashData.verify()</code></a>
  to read and which to skip.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.html#setExpiry(long)" class="member-name-link">setExpiry(long)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Set the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.</div>
 </dd>
 <dt><a href="com/bfo/json/COSE.html#setExternalProtectedAttributes(com.bfo.json.Json)" class="member-name-link">setExternalProtectedAttributes(Json)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>
@@ -1592,6 +1632,14 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Set the instance ID - this should be a UUID and must be set before signing</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.html#setIssuedAt(long)" class="member-name-link">setIssuedAt(long)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Set the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.html#setIssuer(java.lang.String)" class="member-name-link">setIssuer(String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Set the <i>issuer claim</i> ("iss")</div>
+</dd>
 <dt><a href="com/bfo/box/JsonBox.html#setJson(com.bfo.json.Json)" class="member-name-link">setJson(Json)</a> - Method in class com.bfo.box.<a href="com/bfo/box/JsonBox.html" title="class in com.bfo.box">JsonBox</a></dt>
 <dd>
 <div class="block">Set a new Json object to replace the one in this box</div>
@@ -1622,6 +1670,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Set whether to normalize all Strings (including map keys) to Unicode <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/text/Normalizer.Form.html#NFC" title="class or interface in java.text" class="external-link"><code>normal form C</code></a>
  when writing.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.html#setNotBefore(long)" class="member-name-link">setNotBefore(long)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Set the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.</div>
 </dd>
 <dt><a href="com/bfo/json/JWK.html#setOps(java.util.Collection)" class="member-name-link">setOps(Collection&lt;String&gt;)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWK.html" title="class in com.bfo.json">JWK</a></dt>
 <dd>
@@ -1671,6 +1723,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Determines whether objects read by the JsonReader will be loosely typed.</div>
 </dd>
+<dt><a href="com/bfo/json/JWT.html#setSubject(java.lang.String)" class="member-name-link">setSubject(String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Set the <i>subject claim</i> ("sub")</div>
+</dd>
 <dt><a href="com/bfo/json/Json.html#setTag(long)" class="member-name-link">setTag(long)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Set the tag for this item.</div>
@@ -1683,6 +1739,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">If the signature does not contain a timestamp, set the time that the signature
  was applied.</div>
+</dd>
+<dt><a href="com/bfo/json/JWT.html#setUniqueID(java.lang.String)" class="member-name-link">setUniqueID(String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
+<dd>
+<div class="block">Set the <i>unique id claim</i> ("jti")</div>
 </dd>
 <dt><a href="com/bfo/json/COSE.html#setUnprotectedAttributes(com.bfo.json.Json)" class="member-name-link">setUnprotectedAttributes(Json)</a> - Method in class com.bfo.json.<a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></dt>
 <dd>

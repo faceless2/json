@@ -99,6 +99,8 @@ loadScripts(document, 'script');</script>
  jwt.getPayload().clear();              // Modify the payload
  assert !jwt.verify(pubkey);            // Signature is no longer valid
 
+ assert jwt.isValidAt(jwt.getIssuedAt()); // check JWT time is not expired
+
  System.out.println(jwt.getPayload());
  System.out.println(jwt.getAlgorithm());
  </pre></div>
@@ -148,44 +150,119 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Return the algorithm name.</div>
 </div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getAudience()" class="member-name-link">getAudience</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the <i>audience claim</i> ("aud")</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>long</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getExpiry()" class="member-name-link">getExpiry</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Json.html" title="class in com.bfo.json">Json</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getHeader()" class="member-name-link">getHeader</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Return the header object.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Json.html" title="class in com.bfo.json">Json</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getPayload()" class="member-name-link">getPayload</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>long</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getIssuedAt()" class="member-name-link">getIssuedAt</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Return the payload object.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Provider.html" title="class or interface in java.security" class="external-link">Provider</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getProvider()" class="member-name-link">getProvider</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Return the Provider set by <a href="#setProvider(java.security.Provider)"><code>setProvider(java.security.Provider)</code></a></div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>byte[]</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getSignature()" class="member-name-link">getSignature</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Return the signature object.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="JWT.html" title="class in com.bfo.json">JWT</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setProvider(java.security.Provider)" class="member-name-link">setProvider</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Provider.html" title="class or interface in java.security" class="external-link">Provider</a>&nbsp;provider)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Set the Provider to be used for any cryptographic operations</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="JWT.html" title="class in com.bfo.json">JWT</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sign(java.security.Key)" class="member-name-link">sign</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Key.html" title="class or interface in java.security" class="external-link">Key</a>&nbsp;key)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Sign the JWT.</div>
+<div class="block">Return the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getIssuer()" class="member-name-link">getIssuer</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Return the encoded JWT</div>
+<div class="block">Return the <i>issuer claim</i> ("iss")</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>long</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getNotBefore()" class="member-name-link">getNotBefore</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Json.html" title="class in com.bfo.json">Json</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getPayload()" class="member-name-link">getPayload</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the payload object.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Provider.html" title="class or interface in java.security" class="external-link">Provider</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getProvider()" class="member-name-link">getProvider</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the Provider set by <a href="#setProvider(java.security.Provider)"><code>setProvider(java.security.Provider)</code></a></div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>byte[]</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getSignature()" class="member-name-link">getSignature</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the signature object.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getSubject()" class="member-name-link">getSubject</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the <i>subject claim</i> ("sub")</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getUniqueID()" class="member-name-link">getUniqueID</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the <i>unique id claim</i> ("jti")</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(java.security.Key)" class="member-name-link">verify</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Key.html" title="class or interface in java.security" class="external-link">Key</a>&nbsp;key)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isValidAt(long)" class="member-name-link">isValidAt</a><wbr>(long&nbsp;time)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Check the token was valid at the specified time.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setAudience(java.util.List)" class="member-name-link">setAudience</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;val)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the <i>audience claim</i> ("aud")</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setExpiry(long)" class="member-name-link">setExpiry</a><wbr>(long&nbsp;ms)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setIssuedAt(long)" class="member-name-link">setIssuedAt</a><wbr>(long&nbsp;ms)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setIssuer(java.lang.String)" class="member-name-link">setIssuer</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;val)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the <i>issuer claim</i> ("iss")</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setNotBefore(long)" class="member-name-link">setNotBefore</a><wbr>(long&nbsp;ms)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="JWT.html" title="class in com.bfo.json">JWT</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setProvider(java.security.Provider)" class="member-name-link">setProvider</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Provider.html" title="class or interface in java.security" class="external-link">Provider</a>&nbsp;provider)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the Provider to be used for any cryptographic operations</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setSubject(java.lang.String)" class="member-name-link">setSubject</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;val)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the <i>subject claim</i> ("sub")</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setUniqueID(java.lang.String)" class="member-name-link">setUniqueID</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;val)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Set the <i>unique id claim</i> ("jti")</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="JWT.html" title="class in com.bfo.json">JWT</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sign(java.security.Key)" class="member-name-link">sign</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Key.html" title="class or interface in java.security" class="external-link">Key</a>&nbsp;key)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Sign the JWT.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Return the encoded JWT</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(java.security.Key)" class="member-name-link">verify</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/security/Key.html" title="class or interface in java.security" class="external-link">Key</a>&nbsp;key)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Verify the JWT.</div>
 </div>
 </div>
@@ -317,6 +394,205 @@ loadScripts(document, 'script');</script>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the algorithm name</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="getIssuedAt()">
+<h3>getIssuedAt</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">long</span>&nbsp;<span class="element-name">getIssuedAt</span>()</div>
+<div class="block">Return the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the time or 0 if not set</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="getNotBefore()">
+<h3>getNotBefore</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">long</span>&nbsp;<span class="element-name">getNotBefore</span>()</div>
+<div class="block">Return the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the time or 0 if not set</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="getExpiry()">
+<h3>getExpiry</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">long</span>&nbsp;<span class="element-name">getExpiry</span>()</div>
+<div class="block">Return the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the time or 0 if not set</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="getIssuer()">
+<h3>getIssuer</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getIssuer</span>()</div>
+<div class="block">Return the <i>issuer claim</i> ("iss")</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the issuer or null if not set</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="getSubject()">
+<h3>getSubject</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getSubject</span>()</div>
+<div class="block">Return the <i>subject claim</i> ("sub")</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the subject or null if not set</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="getAudience()">
+<h3>getAudience</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">getAudience</span>()</div>
+<div class="block">Return the <i>audience claim</i> ("aud")</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the audience claim, or an empty list if not set</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="getUniqueID()">
+<h3>getUniqueID</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getUniqueID</span>()</div>
+<div class="block">Return the <i>unique id claim</i> ("jti")</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the unique id or null if not set</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setIssuedAt(long)">
+<h3>setIssuedAt</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setIssuedAt</span><wbr><span class="parameters">(long&nbsp;ms)</span></div>
+<div class="block">Set the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>ms</code> - the time, or 0 to unset it</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setNotBefore(long)">
+<h3>setNotBefore</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setNotBefore</span><wbr><span class="parameters">(long&nbsp;ms)</span></div>
+<div class="block">Set the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>ms</code> - the time, or 0 to unset it</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setExpiry(long)">
+<h3>setExpiry</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setExpiry</span><wbr><span class="parameters">(long&nbsp;ms)</span></div>
+<div class="block">Set the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>ms</code> - the time, or 0 to unset it</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setIssuer(java.lang.String)">
+<h3>setIssuer</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setIssuer</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;val)</span></div>
+<div class="block">Set the <i>issuer claim</i> ("iss")</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>val</code> - the issuer, or null to unset it</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setSubject(java.lang.String)">
+<h3>setSubject</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setSubject</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;val)</span></div>
+<div class="block">Set the <i>subject claim</i> ("sub")</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>val</code> - the issuer, or null to unset it</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setAudience(java.util.List)">
+<h3>setAudience</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setAudience</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;val)</span></div>
+<div class="block">Set the <i>audience claim</i> ("aud")</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>val</code> - the audience claim; null or an empty list will unset it</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="setUniqueID(java.lang.String)">
+<h3>setUniqueID</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setUniqueID</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;val)</span></div>
+<div class="block">Set the <i>unique id claim</i> ("jti")</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>val</code> - the unique id, or null to unset it</dd>
+<dt>Since:</dt>
+<dd>5</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="isValidAt(long)">
+<h3>isValidAt</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isValidAt</span><wbr><span class="parameters">(long&nbsp;time)</span></div>
+<div class="block">Check the token was valid at the specified time.
+ If the supplied time is 0, the current time will be used.
+ If the token has an expiry time and/or not-before time, they
+ will be compared to the supplied time and false returned if
+ they are out of rang. If they are not specified, true is returned.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>time</code> - the token issued-at time, or 0 to use the current time</dd>
+<dt>Returns:</dt>
+<dd>if the key can not be determined as invalid at the specified time</dd>
 </dl>
 </section>
 </li>
