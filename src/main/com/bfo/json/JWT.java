@@ -15,8 +15,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * A trivial Java Web Token class.
- * Supports all standard JWT algorithms.
+ * A trivial JWT (Json Web Token) implementation
+ * Supports all signature algorithms supported by {@link JWK}.
  *
  * <h2>Examples</h2>
  * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
@@ -41,6 +41,8 @@ import javax.crypto.spec.SecretKeySpec;
  * System.out.println(jwt.getAlgorithm());
  * </pre>
  * @since 4
+ * @see COSE
+ * @see JWK
  */
 public class JWT {
 
@@ -398,7 +400,7 @@ public class JWT {
      * If the supplied time is 0, the current time will be used.
      * If the token has an expiry time and/or not-before time, they
      * will be compared to the supplied time and false returned if
-     * they are out of rang. If they are not specified, true is returned.
+     * they are out of range. If they are not specified, true is returned.
      * @param time the token issued-at time, or 0 to use the current time
      * @return if the key can not be determined as invalid at the specified time
      */
