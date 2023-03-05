@@ -79,8 +79,8 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">JWT</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">A trivial Java Web Token class.
- Supports all standard JWT algorithms.
+<div class="block">A trivial JWT (Json Web Token) implementation
+ Supports all signature algorithms supported by <a href="JWK.html" title="class in com.bfo.json"><code>JWK</code></a>.
 
  <h2>Examples</h2>
  <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
@@ -107,6 +107,13 @@ loadScripts(document, 'script');</script>
 <dl class="notes">
 <dt>Since:</dt>
 <dd>4</dd>
+<dt>See Also:</dt>
+<dd>
+<ul class="see-list">
+<li><a href="COSE.html" title="class in com.bfo.json"><code>COSE</code></a></li>
+<li><a href="JWK.html" title="class in com.bfo.json"><code>JWK</code></a></li>
+</ul>
+</dd>
 </dl>
 </section>
 <section class="summary">
@@ -587,7 +594,7 @@ loadScripts(document, 'script');</script>
  If the supplied time is 0, the current time will be used.
  If the token has an expiry time and/or not-before time, they
  will be compared to the supplied time and false returned if
- they are out of rang. If they are not specified, true is returned.</div>
+ they are out of range. If they are not specified, true is returned.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>time</code> - the token issued-at time, or 0 to use the current time</dd>
