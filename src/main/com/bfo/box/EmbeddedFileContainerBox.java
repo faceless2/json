@@ -31,7 +31,7 @@ public class EmbeddedFileContainerBox extends JUMBox {
     public EmbeddedFileContainerBox(String label, String mediaType, String fileName, InputStream data) throws IOException {
         super(SUBTYPE, label);
         add(new BfdbBox(mediaType, fileName, false));
-        add(new DataBox("bidb", readFully(data)));
+        add(new DataBox("bidb", readFully(data, null, 0, 0)));
     }
 
     @Override protected void read(InputStream in, BoxFactory factory) throws IOException {

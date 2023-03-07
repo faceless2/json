@@ -16,7 +16,7 @@ public class XMPBox extends ExtensionBox {
 
     @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
         super.read(in, factory);
-        data = readFully(in);
+        data = readFully(in, null, 0, 0);
     }
 
     @Override protected void write(OutputStream out) throws IOException {

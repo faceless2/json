@@ -164,9 +164,6 @@ public class BoxFactory {
         if (stream == null) {
             throw new NullPointerException("stream is null");
         }
-        if (!stream.markSupported()) {
-            stream = new BufferedInputStream(stream);
-        }
         CountingInputStream in = stream instanceof CountingInputStream ? (CountingInputStream)stream : new CountingInputStream(stream);
         long off = in.tell();
         long len = in.read();
@@ -209,15 +206,28 @@ public class BoxFactory {
         in.limit(len == 0 ? -1 : off + len);
 
         String type = Box.typeToString(typeval);
-        // System.out.println("READING \"" + type + "\" of " + len + " at " + off);
+        // System.out.println("READING \"" + type + "\" of " + len + " at " + off+" subtyped="+isSubtyped(type)+" in="+in);
         String subtype = null, label = null;
         if (isSubtyped(type)) {
-            in.mark(4);
-            int nextlen = Box.readInt(in);
-            in.reset();
-            in.mark(nextlen);
-            Box desc = load(in);
-            in.reset();
+            byte[] tmp;
+            Box desc;
+            if (isContainer(type)) {
+                int nextlen = Box.readInt(in);
+                tmp = new byte[nextlen + 4];
+                tmp[0] = (byte)(nextlen>>24);
+                tmp[1] = (byte)(nextlen>>16);
+                tmp[2] = (byte)(nextlen>>8);
+                tmp[3] = (byte)(nextlen>>0);
+                Box.readFully(in, tmp, 4, tmp.length - 4);
+                desc = load(new CountingInputStream(new ByteArrayInputStream(tmp)));
+            } else {
+                tmp = Box.readFully(in, null, 0, 0);
+                desc = createBox(type, null, null);
+                desc.len = len;
+                desc.type = typeval;
+                desc.read(new CountingInputStream(new ByteArrayInputStream(tmp)), this);
+            }
+            in.rewind(tmp);
             if (desc instanceof ExtensionBox) {
                 subtype = ((ExtensionBox)desc).subtype();
                 if (desc instanceof JumdBox) {
@@ -311,6 +321,7 @@ public class BoxFactory {
         for (String s : containerList) {
             containers.add(s);
         }
+        register("uuid", null,   null, false, ExtensionBox.class);
         register("jumb", null,   null, true,  JUMBox.class);
         register("jumd", null,   null, false, JumdBox.class);
         register("cbor", null,   null, false, CborBox.class);                        // Raw CBOR box with no children

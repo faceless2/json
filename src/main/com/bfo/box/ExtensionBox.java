@@ -11,7 +11,7 @@ import java.io.*;
  * in ISO14496.
  * @since 5
  */
-public abstract class ExtensionBox extends Box {
+public class ExtensionBox extends Box {
 
     private String subtype;
 
