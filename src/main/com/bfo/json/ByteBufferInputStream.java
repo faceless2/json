@@ -18,6 +18,19 @@ public class ByteBufferInputStream extends CountingInputStream {
         this.in = in;
     }
 
+    @Override public void rewind(byte[] buf) {
+        int pos = in.position();
+        if (pos - buf.length < 0) {
+            throw new IllegalStateException("Too far");
+        }
+        for (int i=0;i<buf.length;i++) {
+            if (buf[i] != in.get(pos - buf.length + i)) {
+                throw new IllegalStateException("Already rewound: " + this+" " +i);
+            }
+        }
+        in.position(pos - buf.length);
+    }
+
     @Override public int read() {
         return available() > 0 ? in.get() & 0xFF : -1;
     }
