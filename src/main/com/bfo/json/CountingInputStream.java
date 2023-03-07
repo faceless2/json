@@ -26,7 +26,17 @@ public class CountingInputStream extends FilterInputStream {
      */
     public void rewind(byte[] buf) {
         if (rewind != null) {
-            throw new IllegalStateException("Already rewound");
+            if (buf.length > rewindpos) {
+                throw new IllegalStateException("Already rewound: " + this);
+            }
+            for (int i=0;i<buf.length;i++) {
+                if (buf[i] != rewind[rewindpos - buf.length + i]) {
+                    throw new IllegalStateException("Already rewound: " + this+" " +i);
+                }
+            }
+            rewindpos -= buf.length;
+            pos -= buf.length;
+            return;
         }
         rewind = buf;
         rewindpos = 0;
@@ -126,13 +136,19 @@ public class CountingInputStream extends FilterInputStream {
     }
 
     @Override public void mark(int readlimit) {
+        if (rewind != null && readlimit + rewindpos > rewind.length) {
+            throw new IllegalArgumentException("Overruns rewind");
+        }
         super.mark(readlimit);
         this.mark = pos;
     }
 
     @Override public void reset() throws IOException {
         super.reset();
-        this.pos = mark;
+        if (rewind != null) {
+            rewindpos -= pos - mark;
+        }
+        pos = mark;
     }
 
     @Override public String toString() {

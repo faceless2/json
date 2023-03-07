@@ -103,9 +103,27 @@ public class Box {
             while (off < len && (l=in.read(buf, off, len - off)) >= 0) {
                 off += l;
             }
+            if (off < len) {
+                throw new EOFException();
+            }
             return buf;
         }
     }
+
+    /**
+     * @hidden
+     */
+    protected static ByteArrayInputStream getByteArrayInputStream(byte[] buf, int off, int len) {
+        if (len < 0) {
+            len = buf.length;
+        }
+        return new ByteArrayInputStream(buf, off, len) {
+            public String toString() {
+                return "{bais:hash="+Integer.toHexString(hashCode())+" off="+pos+" len="+count+"}";
+            }
+        };
+    }
+
 
     /**
      * @hidden

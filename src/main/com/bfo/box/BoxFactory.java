@@ -192,7 +192,7 @@ public class BoxFactory {
             while (tmpoff < len) {
                 localcopy[tmpoff++] = (byte)in.read();
             }
-            in = new CountingInputStream(new ByteArrayInputStream(localcopy));
+            in = new CountingInputStream(Box.getByteArrayInputStream(localcopy, 0, localcopy.length));
             off = 0;
             in.limit(len);
             in.skip(4);
@@ -206,7 +206,6 @@ public class BoxFactory {
         in.limit(len == 0 ? -1 : off + len);
 
         String type = Box.typeToString(typeval);
-        // System.out.println("READING \"" + type + "\" of " + len + " at " + off+" subtyped="+isSubtyped(type)+" in="+in);
         String subtype = null, label = null;
         if (isSubtyped(type)) {
             byte[] tmp;
@@ -219,13 +218,13 @@ public class BoxFactory {
                 tmp[2] = (byte)(nextlen>>8);
                 tmp[3] = (byte)(nextlen>>0);
                 Box.readFully(in, tmp, 4, tmp.length - 4);
-                desc = load(new CountingInputStream(new ByteArrayInputStream(tmp)));
+                desc = load(new CountingInputStream(Box.getByteArrayInputStream(tmp, 0, tmp.length)));
             } else {
                 tmp = Box.readFully(in, null, 0, 0);
                 desc = createBox(type, null, null);
                 desc.len = len;
                 desc.type = typeval;
-                desc.read(new CountingInputStream(new ByteArrayInputStream(tmp)), this);
+                desc.read(new CountingInputStream(Box.getByteArrayInputStream(tmp, 0, tmp.length)), this);
             }
             in.rewind(tmp);
             if (desc instanceof ExtensionBox) {
@@ -236,6 +235,7 @@ public class BoxFactory {
             }
         }
         Box box = createBox(type, subtype, label);
+        // System.out.println("READING type=\"" + type + "\" subtype="+subtype+" label="+label+" of " + len + " at " + off + " cl=" + box.getClass().getName() + " in=" + in);
         box.len = len;
         box.type = typeval;
         box.read(in, this);
@@ -340,6 +340,7 @@ public class BoxFactory {
         register("jumb", EmbeddedFileContainerBox.SUBTYPE, null, true, EmbeddedFileContainerBox.class);
         register("uuid", "be7acfcb97a942e89c71999491e3afac", null, false, XMPBox.class);// wrong order, magnificently prioritised in XMP spec
         register("uuid", XMPBox.SUBTYPE, null, false, XMPBox.class); // byte order FFS
+        register("uuid", C2PAContainerBox.SUBTYPE, null, false, C2PAContainerBox.class);
 
         // special assertions
         register("jumb", EmbeddedFileContainerBox.SUBTYPE, "c2pa.thumbnail", true, C2PA_AssertionThumbnail.class);
