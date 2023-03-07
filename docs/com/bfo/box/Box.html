@@ -103,14 +103,21 @@ loadScripts(document, 'script');</script>
  Some simple examples.
  </p>
  <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
- Box box = Box.load(inputstream, null, null);
- for (Box child=box.first();box!=null;box=box.next()) {
-   System.out.println(box.type());         // A 4-character string
-   assert box.parent() == box;
+ BoxFactory factory = new BoxFactory();
+ Box box;
+ while ((box=factory.load(inpustream)) != null) {
+   traverse(box, "");
+ }
+ 
+ void traverse(Box box, String prefix) {
+   System.out.println(box.type()); // a 4-character string
    if (box instanceof XMPBox) {
      byte[] xmpdata = ((XMPBox)box).data(); // box subclasses are more interesting
    }
-   byte[] data = box.getEncoded(); // if box and all its descendents are stored, write as a byte array.
+   for (Box child=box.first();box!=null;box=box.next()) {
+     assert child.parent() == box;
+     traverse(child, prefix + " ");
+   }
  }
  </pre></div>
 <dl class="notes">

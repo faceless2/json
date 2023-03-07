@@ -124,141 +124,146 @@ loadScripts(document, 'script');</script>
 <div class="block">The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_claims">claim box</a>
  used to stored the claim in a <a href="com/bfo/box/C2PAManifest.html" title="class in com.bfo.box"><code>manifest box</code></a>.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PAHelper.html" title="class in com.bfo.box">C2PAHelper</a></div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PAContainerBox.html" title="class in com.bfo.box">C2PAContainerBox</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="block">A C2PAContainerBox wraps a <a href="com/bfo/box/C2PAStore.html" title="class in com.bfo.box"><code>C2PAStore</code></a> inside a "uuid" box, for safe storage inside
+ an ISO BMFF-based file.</div>
+</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PAHelper.html" title="class in com.bfo.box">C2PAHelper</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A general Helper class for C2PA which functions as a main method, provides
  utility methods for embedding C2PA in files.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PAManifest.html" title="class in com.bfo.box">C2PAManifest</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PAManifest.html" title="class in com.bfo.box">C2PAManifest</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">
  The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_manifests">manifest box</a>
  represents a signed sequence of assertions.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PASignature.html" title="class in com.bfo.box">C2PASignature</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PASignature.html" title="class in com.bfo.box">C2PASignature</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_digital_signatures">C2PA signature</a>
  is applied to each <a href="com/bfo/box/C2PAManifest.html" title="class in com.bfo.box"><code>manifest</code></a> to sign it.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PAStatus.html" title="class in com.bfo.box">C2PAStatus</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PAStatus.html" title="class in com.bfo.box">C2PAStatus</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A representation of a C2PA
  <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_status_codes">status code</a>,
  with a message and an optional URL describing its origin</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab3"><a href="com/bfo/box/C2PAStatus.Code.html" title="enum class in com.bfo.box">C2PAStatus.Code</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab3">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab3"><a href="com/bfo/box/C2PAStatus.Code.html" title="enum class in com.bfo.box">C2PAStatus.Code</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab3">
 <div class="block">An enum listing the predefined
  <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_status_codes">status code</a></div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PAStore.html" title="class in com.bfo.box">C2PAStore</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/C2PAStore.html" title="class in com.bfo.box">C2PAStore</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">
  The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_c2pa_box_details">store box</a>
  is the top-level box for any C2PA object.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/CborBox.html" title="class in com.bfo.box">CborBox</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/CborBox.html" title="class in com.bfo.box">CborBox</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A "cbor" box contains a single CBOR object.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/CborContainerBox.html" title="class in com.bfo.box">CborContainerBox</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/CborContainerBox.html" title="class in com.bfo.box">CborContainerBox</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A CborContainerBox is a JUMBF wrapper around a single <a href="com/bfo/box/CborBox.html" title="class in com.bfo.box"><code>CborBox</code></a>.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/COSE.html" title="class in com.bfo.json">COSE</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A basic COSE class.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/DataBox.html" title="class in com.bfo.box">DataBox</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/DataBox.html" title="class in com.bfo.box">DataBox</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A general Box that stores its content as a byte array.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/EmbeddedFileContainerBox.html" title="class in com.bfo.box">EmbeddedFileContainerBox</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/EmbeddedFileContainerBox.html" title="class in com.bfo.box">EmbeddedFileContainerBox</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">An EmbeddedFileContainerBox is a JUMBF wrapper around a pair of "bfdb" and "bidb" boxes.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/ExtensionBox.html" title="class in com.bfo.box">ExtensionBox</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/ExtensionBox.html" title="class in com.bfo.box">ExtensionBox</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">This superclass of Box handles the standad "extension" format defined in
  ISO14496-12 s 11.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">JSON (and now CBOR/Msgpack) implementation that tries to be simple, complete, fast and follow the principle ofi
  least surprise.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/JsonBox.html" title="class in com.bfo.box">JsonBox</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/JsonBox.html" title="class in com.bfo.box">JsonBox</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A "json" box contains a single JSON object.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/JsonContainerBox.html" title="class in com.bfo.box">JsonContainerBox</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/JsonContainerBox.html" title="class in com.bfo.box">JsonContainerBox</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A JsonContainerBox is a JUMBF wrapper around a single <a href="com/bfo/box/JsonBox.html" title="class in com.bfo.box"><code>JsonBox</code></a>.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonEvent.html" title="class in com.bfo.json">JsonEvent</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonEvent.html" title="class in com.bfo.json">JsonEvent</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">
  An event object which notifies a <a href="com/bfo/json/JsonListener.html" title="interface in com.bfo.json"><code>JsonListener</code></a> of changes to a Json object.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="com/bfo/json/JsonFactory.html" title="interface in com.bfo.json">JsonFactory</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="com/bfo/json/JsonFactory.html" title="interface in com.bfo.json">JsonFactory</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
 <div class="block">
  A Factory interface that can be implemented to convert more complex
  types to/from Json if required.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="com/bfo/json/JsonListener.html" title="interface in com.bfo.json">JsonListener</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab1">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="com/bfo/json/JsonListener.html" title="interface in com.bfo.json">JsonListener</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
 <div class="block">An interface that can be implemented to monitor changes to the Json object tree.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A JsonProvider for <a href="https://github.com/json-path/JsonPath">JsonPath</a>
  This will be used whenever the <a href="com/bfo/json/Json.html#eval(java.lang.String)"><code>Json.eval(java.lang.String)</code></a> or <a href="com/bfo/json/Json.html#evalAll(java.lang.String)"><code>Json.evalAll(java.lang.String)</code></a> methods
  are called.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonReadOptions.html" title="class in com.bfo.json">JsonReadOptions</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">
  This class controls the details of the <a href="com/bfo/json/Json.html#read(java.lang.CharSequence)"><code>Json.read()</code></a> call.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonReadOptions.Filter.html" title="class in com.bfo.json">JsonReadOptions.Filter</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonReadOptions.Filter.html" title="class in com.bfo.json">JsonReadOptions.Filter</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A Filter which can be applied during reading of data.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonWriteOptions.html" title="class in com.bfo.json">JsonWriteOptions</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">
  This class determines how the Json written with <a href="com/bfo/json/Json.html#write(java.lang.Appendable,com.bfo.json.JsonWriteOptions)"><code>Json.write()</code></a> is formatted.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonWriteOptions.Filter.html" title="class in com.bfo.json">JsonWriteOptions.Filter</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JsonWriteOptions.Filter.html" title="class in com.bfo.json">JsonWriteOptions.Filter</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A Filter which can be used to restrict which nodes are written, or to
  override the source of data for some nodes</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/JUMBox.html" title="class in com.bfo.box">JUMBox</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/JUMBox.html" title="class in com.bfo.box">JUMBox</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">Represents a "JUMBF" ("JPEG Univesal Metadata Box Format") box as defined in
  ISO19566 appendix A.2.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JWK.html" title="class in com.bfo.json">JWK</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JWK.html" title="class in com.bfo.json">JWK</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A class representing a single "JSON Web Key", a JSON representation of an asymmetric key/keypair, or a symmetric key.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">A trivial JWT (Json Web Token) implementation
  Supports all signature algorithms supported by <a href="com/bfo/json/JWK.html" title="class in com.bfo.json"><code>JWK</code></a>.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/TrackHeaderBox.html" title="class in com.bfo.box">TrackHeaderBox</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/TrackHeaderBox.html" title="class in com.bfo.box">TrackHeaderBox</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">Represents a "tkhd" Track Header box, defined in ISO14496-12 section 8.3.2.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/XmlBox.html" title="class in com.bfo.box">XmlBox</a></div>
-<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/XmlBox.html" title="class in com.bfo.box">XmlBox</a></div>
+<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
 <div class="block">An "xml " box (note the space) contains a single XML object.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/XMPBox.html" title="class in com.bfo.box">XMPBox</a></div>
-<div class="col-last odd-row-color all-classes-table all-classes-table-tab2">
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="com/bfo/box/XMPBox.html" title="class in com.bfo.box">XMPBox</a></div>
+<div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">An XMP box is a semi-standardized box holding XMP metadata, which is now defined in
  ISO16684, although this method of storage for XMP dates from "part 3" of the pre-ISO specifications.</div>
 </div>

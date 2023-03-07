@@ -132,80 +132,86 @@ loadScripts(document, 'script');</script>
  used to stored the claim in a <a href="../C2PAManifest.html" title="class in com.bfo.box"><code>manifest box</code></a>.</div>
 </div>
 <div class="col-first even-row-color"><code>class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="../C2PAManifest.html" class="type-name-link" title="class in com.bfo.box">C2PAManifest</a></code></div>
+<div class="col-second even-row-color"><code><a href="../C2PAContainerBox.html" class="type-name-link" title="class in com.bfo.box">C2PAContainerBox</a></code></div>
 <div class="col-last even-row-color">
+<div class="block">A C2PAContainerBox wraps a <a href="../C2PAStore.html" title="class in com.bfo.box"><code>C2PAStore</code></a> inside a "uuid" box, for safe storage inside
+ an ISO BMFF-based file.</div>
+</div>
+<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../C2PAManifest.html" class="type-name-link" title="class in com.bfo.box">C2PAManifest</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">
  The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_manifests">manifest box</a>
  represents a signed sequence of assertions.</div>
 </div>
-<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="../C2PASignature.html" class="type-name-link" title="class in com.bfo.box">C2PASignature</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../C2PASignature.html" class="type-name-link" title="class in com.bfo.box">C2PASignature</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_digital_signatures">C2PA signature</a>
  is applied to each <a href="../C2PAManifest.html" title="class in com.bfo.box"><code>manifest</code></a> to sign it.</div>
 </div>
-<div class="col-first even-row-color"><code>class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="../C2PAStore.html" class="type-name-link" title="class in com.bfo.box">C2PAStore</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../C2PAStore.html" class="type-name-link" title="class in com.bfo.box">C2PAStore</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">
  The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_c2pa_box_details">store box</a>
  is the top-level box for any C2PA object.</div>
 </div>
-<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="../CborBox.html" class="type-name-link" title="class in com.bfo.box">CborBox</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../CborBox.html" class="type-name-link" title="class in com.bfo.box">CborBox</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">A "cbor" box contains a single CBOR object.</div>
 </div>
-<div class="col-first even-row-color"><code>class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="../CborContainerBox.html" class="type-name-link" title="class in com.bfo.box">CborContainerBox</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../CborContainerBox.html" class="type-name-link" title="class in com.bfo.box">CborContainerBox</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">A CborContainerBox is a JUMBF wrapper around a single <a href="../CborBox.html" title="class in com.bfo.box"><code>CborBox</code></a>.</div>
 </div>
-<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="../DataBox.html" class="type-name-link" title="class in com.bfo.box">DataBox</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../DataBox.html" class="type-name-link" title="class in com.bfo.box">DataBox</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">A general Box that stores its content as a byte array.</div>
 </div>
-<div class="col-first even-row-color"><code>class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="../EmbeddedFileContainerBox.html" class="type-name-link" title="class in com.bfo.box">EmbeddedFileContainerBox</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../EmbeddedFileContainerBox.html" class="type-name-link" title="class in com.bfo.box">EmbeddedFileContainerBox</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">An EmbeddedFileContainerBox is a JUMBF wrapper around a pair of "bfdb" and "bidb" boxes.</div>
 </div>
-<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="../ExtensionBox.html" class="type-name-link" title="class in com.bfo.box">ExtensionBox</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../ExtensionBox.html" class="type-name-link" title="class in com.bfo.box">ExtensionBox</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">This superclass of Box handles the standad "extension" format defined in
  ISO14496-12 s 11.</div>
 </div>
-<div class="col-first even-row-color"><code>class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="../JsonBox.html" class="type-name-link" title="class in com.bfo.box">JsonBox</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../JsonBox.html" class="type-name-link" title="class in com.bfo.box">JsonBox</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">A "json" box contains a single JSON object.</div>
 </div>
-<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="../JsonContainerBox.html" class="type-name-link" title="class in com.bfo.box">JsonContainerBox</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../JsonContainerBox.html" class="type-name-link" title="class in com.bfo.box">JsonContainerBox</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">A JsonContainerBox is a JUMBF wrapper around a single <a href="../JsonBox.html" title="class in com.bfo.box"><code>JsonBox</code></a>.</div>
 </div>
-<div class="col-first even-row-color"><code>class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="../JUMBox.html" class="type-name-link" title="class in com.bfo.box">JUMBox</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../JUMBox.html" class="type-name-link" title="class in com.bfo.box">JUMBox</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">Represents a "JUMBF" ("JPEG Univesal Metadata Box Format") box as defined in
  ISO19566 appendix A.2.</div>
 </div>
-<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="../TrackHeaderBox.html" class="type-name-link" title="class in com.bfo.box">TrackHeaderBox</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../TrackHeaderBox.html" class="type-name-link" title="class in com.bfo.box">TrackHeaderBox</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">Represents a "tkhd" Track Header box, defined in ISO14496-12 section 8.3.2.</div>
 </div>
-<div class="col-first even-row-color"><code>class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="../XmlBox.html" class="type-name-link" title="class in com.bfo.box">XmlBox</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="../XmlBox.html" class="type-name-link" title="class in com.bfo.box">XmlBox</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">An "xml " box (note the space) contains a single XML object.</div>
 </div>
-<div class="col-first odd-row-color"><code>class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="../XMPBox.html" class="type-name-link" title="class in com.bfo.box">XMPBox</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>class&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="../XMPBox.html" class="type-name-link" title="class in com.bfo.box">XMPBox</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">An XMP box is a semi-standardized box holding XMP metadata, which is now defined in
  ISO16684, although this method of storage for XMP dates from "part 3" of the pre-ISO specifications.</div>
 </div>

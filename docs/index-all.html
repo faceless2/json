@@ -258,6 +258,15 @@ loadScripts(document, 'script');</script>
 <div class="block">The <a href="https://c2pa.org/specifications/specifications/1.2/specs/C2PA_Specification.html#_claims">claim box</a>
  used to stored the claim in a <a href="com/bfo/box/C2PAManifest.html" title="class in com.bfo.box"><code>manifest box</code></a>.</div>
 </dd>
+<dt><a href="com/bfo/box/C2PAContainerBox.html" class="type-name-link" title="class in com.bfo.box">C2PAContainerBox</a> - Class in <a href="com/bfo/box/package-summary.html">com.bfo.box</a></dt>
+<dd>
+<div class="block">A C2PAContainerBox wraps a <a href="com/bfo/box/C2PAStore.html" title="class in com.bfo.box"><code>C2PAStore</code></a> inside a "uuid" box, for safe storage inside
+ an ISO BMFF-based file.</div>
+</dd>
+<dt><a href="com/bfo/box/C2PAContainerBox.html#%3Cinit%3E()" class="member-name-link">C2PAContainerBox()</a> - Constructor for class com.bfo.box.<a href="com/bfo/box/C2PAContainerBox.html" title="class in com.bfo.box">C2PAContainerBox</a></dt>
+<dd>
+<div class="block">Create a new C2PAContainerBox</div>
+</dd>
 <dt><a href="com/bfo/box/C2PAHelper.html" class="type-name-link" title="class in com.bfo.box">C2PAHelper</a> - Class in <a href="com/bfo/box/package-summary.html">com.bfo.box</a></dt>
 <dd>
 <div class="block">A general Helper class for C2PA which functions as a main method, provides
@@ -1391,6 +1400,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return this Json value as a plain object.</div>
 </dd>
+<dt><a href="com/bfo/box/C2PAContainerBox.html#offset()" class="member-name-link">offset()</a> - Method in class com.bfo.box.<a href="com/bfo/box/C2PAContainerBox.html" title="class in com.bfo.box">C2PAContainerBox</a></dt>
+<dd>
+<div class="block">For boxes with a purpose of "manifest", return the absolute file byte offset to the first auxiliary "uuid" C2PA box with purpose equal to "merkle".</div>
+</dd>
 </dl>
 <h2 class="title" id="I:P">P</h2>
 <dl class="index">
@@ -1406,6 +1419,10 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="com/bfo/json/JsonPathProviderBFO.html#parse(java.lang.String)" class="member-name-link">parse(String)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonPathProviderBFO.html" title="class in com.bfo.json">JsonPathProviderBFO</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="com/bfo/box/C2PAContainerBox.html#purpose()" class="member-name-link">purpose()</a> - Method in class com.bfo.box.<a href="com/bfo/box/C2PAContainerBox.html" title="class in com.bfo.box">C2PAContainerBox</a></dt>
+<dd>
+<div class="block">Return the box purpose, eg "manifest" or "merkle"</div>
+</dd>
 <dt><a href="com/bfo/json/Json.html#put(java.lang.Object,java.lang.Object)" class="member-name-link">put(Object, Object)</a> - Method in class com.bfo.json.<a href="com/bfo/json/Json.html" title="class in com.bfo.json">Json</a></dt>
 <dd>
 <div class="block">Put the specified value into this object with the specified key.</div>
@@ -1868,6 +1885,8 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return a String representation of this Box, which will be parseable as JSON</div>
 </dd>
+<dt><a href="com/bfo/box/C2PAContainerBox.html#toString()" class="member-name-link">toString()</a> - Method in class com.bfo.box.<a href="com/bfo/box/C2PAContainerBox.html" title="class in com.bfo.box">C2PAContainerBox</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="com/bfo/box/C2PASignature.html#toString()" class="member-name-link">toString()</a> - Method in class com.bfo.box.<a href="com/bfo/box/C2PASignature.html" title="class in com.bfo.box">C2PASignature</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="com/bfo/box/C2PAStatus.Code.html#toString()" class="member-name-link">toString()</a> - Method in enum class com.bfo.box.<a href="com/bfo/box/C2PAStatus.Code.html" title="enum class in com.bfo.box">C2PAStatus.Code</a></dt>
