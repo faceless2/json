@@ -25,6 +25,9 @@ public class CountingInputStream extends FilterInputStream {
      * If the stream is already partially rewound, throw an exception
      */
     public void rewind(byte[] buf) {
+        if (pos - buf.length < 0) {
+            throw new IllegalStateException("Too far");
+        }
         if (rewind != null) {
             if (buf.length > rewindpos) {
                 throw new IllegalStateException("Already rewound: " + this);
