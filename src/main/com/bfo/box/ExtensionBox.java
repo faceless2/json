@@ -11,7 +11,7 @@ import java.io.*;
  * in ISO14496.
  * @since 5
  */
-public abstract class ExtensionBox extends Box {
+public class ExtensionBox extends Box {
 
     private String subtype;
 
@@ -33,20 +33,15 @@ public abstract class ExtensionBox extends Box {
 
     @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
         StringBuilder q = new StringBuilder(4);
-        byte[] b = new byte[16];
-        for (int i=0;i<16;i++) {
-            int v = in.read();
-            if (v < 0) {
-                throw new EOFException();
-            }
-            b[i] = (byte)v;
-            if (i < 4) {
-                q.append((char)v);
-            }
-        }
+        byte[] b = Box.readFully(in, new byte[16], 0, 16);
         subtype = hex(b);
         // Special case - we can trim this ending
         if (subtype.endsWith("00110010800000aa00389b71")) {
+            q.setLength(0);
+            q.append((char)b[0]);
+            q.append((char)b[1]);
+            q.append((char)b[2]);
+            q.append((char)b[3]);
             subtype = q.toString();
         }
     }

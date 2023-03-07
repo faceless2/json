@@ -164,9 +164,6 @@ public class BoxFactory {
         if (stream == null) {
             throw new NullPointerException("stream is null");
         }
-        if (!stream.markSupported()) {
-            stream = new BufferedInputStream(stream);
-        }
         CountingInputStream in = stream instanceof CountingInputStream ? (CountingInputStream)stream : new CountingInputStream(stream);
         long off = in.tell();
         long len = in.read();
@@ -195,7 +192,7 @@ public class BoxFactory {
             while (tmpoff < len) {
                 localcopy[tmpoff++] = (byte)in.read();
             }
-            in = new CountingInputStream(new ByteArrayInputStream(localcopy));
+            in = new CountingInputStream(Box.getByteArrayInputStream(localcopy, 0, localcopy.length));
             off = 0;
             in.limit(len);
             in.skip(4);
@@ -209,15 +206,27 @@ public class BoxFactory {
         in.limit(len == 0 ? -1 : off + len);
 
         String type = Box.typeToString(typeval);
-        // System.out.println("READING \"" + type + "\" of " + len + " at " + off);
         String subtype = null, label = null;
         if (isSubtyped(type)) {
-            in.mark(4);
-            int nextlen = Box.readInt(in);
-            in.reset();
-            in.mark(nextlen);
-            Box desc = load(in);
-            in.reset();
+            byte[] tmp;
+            Box desc;
+            if (isContainer(type)) {
+                int nextlen = Box.readInt(in);
+                tmp = new byte[nextlen + 4];
+                tmp[0] = (byte)(nextlen>>24);
+                tmp[1] = (byte)(nextlen>>16);
+                tmp[2] = (byte)(nextlen>>8);
+                tmp[3] = (byte)(nextlen>>0);
+                Box.readFully(in, tmp, 4, tmp.length - 4);
+                desc = load(new CountingInputStream(Box.getByteArrayInputStream(tmp, 0, tmp.length)));
+            } else {
+                tmp = Box.readFully(in, null, 0, 0);
+                desc = createBox(type, null, null);
+                desc.len = len;
+                desc.type = typeval;
+                desc.read(new CountingInputStream(Box.getByteArrayInputStream(tmp, 0, tmp.length)), this);
+            }
+            in.rewind(tmp);
             if (desc instanceof ExtensionBox) {
                 subtype = ((ExtensionBox)desc).subtype();
                 if (desc instanceof JumdBox) {
@@ -226,6 +235,7 @@ public class BoxFactory {
             }
         }
         Box box = createBox(type, subtype, label);
+        // System.out.println("READING type=\"" + type + "\" subtype="+subtype+" label="+label+" of " + len + " at " + off + " cl=" + box.getClass().getName() + " in=" + in);
         box.len = len;
         box.type = typeval;
         box.read(in, this);
@@ -311,6 +321,7 @@ public class BoxFactory {
         for (String s : containerList) {
             containers.add(s);
         }
+        register("uuid", null,   null, false, ExtensionBox.class);
         register("jumb", null,   null, true,  JUMBox.class);
         register("jumd", null,   null, false, JumdBox.class);
         register("cbor", null,   null, false, CborBox.class);                        // Raw CBOR box with no children
@@ -329,6 +340,7 @@ public class BoxFactory {
         register("jumb", EmbeddedFileContainerBox.SUBTYPE, null, true, EmbeddedFileContainerBox.class);
         register("uuid", "be7acfcb97a942e89c71999491e3afac", null, false, XMPBox.class);// wrong order, magnificently prioritised in XMP spec
         register("uuid", XMPBox.SUBTYPE, null, false, XMPBox.class); // byte order FFS
+        register("uuid", C2PAContainerBox.SUBTYPE, null, false, C2PAContainerBox.class);
 
         // special assertions
         register("jumb", EmbeddedFileContainerBox.SUBTYPE, "c2pa.thumbnail", true, C2PA_AssertionThumbnail.class);

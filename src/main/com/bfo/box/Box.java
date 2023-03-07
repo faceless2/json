@@ -26,14 +26,21 @@ import java.math.BigInteger;
  * Some simple examples.
  * </p>
  * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
- * Box box = Box.load(inputstream, null, null);
- * for (Box child=box.first();box!=null;box=box.next()) {
- *   System.out.println(box.type());         // A 4-character string
- *   assert box.parent() == box;
+ * BoxFactory factory = new BoxFactory();
+ * Box box;
+ * while ((box=factory.load(inpustream)) != null) {
+ *   traverse(box, "");
+ * }
+ * 
+ * void traverse(Box box, String prefix) {
+ *   System.out.println(box.type()); // a 4-character string
  *   if (box instanceof XMPBox) {
  *     byte[] xmpdata = ((XMPBox)box).data(); // box subclasses are more interesting
  *   }
- *   byte[] data = box.getEncoded(); // if box and all its descendents are stored, write as a byte array.
+ *   for (Box child=box.first();box!=null;box=box.next()) {
+ *     assert child.parent() == box;
+ *     traverse(child, prefix + " ");
+ *   }
  * }
  * </pre>
  * @see BoxFactory
@@ -81,15 +88,42 @@ public class Box {
     /**
      * @hidden
      */
-    protected byte[] readFully(InputStream in) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        byte[] tmp = new byte[8192];
-        int l;
-        while ((l=in.read(tmp, 0, tmp.length)) >= 0) {
-            out.write(tmp, 0, l);
+    protected static byte[] readFully(InputStream in, byte[] buf, int off, int len) throws IOException {
+        if (buf == null) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] tmp = new byte[8192];
+            int l;
+            while ((l=in.read(tmp, 0, tmp.length)) >= 0) {
+                out.write(tmp, 0, l);
+            }
+            return out.toByteArray();
+        } else {
+            len += off;
+            int l;
+            while (off < len && (l=in.read(buf, off, len - off)) >= 0) {
+                off += l;
+            }
+            if (off < len) {
+                throw new EOFException();
+            }
+            return buf;
         }
-        return out.toByteArray();
     }
+
+    /**
+     * @hidden
+     */
+    protected static ByteArrayInputStream getByteArrayInputStream(byte[] buf, int off, int len) {
+        if (len < 0) {
+            len = buf.length;
+        }
+        return new ByteArrayInputStream(buf, off, len) {
+            public String toString() {
+                return "{bais:hash="+Integer.toHexString(hashCode())+" off="+pos+" len="+count+"}";
+            }
+        };
+    }
+
 
     /**
      * @hidden

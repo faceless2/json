@@ -38,7 +38,7 @@ public class DataBox extends Box {
     }
 
     @Override protected void read(InputStream in, BoxFactory factory) throws IOException {
-        data = readFully(in);
+        data = readFully(in, null, 0, 0);
     }
 
     @Override protected void write(OutputStream out) throws IOException {
