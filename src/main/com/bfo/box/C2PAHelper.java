@@ -537,17 +537,17 @@ public class C2PAHelper {
                                 rawout.close();
                                 outc2pa = null;
                             }
+                            if (boxdebug) {
+                                System.out.println(c2pa.dump(null, null));
+                            }
+                            if (debug) {
+                                System.out.println(c2pa.toJson().toString(new JsonWriteOptions().setPretty(true).setCborDiag("hex")));
+                            }
 //                            List<C2PAManifest> manifests = c2pa.getManifests();       // to validate ALL manifests
                             List<C2PAManifest> manifests = Collections.<C2PAManifest>singletonList(c2pa.getActiveManifest());   // validate only current manifest
                             for (C2PAManifest manifest : manifests) {
                                 in = new FileInputStream(inname);
                                 manifest.setInputStream(in);
-                                if (debug) {
-                                    System.out.println(c2pa.toJson().toString(new JsonWriteOptions().setPretty(true).setCborDiag("hex")));
-                                }
-                                if (boxdebug) {
-                                    System.out.println(c2pa.dump(null, null));
-                                }
                                 System.out.println("# verifying " + (manifest == c2pa.getActiveManifest() ? "active " : "") + "manifest \"" + manifest.label() + "\"");
                                 List<C2PAStatus> status = manifest.getSignature().verify(null);
                                 boolean ok = true;
