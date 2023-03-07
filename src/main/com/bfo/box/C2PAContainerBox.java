@@ -17,6 +17,9 @@ public class C2PAContainerBox extends ExtensionBox {
     private String purpose;
     private long offset;
 
+    /**
+     * Create a new C2PAContainerBox
+     */
     public C2PAContainerBox() {
         super("uuid", SUBTYPE);
     }
@@ -39,6 +42,10 @@ public class C2PAContainerBox extends ExtensionBox {
         }
     }
 
+    /**
+     * Return the box purpose, eg "manifest" or "merkle"
+     * @return the purpose
+     */
     public String purpose() {
         if (purpose == null) {
             purpose = "manifest";
@@ -46,6 +53,10 @@ public class C2PAContainerBox extends ExtensionBox {
         return purpose;
     }
 
+    /**
+     * For boxes with a purpose of "manifest", return the absolute file byte offset to the first auxiliary "uuid" C2PA box with purpose equal to "merkle".
+     * @return the offset as described or zero if not applicable.
+     */
     public long offset() {
         return offset;
     }
@@ -58,14 +69,16 @@ public class C2PAContainerBox extends ExtensionBox {
         out.write(version>>0);
         out.write(purpose().getBytes("ISO-8859-1"));
         out.write(0);
-        out.write((int)(offset>>56));
-        out.write((int)(offset>>48));
-        out.write((int)(offset>>40));
-        out.write((int)(offset>>32));
-        out.write((int)(offset>>24));
-        out.write((int)(offset>>16));
-        out.write((int)(offset>>8));
-        out.write((int)(offset));
+        if (purpose().equals("manifest")) {
+            out.write((int)(offset>>56));
+            out.write((int)(offset>>48));
+            out.write((int)(offset>>40));
+            out.write((int)(offset>>32));
+            out.write((int)(offset>>24));
+            out.write((int)(offset>>16));
+            out.write((int)(offset>>8));
+            out.write((int)(offset));
+        }
         out.write(first().getEncoded());
         for (int i=0;i<padlength;i++) {
             out.write(0);
