@@ -267,12 +267,10 @@ loadScripts(document, 'script');</script>
 <h3>load</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Box.html" title="class in com.bfo.box">Box</a></span>&nbsp;<span class="element-name">load</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link">InputStream</a>&nbsp;stream)</span>
          throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
-<div class="block">Read a Box from the InputStream. If you are planning to load more from the
- stream after this method, the stream <b>must support mark/reset</b>. Otherwise this
- method will buffer the stream.</div>
+<div class="block">Read a Box from the InputStream.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>stream</code> - the InputStream, which should ideally support mark/reset</dd>
+<dd><code>stream</code> - the InputStream.</dd>
 <dt>Returns:</dt>
 <dd>the box, or <code>null</code> if the stream is fully consumed</dd>
 <dt>Throws:</dt>
