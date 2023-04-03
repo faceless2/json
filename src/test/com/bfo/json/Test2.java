@@ -204,7 +204,7 @@ public class Test2 {
         };
         json = new Json(Collections.singletonMap("a", date), factory);
         assert json.get("a").stringValue().equals(sdate) : json.get("a");
-        assert date.equals(json.get("a").objectValue(factory)) : json.get("a").objectValue(factory);
+        assert date.equals(json.get("a").objectValue()) : json.get("a").objectValue();
         System.out.println("----- END FACTORY TESTS -----");
 
         System.out.println("----- BEGIN EVENT TESTS -----");

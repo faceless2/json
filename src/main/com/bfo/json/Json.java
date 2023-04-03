@@ -180,7 +180,7 @@ public class Json {
      * As for {@link #Json(Object)}, but first attempts to convert the
      * object to a Json object by calling {@link JsonFactory#toJson}.
      * @param object the object
-     * @param factory the factory for conversion, which may be null
+     * @param factory the factory for conversion, which may be null. Will be passed to {@link #setFactory}
      * @throws ClassCastException if the object cannot be converted to Json
      */
     @SuppressWarnings({"unchecked","rawtypes"})
@@ -250,6 +250,7 @@ public class Json {
                 }
             }
         }
+        this.factory = factory;
         if (core == null) {
             throw new IllegalArgumentException(object.getClass().getName());
         }
@@ -2391,14 +2392,13 @@ public class Json {
      * no reference to this package. The returned value is as follows
      * <ul>
      * <li>If this object {@link #isNull is null}, return null</li>
-     * <li>If factory is not null and {@link JsonFactory#fromJson fromJson()} returns a non-null value, return that value</li>
+     * <li>If a {@link getFactory factory} is set and {@link JsonFactory#fromJson JsonFactory.fromJson()} returns a non-null value, return that value</li>
      * <li>If this value is a string, buffer, number or boolean, return the value from {@link #value()}</li>
      * <li>If this value is a list or map, populate the map values with the output of this method and return as a Map&lt;String,Object&gt; or List&lt;Object&gt;</li>
      * </ul>
-     * @param factory the factory for conversion, which may be null
      * @return a String, Number, Boolean, Map&lt;String,Object&gt;, List&lt;Object&gt; or null as described
      */
-    public Object objectValue(JsonFactory factory) {
+    public Object objectValue() {
         if (isNull()) {
             return null;
         } else if (isUndefined()) {
@@ -2413,13 +2413,13 @@ public class Json {
         if (isMap()) {
             Map<Object,Object> out = new LinkedHashMap<Object,Object>(_mapValue());
             for (Map.Entry<Object,Object> e : out.entrySet()) {
-                e.setValue(((Json)e.getValue()).objectValue(factory));
+                e.setValue(((Json)e.getValue()).objectValue());
             }
             return out;
         } else if (isList()) {
             List<Object> out = new ArrayList<Object>(size());
             for (Json o : _listValue()) {
-                out.add(o.objectValue(factory));
+                out.add(o.objectValue());
             }
             return out;
         } else {
