@@ -525,7 +525,7 @@ loadScripts(document, 'script');</script>
  the <a href="#intValue()"><code>intValue()</code></a> method on it, otherwise return null</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#objectValue(com.bfo.json.JsonFactory)" class="member-name-link">objectValue</a><wbr>(<a href="JsonFactory.html" title="interface in com.bfo.json">JsonFactory</a>&nbsp;factory)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#objectValue()" class="member-name-link">objectValue</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Return this Json value as a plain object.</div>
 </div>
@@ -762,7 +762,7 @@ loadScripts(document, 'script');</script>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>object</code> - the object</dd>
-<dd><code>factory</code> - the factory for conversion, which may be null</dd>
+<dd><code>factory</code> - the factory for conversion, which may be null. Will be passed to <a href="#setFactory(com.bfo.json.JsonFactory)"><code>setFactory(com.bfo.json.JsonFactory)</code></a></dd>
 <dt>Throws:</dt>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/ClassCastException.html" title="class or interface in java.lang" class="external-link">ClassCastException</a></code> - if the object cannot be converted to Json</dd>
 </dl>
@@ -1947,22 +1947,20 @@ loadScripts(document, 'script');</script>
 </section>
 </li>
 <li>
-<section class="detail" id="objectValue(com.bfo.json.JsonFactory)">
+<section class="detail" id="objectValue()">
 <h3>objectValue</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span>&nbsp;<span class="element-name">objectValue</span><wbr><span class="parameters">(<a href="JsonFactory.html" title="interface in com.bfo.json">JsonFactory</a>&nbsp;factory)</span></div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span>&nbsp;<span class="element-name">objectValue</span>()</div>
 <div class="block">Return this Json value as a plain object. Unlike <a href="#value()"><code>value()</code></a> this
  method will traverse through its descendants, converting Json objects
  to plain objects so that the returned object is guaranteed to have
  no reference to this package. The returned value is as follows
  <ul>
  <li>If this object <a href="#isNull(java.lang.Object)"><code>is null</code></a>, return null</li>
- <li>If factory is not null and <a href="JsonFactory.html#fromJson(com.bfo.json.Json)"><code>fromJson()</code></a> returns a non-null value, return that value</li>
+ <li>If a <a href="#getFactory()"><code>factory</code></a> is set and <a href="JsonFactory.html#fromJson(com.bfo.json.Json)"><code>JsonFactory.fromJson()</code></a> returns a non-null value, return that value</li>
  <li>If this value is a string, buffer, number or boolean, return the value from <a href="#value()"><code>value()</code></a></li>
  <li>If this value is a list or map, populate the map values with the output of this method and return as a Map&lt;String,Object&gt; or List&lt;Object&gt;</li>
  </ul></div>
 <dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>factory</code> - the factory for conversion, which may be null</dd>
 <dt>Returns:</dt>
 <dd>a String, Number, Boolean, Map&lt;String,Object&gt;, List&lt;Object&gt; or null as described</dd>
 </dl>
