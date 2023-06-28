@@ -8,6 +8,11 @@ import java.nio.charset.*;
 
 class CborReader {
 
+    static final int TAG_UNSIGNEDBIGNUM = 2;
+    static final int TAG_SIGNEDBIGNUM   = 3;
+    static final int TAG_BIGDECIMAL10   = 4;
+    static final int TAG_BIGDECIMAL2    = 5;
+
     // private static final boolean DEBUG = false;
     private static final Number INDEFINITE = Float.intBitsToFloat(0x12345678);       // As good as any
     private static final Json BREAK = new Json(INDEFINITE, null) { @Override Json setStrict(boolean strict) { return this; } };
@@ -195,15 +200,48 @@ class CborReader {
                 } else if (j == BREAK) {
                     throw new IOException("Unexpected break at " + tell);
                 }
-                if ((n.intValue() == 2 || n.intValue() == 3) && j.isBuffer()) {
-                    int tag = n.intValue();
-                    ByteBuffer b = j.bufferValue();
-                    n = new BigInteger(1, b.array());
-                    if (tag == 3) {
-                        n = BigInteger.valueOf(-1).subtract((BigInteger)n);
-                    }
-                    j = filter.createNumber(n);
-                } else {
+                switch (n.intValue()) {
+                    case TAG_UNSIGNEDBIGNUM:
+                    case TAG_SIGNEDBIGNUM:
+                        if (j.isBuffer()) {
+                            int tag = n.intValue();
+                            ByteBuffer b = j.bufferValue();
+                            n = new BigInteger(1, b.array());
+                            if (tag == TAG_SIGNEDBIGNUM) {
+                                n = BigInteger.valueOf(-1).subtract((BigInteger)n);
+                            }
+                            j = filter.createNumber(n);
+                            n = null;
+                        }
+                        break;
+                    case TAG_BIGDECIMAL2:
+                    case TAG_BIGDECIMAL10:
+                        if (j.isList() && j.size() == 2 && j.get(0).isNumber() && j.get(1).isNumber()) {
+                            Number v0 = j.get(0).numberValue();
+                            Number v1 = j.get(1).numberValue();
+                            if (v1 instanceof Integer || v1 instanceof Long) {
+                                v1 = BigInteger.valueOf(v1.longValue());
+                            }
+                            if (v1 instanceof BigInteger && v0 instanceof Integer) {
+                                int tag = n.intValue();
+                                if (tag == TAG_BIGDECIMAL10) {
+                                    j = filter.createNumber(new BigDecimal((BigInteger)v1, -v0.intValue()));
+                                    n = null;
+                                } else {
+                                    BigDecimal d = new BigDecimal((BigInteger)v1);
+                                    if (v0.intValue() > 0) {
+                                        d = d.multiply(BigDecimal.valueOf(2).pow(v0.intValue()));
+                                    } else {
+                                        d = d.divide(BigDecimal.valueOf(2).pow(-v0.intValue()));
+                                    }
+                                    j = filter.createNumber(d);
+                                    n = null;
+                                }
+                            }
+                        }
+                        break;
+                }
+                if (n != null) {
                     j.setTag(n.longValue());
                 }
                 break;

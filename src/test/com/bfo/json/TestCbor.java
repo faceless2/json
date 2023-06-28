@@ -2,6 +2,7 @@ package com.bfo.json;
 
 import java.util.*;
 import java.text.*;
+import java.math.*;
 import java.io.*;
 import java.nio.*;
 
@@ -101,6 +102,23 @@ public class TestCbor {
         assert (tostring=(j=read("D8628440A054546869732069732074686520636F6E74656E742E818343A10126A1044231315840E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A")).toString(new JsonWriteOptions().setCborDiag("HEX"))).equals("98([h'',{},h'546869732069732074686520636F6E74656E742E',[[h'A10126',{4:h'3131'},h'E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A']]])") : tostring;
 
         System.out.println("----- END CBOR TESTS -----");
+        System.out.println("----- BEGIN CBOR BIGNUMBER TESTS -----");
+        assert (j=read("f97e00")).isNumber() && Double.isNaN(j.doubleValue());
+        assert (j=read("f97c00")).isNumber() && j.doubleValue() == Double.POSITIVE_INFINITY;
+        assert (j=read("f9fc00")).isNumber() && j.doubleValue() == Double.NEGATIVE_INFINITY;
+        assert (j=read("c24100")).isNumber() && j.doubleValue() == 0;
+        assert (j=read("c24101")).isNumber() && j.doubleValue() == 1;
+        assert (j=read("c34100")).isNumber() && j.doubleValue() == -1;
+        assert (j=read("c24e03ffffffffffffc0000000000001")).isNumber() && j.numberValue() instanceof BigInteger && ((BigInteger)j.numberValue()).equals(BigInteger.valueOf(9007199254740991l).pow(2));
+        assert (j=read("c482201865")).isNumber() && j.numberValue() instanceof BigDecimal && j.numberValue().toString().equals("10.1") : j.numberValue().toString()+"="+j.numberValue().doubleValue();
+        assert (j=read("c482201903e9")).isNumber() && j.numberValue() instanceof BigDecimal && j.numberValue().toString().equals("100.1") : j.numberValue().toString();
+        assert (j=read("c4822001")).isNumber() && j.numberValue() instanceof BigDecimal && j.numberValue().toString().equals("0.1") : j.numberValue().toString();
+        assert (j=read("c4822020")).isNumber() && j.numberValue() instanceof BigDecimal && j.numberValue().toString().equals("-0.1") : j.numberValue().toString();
+        assert (j=read("c482382cc254056e5e99b1be81b6eefa3964490ac18c69399361")).isNumber() && j.numberValue() instanceof BigDecimal && j.numberValue().equals(BigDecimal.valueOf(Math.PI).pow(3)) : j.numberValue().toString();
+        assert (j=read("c5822003")).isNumber() && j.numberValue() instanceof BigDecimal && j.numberValue().toString().equals("1.5") : j.numberValue().toString();
+        assert (j=read("c48220c24909fffffffffffffff7")).isNumber() && j.numberValue() instanceof BigDecimal && j.numberValue().toString().equals("18446744073709551615.1");
+        assert (tostring=write(new Json(new BigDecimal(BigInteger.valueOf(1001), 1)))).equals("C482201903E9") : tostring;       // 1001 / (10^1) == 100.1
+        System.out.println("----- END CBOR BIGNUMBER TESTS -----");
         System.out.println("----- BEGIN CBOR ROUNDTRIP TESTS -----");
         for (String s : INPUT) {
             j = read(s);
@@ -175,8 +193,16 @@ public class TestCbor {
         // From COSE spec (C1_1)
         INPUT.add("a10126");
         INPUT.add("D8628440A054546869732069732074686520636F6E74656E742E818343A10126A1044231315840E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A");
+        INPUT.add("c482201903e9");      // bignumber
+        INPUT.add("c5822003");
     }
 
+
+    private static String write(Json j) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        j.writeCbor(out, null);
+        return hex(out.toByteArray());
+    }
 
     private static Json read(String s) throws IOException {
         byte[] b = new byte[s.length() / 2];
