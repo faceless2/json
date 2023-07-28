@@ -140,82 +140,7 @@ class JsonWriter {
                 }
             }
         } else if (j.isNumber()) {
-            Number value = j.numberValue();
-            StringBuilder temp = null;
-            if (value instanceof Float) {
-                Float n = (Float)value;
-                if (n.isNaN() || n.isInfinite()) {
-                    if (cbordiag != null) {
-                        if (n.isNaN()) {
-                            out.append("NaN");
-                        } else if (n.floatValue() == Float.POSITIVE_INFINITY) {
-                            out.append("+Infinity");
-                        } else if (n.floatValue() == Float.NEGATIVE_INFINITY) {
-                            out.append("-Infinity");
-                        }
-                    } else if (options.isAllowNaN()) {
-                        out.append("null");
-                    } else {
-                        throw new IllegalArgumentException("Infinite or NaN");
-                    }
-                } else {
-                    temp = new StringBuilder();
-                    new Formatter(temp, Locale.ENGLISH).format(options.getFloatFormat(), n);
-                }
-            } else if (value instanceof Double) {
-                Double n = (Double)value;
-                if (n.isNaN() || n.isInfinite()) {
-                    if (cbordiag != null) {
-                        if (n.isNaN()) {
-                            out.append("NaN");
-                        } else if (n.floatValue() == Double.POSITIVE_INFINITY) {
-                            out.append("+Infinity");
-                        } else if (n.floatValue() == Double.NEGATIVE_INFINITY) {
-                            out.append("-Infinity");
-                        }
-                    } else if (options.isAllowNaN()) {
-                        out.append("null");
-                    } else {
-                        throw new IllegalArgumentException("Infinite or NaN");
-                    }
-                } else {
-                    temp = new StringBuilder();
-                    new Formatter(temp, Locale.ENGLISH).format(options.getDoubleFormat(), n);
-                }
-            } else {
-                out.append(value.toString());
-            }
-            if (temp != null) {
-                // Trim superfluous zeros after decimal point
-                int l = temp.length();
-                for (int i=Math.max(0, l-6);i<l;i++) {
-                    char c = temp.charAt(i);
-                    if (c == 'e' || c == 'E') {
-                        l = i;
-                        break;
-                    }
-                }
-                for (int i=0;i<l;i++) {
-                    if (temp.charAt(i) == '.') {
-                        int k = l - 1;
-                        while (temp.charAt(k) == '0') {
-                            k--;
-                        }
-                        if (k == i) {
-                            k--;
-                        }
-                        out.append(temp, 0, k + 1);
-                        if (l != temp.length()) {
-                            out.append(temp, l, temp.length());
-                        }
-                        temp = null;
-                        break;
-                    }
-                }
-                if (temp != null) {
-                    out.append(temp);
-                }
-            }
+            writeNumber(j.numberValue());
         } else if (j.isList()) {
             List<Json> list = j._listValue();
             out.append("[");
@@ -310,6 +235,123 @@ class JsonWriter {
         }
         if (cbordiag != null && j != null && j.getTag() >= 0) {
             out.append(')');
+        }
+    }
+
+    void writeBoolean(boolean b) throws IOException {
+        out.append(b ? "true" : "false");
+    }
+    void writeNull() throws IOException {
+        out.append("null");
+    }
+    void writeKey(String s) throws IOException {
+        writeString(s);
+        out.append(':');
+    }
+    void writeComma() throws IOException {
+        out.append(',');
+    }
+    void writeStartArray() throws IOException {
+        out.append('[');
+    }
+    void writeEndArray() throws IOException {
+        out.append(']');
+    }
+    void writeStartObject() throws IOException {
+        out.append('{');
+    }
+    void writeEndObject() throws IOException {
+        out.append('}');
+    }
+    void writeString(String s) throws IOException {
+        writeString(s, Integer.MAX_VALUE, out);
+    }
+    void flush() throws IOException {
+        if (out instanceof Flushable) {
+            ((Flushable)out).flush();
+        }
+    }
+    void close() throws IOException {
+        if (out instanceof Closeable) {
+            ((Closeable)out).close();
+        }
+    }
+
+    void writeNumber(Number value) throws IOException {
+        StringBuilder temp = null;
+        if (value instanceof Float) {
+            Float n = (Float)value;
+            if (n.isNaN() || n.isInfinite()) {
+                if (cbordiag != null) {
+                    if (n.isNaN()) {
+                        out.append("NaN");
+                    } else if (n.floatValue() == Float.POSITIVE_INFINITY) {
+                        out.append("+Infinity");
+                    } else if (n.floatValue() == Float.NEGATIVE_INFINITY) {
+                        out.append("-Infinity");
+                    }
+                } else if (options.isAllowNaN()) {
+                    out.append("null");
+                } else {
+                    throw new IllegalArgumentException("Infinite or NaN");
+                }
+            } else {
+                temp = new StringBuilder();
+                new Formatter(temp, Locale.ENGLISH).format(options.getFloatFormat(), n);
+            }
+        } else if (value instanceof Double) {
+            Double n = (Double)value;
+            if (n.isNaN() || n.isInfinite()) {
+                if (cbordiag != null) {
+                    if (n.isNaN()) {
+                        out.append("NaN");
+                    } else if (n.floatValue() == Double.POSITIVE_INFINITY) {
+                        out.append("+Infinity");
+                    } else if (n.floatValue() == Double.NEGATIVE_INFINITY) {
+                        out.append("-Infinity");
+                    }
+                } else if (options.isAllowNaN()) {
+                    out.append("null");
+                } else {
+                    throw new IllegalArgumentException("Infinite or NaN");
+                }
+            } else {
+                temp = new StringBuilder();
+                new Formatter(temp, Locale.ENGLISH).format(options.getDoubleFormat(), n);
+            }
+        } else {
+            out.append(value.toString());
+        }
+        if (temp != null) {
+            // Trim superfluous zeros after decimal point
+            int l = temp.length();
+            for (int i=Math.max(0, l-6);i<l;i++) {
+                char c = temp.charAt(i);
+                if (c == 'e' || c == 'E') {
+                    l = i;
+                    break;
+                }
+            }
+            for (int i=0;i<l;i++) {
+                if (temp.charAt(i) == '.') {
+                    int k = l - 1;
+                    while (temp.charAt(k) == '0') {
+                        k--;
+                    }
+                    if (k == i) {
+                        k--;
+                    }
+                    out.append(temp, 0, k + 1);
+                    if (l != temp.length()) {
+                        out.append(temp, l, temp.length());
+                    }
+                    temp = null;
+                    break;
+                }
+            }
+            if (temp != null) {
+                out.append(temp);
+            }
         }
     }
 

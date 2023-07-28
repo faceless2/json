@@ -134,6 +134,15 @@ import java.nio.charset.*;
  */
 public class Json {
 
+    private static final JSRProvider jsr2json;
+    static {
+        JSRProvider j = null;
+        try {
+            j = new JSRProvider();
+        } catch (Throwable e) { }
+        jsr2json = j;
+    }
+
     /**
      * A constant object that can be passed into the Json constructor to create a Cbor "undefined" value
      * @since 5
@@ -185,6 +194,14 @@ public class Json {
      */
     @SuppressWarnings({"unchecked","rawtypes"})
     public Json(Object object, JsonFactory factory) {
+        this(object, factory, null);
+    }
+
+    @SuppressWarnings({"unchecked","rawtypes"})
+    private Json(Object object, JsonFactory factory, Set<Object> seen) {
+        if (jsr2json != null) {
+            object = jsr2json.get(object);
+        }
         if (object == null) {
             core = NULL;
         } else if (object == NULL || object == UNDEFINED) {
@@ -211,11 +228,17 @@ public class Json {
                 } else if (object instanceof Number) {
                     core = object;
                 } else if (object instanceof Map) {
+                    if (seen == null) {
+                        seen = new HashSet<Object>();
+                    }
+                    if (!seen.add(object)) {
+                        throw new IllegalArgumentException("Objects form a loop");
+                    }
                     Map<Object,Json> map = new LinkedHashMap<Object,Json>();
                     for (Iterator<Map.Entry> i = ((Map)object).entrySet().iterator();i.hasNext();) {
                         Map.Entry e = i.next();
                         Object key = e.getKey();
-                        Json child = new Json(e.getValue(), factory);
+                        Json child = new Json(e.getValue(), factory, seen);
                         child.parent = this;
                         child.parentkey = key;
                         try {
@@ -230,18 +253,30 @@ public class Json {
                     }
                     core = map;
                 } else if (object instanceof Collection) {
+                    if (seen == null) {
+                        seen = new HashSet<Object>();
+                    }
+                    if (!seen.add(object)) {
+                        throw new IllegalArgumentException("Objects form a loop");
+                    }
                     List<Json> list = new ArrayList<Json>();
                     for (Object o : (Collection)object) {
-                        Json child = new Json(o, factory);
+                        Json child = new Json(o, factory, seen);
                         child.parent = this;
                         child.parentkey = list.size();
                         list.add(child);
                     }
                     core = list;
                 } else if (object.getClass().isArray()) {
+                    if (seen == null) {
+                        seen = new HashSet<Object>();
+                    }
+                    if (!seen.add(object)) {
+                        throw new IllegalArgumentException("Objects form a loop");
+                    }
                     List<Json> list = new ArrayList<Json>();
                     for (int i=0;i<Array.getLength(object);i++){
-                        Json child = new Json(Array.get(object, i), factory);
+                        Json child = new Json(Array.get(object, i), factory, seen);
                         child.parent = this;
                         child.parentkey = list.size();
                         list.add(child);
@@ -407,52 +442,7 @@ public class Json {
         if (in == null) {
             throw new IllegalArgumentException("Input is null");
         }
-        if (!in.markSupported()) {
-            in = new BufferedInputStream(in);
-        }
-        in.mark(3);
-        int v = in.read();
-        Reader reader;
-        if (v < 0) {
-            throw new EOFException("Empty file");
-        } else if (v == 0xEF) {
-            if ((v = in.read()) == 0xBB) {
-                if ((v = in.read()) == 0xBF) {
-                    reader = new InputStreamReader(in, "UTF-8");
-                } else {
-                    throw new IOException("Invalid Json (begins with 0xEF 0xBB 0x"+Integer.toHexString(v));
-                }
-            } else {
-                throw new IOException("Invalid Json (begins with 0xEF 0x"+Integer.toHexString(v));
-            }
-        } else if (v == 0xFE) {
-            if ((v = in.read()) == 0xFF) {
-                reader = new InputStreamReader(in, "UTF-16BE");
-            } else {
-                throw new IOException("Invalid Json (begins with 0xFE 0x"+Integer.toHexString(v));
-            }
-        } else if (v == 0xFF) {
-            if ((v = in.read()) == 0xFE) {
-                reader = new InputStreamReader(in, "UTF-16LE");
-            } else {
-                throw new IOException("Invalid Json (begins with 0xFF 0x"+Integer.toHexString(v));
-            }
-        } else if (v == 0) {
-            if ((v = in.read()) >= 0x20) { // Sniff: probably UTF-16BE
-                in.reset();
-                reader = new InputStreamReader(in, "UTF-16BE");
-            } else {
-                throw new IOException("Invalid Json (begins with 0x0 0x"+Integer.toHexString(v));
-            }
-        } else {
-            if (in.read() == 0x0) { // Sniff: probably UTF-16LE
-                in.reset();
-                reader = new InputStreamReader(in, "UTF-16LE");
-            } else {
-                in.reset();
-                reader = new InputStreamReader(in, "UTF-8");
-            }
-        }
+        Reader reader = JsonReader.createReader(in);
         return read(reader, options);
     }
 
