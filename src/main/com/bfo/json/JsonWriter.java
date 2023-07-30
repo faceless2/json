@@ -9,11 +9,12 @@ class JsonWriter {
 
     private final Appendable out;
     private final StringBuilder prefix;
-    private final JsonWriteOptions options;
+    final JsonWriteOptions options;
     private final JsonWriteOptions.Filter filter;
     private final Appendable stringWriter;
     private final String cbordiag;
     private boolean simple;
+    private String indent = "  ";
 
     JsonWriter(Appendable out, final JsonWriteOptions options, final Json root) {
         this.out = out;
@@ -145,7 +146,7 @@ class JsonWriter {
             List<Json> list = j._listValue();
             out.append("[");
             if (prefix != null) {
-                prefix.append("  ");
+                prefix.append(indent);
             }
             int len = options.getMaxArraySize();
             int ll = list.size();
@@ -169,7 +170,7 @@ class JsonWriter {
                 out.append(",...");
             }
             if (prefix != null) {
-                prefix.setLength(prefix.length() - 2);
+                prefix.setLength(prefix.length() - indent.length());
                 out.append(prefix);
             }
             out.append("]");
@@ -193,7 +194,7 @@ class JsonWriter {
             }
             out.append("{");
             if (prefix != null) {
-                prefix.append("  ");
+                prefix.append(indent);
                 out.append(prefix);
             }
             boolean first = true;
@@ -228,7 +229,7 @@ class JsonWriter {
                 filter.exit(key, ovalue);
             }
             if (prefix != null) {
-               prefix.setLength(prefix.length() - 2);
+               prefix.setLength(prefix.length() - indent.length());
                out.append(prefix);
             }
             out.append("}");
@@ -238,6 +239,9 @@ class JsonWriter {
         }
     }
 
+    void write(String s) throws IOException {
+        out.append(s);
+    }
     void writeBoolean(boolean b) throws IOException {
         out.append(b ? "true" : "false");
     }
