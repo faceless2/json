@@ -159,9 +159,19 @@ public class JSRProvider extends JsonProvider {
         return b;
     }
 
-//   @Override public JsonPatch createDiff(JsonStructure source, JsonStructure target)
-//   @Override public JsonMergePatch createMergeDiff(JsonValue source, JsonValue target)
-//   @Override public JsonMergePatch createMergePatch(JsonValue patch)
+    @Override public JsonPatch createDiff(JsonStructure source, JsonStructure target) {
+        JsonPatchBuilder builder = createPatchBuilder();
+        generateDiff("", source, target, builder);
+        return builder.build();
+    }
+
+    @Override public JsonMergePatch createMergeDiff(JsonValue source, JsonValue target) {
+        return new JSRJsonMergePatch(JSRJsonMergePatch.build(source, target));
+    }
+
+    @Override public JsonMergePatch createMergePatch(JsonValue patch) {
+        return new JSRJsonMergePatch(patch);
+    }
 
     @Override public JsonPatchBuilder createPatchBuilder() {
         return new JSRJsonPatchBuilder();
@@ -253,6 +263,74 @@ public class JSRProvider extends JsonProvider {
             return ((JSRJsonString)value).getString();
         } else {
             return value;
+        }
+    }
+
+    private static void generateDiff(String path, JsonValue source, JsonValue target, JsonPatchBuilder builder) {
+        if (source.equals(target)) {
+            return;
+        } else if (source instanceof JsonArray && target instanceof JsonArray) {
+            JsonArray sa = (JsonArray)source;
+            JsonArray ta = (JsonArray)target;
+            int ss = sa.size();
+            int ts = sa.size();
+            int[][] lut = new int[ss + 1][ts + 1];
+            for (int i=0;i<ss;i++) {
+                for (int j=0;j<ts;j++) {
+                    if (sa.get(i).equals(ta.get(j))) {
+                        lut[i+1][j+1] = ((lut[i][j]) & ~1) + 3;
+                    } else {
+                        lut[i+1][j+1] = Math.max(lut[i+1][j], lut[i][j+1]) & ~1;
+                    }
+                }
+            }
+            generateDiff(path, lut, builder, sa, ta, ss, ts);
+        } else if (source instanceof JsonObject && target instanceof JsonObject) {
+            JsonObject so = (JsonObject)source;
+            JsonObject to = (JsonObject)target;
+            for (Map.Entry<String,JsonValue> e : so.entrySet()) {
+                generateDiff(path + "/" + e.getKey(), e.getValue(), to.get(e.getKey()), builder);
+            }
+            for (Map.Entry<String,JsonValue> e : to.entrySet()) {
+                if (!so.containsKey(e.getKey())) {
+                    generateDiff(path + "/" + e.getKey(), null, e.getValue(), builder);
+                }
+            }
+        } else if (source == null && target != null) {
+            builder.add(path, target);
+        } else if (source != null && target == null) {
+            builder.remove(path);
+        } else {
+            builder.replace(path, target);
+        }
+    }
+
+    private static void generateDiff(String path, int[][] lut, JsonPatchBuilder builder, JsonArray source, JsonArray target, int i, int j) {
+        if (i == 0) {
+            if (j > 0) {
+                builder.add(path + "/" + (j - 1), target.get(j - 1));
+                generateDiff(path, lut, builder, source, target, i, j - 1);
+            }
+        } else if (j == 0) {
+            if (i > 0) {
+                builder.remove(path + "/" + (i - 1));
+                generateDiff(path, lut, builder, source, target, i - 1, j);
+            }
+        } else if ((lut[i][j] & 1) == 1) {
+            generateDiff(path, lut, builder, source, target, i - 1, j - 1);
+        } else {
+            final int k = lut[i][j-1] >> 1;
+            final int l = lut[i-1][j] >> 1;
+            if (k < l) {
+                builder.remove(path + "/" + (i - 1));
+                generateDiff(path, lut, builder, source, target, i - 1, j);
+            } else if (k > l) {
+                builder.add(path + "/" + (j - 1), target.get(j - 1));
+                generateDiff(path, lut, builder, source, target, i, j - 1);
+            } else {
+                generateDiff(path + "/" + (i - 1), source.get(i - 1), target.get(j - 1), builder);
+                generateDiff(path, lut, builder, source, target, i - 1, j - 1);
+            }
         }
     }
 }

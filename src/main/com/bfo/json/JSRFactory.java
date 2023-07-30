@@ -10,6 +10,7 @@ import java.nio.charset.*;
 class JSRFactory implements JsonParserFactory, JsonReaderFactory, JsonBuilderFactory, JsonWriterFactory, JsonGeneratorFactory {
 
     private final Map<String,?> config;
+    private final JsonWriteOptions writeOptions;
 
     JSRFactory(Map<String,?> config) {
         if (config == null || config.isEmpty()) {
@@ -18,6 +19,10 @@ class JSRFactory implements JsonParserFactory, JsonReaderFactory, JsonBuilderFac
             config = Collections.<String,Object>unmodifiableMap(config);
         }
         this.config = config;
+        writeOptions = new JsonWriteOptions();
+        if (Boolean.TRUE.equals(config.get(JsonGenerator.PRETTY_PRINTING))) {
+            writeOptions.setPretty(true);
+        }
     }
 
     @Override public JsonParser createParser(InputStream in) {
@@ -89,7 +94,7 @@ class JSRFactory implements JsonParserFactory, JsonReaderFactory, JsonBuilderFac
         return createWriter(new OutputStreamWriter(out, charset));
     }
     @Override public javax.json.JsonWriter createWriter(Writer writer) {
-        return new JSRJsonWriter(new JsonWriter(WriterToAppendable.getInstance(writer), new JsonWriteOptions(), null)).asWriter();
+        return new JSRJsonWriter(new JsonWriter(WriterToAppendable.getInstance(writer), writeOptions, null)).asWriter();
     }
     @Override public JsonGenerator createGenerator(OutputStream out) {
         return createGenerator(out, StandardCharsets.UTF_8);
@@ -98,7 +103,7 @@ class JSRFactory implements JsonParserFactory, JsonReaderFactory, JsonBuilderFac
         return createGenerator(new OutputStreamWriter(out, charset));
     }
     @Override public JsonGenerator createGenerator(Writer writer) {
-        return new JSRJsonWriter(new JsonWriter(WriterToAppendable.getInstance(writer), new JsonWriteOptions(), null));
+        return new JSRJsonWriter(new JsonWriter(WriterToAppendable.getInstance(writer), writeOptions, null));
     }
 
     @Override public Map<String,?> getConfigInUse() {
