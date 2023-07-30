@@ -346,7 +346,7 @@ class JsonReader {
                             if (q < 0) {
                                 throw new IllegalArgumentException("Invalid hex digit 0x" + Integer.toHexString(v) + " in string at " + in);
                             }
-                            c |= v;
+                            c |= q;
                         }
                         break;
                     case 'n':
