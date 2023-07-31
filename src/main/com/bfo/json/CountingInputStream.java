@@ -23,6 +23,7 @@ public class CountingInputStream extends FilterInputStream {
     /**
      * Rewind the stream by inserting the specified buffer at the start of it.
      * If the stream is already partially rewound, throw an exception
+     * @param buf the buffer to insert
      */
     public void rewind(byte[] buf) {
         if (pos - buf.length < 0) {

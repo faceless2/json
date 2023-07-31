@@ -1,11 +1,15 @@
-# JSON, CBOR, Msgpack, BMFF and C2PA toolkit 
+# Java JSON, CBOR, Msgpack, JWT, COSE toolkit 
 
-The BFO JSON package is yet another Java JSON parser, that has grown to add a few more formats.
-
-The JSON and CBOR package is in `com.bfo.json`. It has the follow emphasis:
+The BFO JSON package is yet another Java JSON parser.
+It supports JSR353 / JSR374 (the `javax.json` package), and also has a custom API
+which adds support for Msgpack, CBOR and CBOR-diag (the `com.bfo.json` package).
 
 ### simple
-* the API is essentially a single class, with a few helper classes that are all optional. Items are added with `put`, retrieved with `get`, read with `read` and written with `write`. Collections are used for maps and lists, and you can use the whole API with no more than about 5 or 6 methods. Which means although the API is [fully documented](https://faceless2.github.io/json/docs/), you can probably get away without reading any of it.
+* the `com.bfo.json` API is essentially a single class, with a few helper classes that are all optional.
+Items are added with `put`, retrieved with `get`, read with `read` and written with `write`.
+Collections are used for maps and lists, and you can use the whole API with no more than
+about 5 or 6 methods.
+Which means although the API is [fully documented](https://faceless2.github.io/json/docs/), you can probably get away without reading any of it.
 
 ### fast
 * A 2021 Macbook M1 will read Json at about 120MB/s from text (80MB/s from binary, as it has to convert to UTF-8),
@@ -18,23 +22,25 @@ spent on removing buffer copying and avoiding slow codepaths in the JVM - I don'
 http://seriot.ch/parsing_json.php,
 and has been authored with reference to [RFC8259](https://tools.ietf.org/html/rfc8259).
 CBOR support is newer, but has again been tested against [RFC7049](https://tools.ietf.org/html/rfc7049)
-and fuzzed input, to make sure errors are handled properly.
+and fuzzed input, to make sure errors are handled properly. It's also been run against the
+JSR374 test suite.
 
 ### self-contained
-* the API has no external requirements. Although it compiles against the JsonPath implementation https://github.com/json-path/JsonPath, provided the "eval" methods are not used there is no need for those classes to be available at runtime. To build it, type "ant" (and if you'd prefer the Maven experience, type "ant" then go and do something else for two hours).
+* the API has no external requirements unless you're using the `javax.json` package, in which case you'll need the Jar
+containing those classes.
 
 ## Features
-* JSON, CBOR and Msgpack serialization are all available from the same object (new in version 5 is CBOR-Diag pseudo-json)
-* non-string map keys since version 5, to support COSE. Non-string keys are convert to strings when serializing to JSON
-* Java Web Token (JWT) support class for reading/writing/signing/verifying.
-* COSE signed object support class for reading/writing/signing/verifying.
-* Java Web Keys (JWK) support EC, RSA and EdDSA public/private keys, and Hmac, AES-KW and AES-GCM-KW symmetric keys
-* JsonPath integration (optional)
+* JSON, CBOR, Msgpack and CBOR-diag serialization are all available from the same object; read as one format, write as another.
+* Map keys can be numbers or booleans as well as strings - required for COSE/Msgpack, these will be converted to strings when serializing to JSON
 * Listeners and Events to monitor changes to the structure
+* Easy interchange between the `com.bfo.json` and `javax.json` APIs without needing to serialize.
 * Flexible typing; if you request the int value of a string it will try to convert it to an int. If you put a value with a String key on a list, it will convert to a map.
 * Numbers read as ints, longs, doubles, BigIntegers, or BigDecimals, with the smallest type chosen first.
 * CBOR/Msgpack binary strings are stored as ByteBuffers, but will be converted to Base64 strings when serialized as Json.
 * Option of mapping Json to more complex Java objects is possible, but not included with the code. By default data is retrieved as  Maps, Lists and primitive types only
+* Java Web Token (JWT) support class for reading/writing/signing/verifying.
+* COSE signed object support class for reading/writing/signing/verifying.
+* Java Web Keys (JWK) support EC, RSA and EdDSA public/private keys, and Hmac, AES-KW and AES-GCM-KW symmetric keys
 
 ## Building and Documentation
 * Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-5.jar](https://faceless2.github.io/json/dist/bfojson-5.jar)
@@ -43,33 +49,42 @@ and fuzzed input, to make sure errors are handled properly.
 * Or download with `git clone http://github.com/faceless2/json.git`. Type `ant`. Jar is in `dist`, docs are in `docs`
  
 ## Design Decisions
-* Mapping JavaScript objects to a Java object can be done by use of a JsonFactory, however this is done after the object is read. Most of the complexity of other Java Json APIs comes from the mapping process between Json and Java objects; if you want to go down this route you have a trivially simple interface to implement, but you're on your own.
+* Json objects have a _parent_ pointer, which means they can only exist in the tree at one location.
+  They are directly mutable, no need for builder classes.
+
+* Mapping JavaScript objects to a Java object can be done by use of a JsonFactory, however this is done after the object is read.
+  Most of the complexity of other Java Json APIs comes from the mapping process between Json and Java objects;
+  if you want to go down this route you have a trivially simple interface to implement, but you're on your own.
    
-* JavaScript is loosely typed, and this API acknowleges this: if you request an int value from a Json string, it will try to parse the String as an integer. If you don't want this, see the JsonReadOptions to turn it off.
+* JavaScript is loosely typed, and this API acknowleges this: if you request an int value from a Json string,
+  it will try to parse the String as an integer. If you don't want this, see the JsonReadOptions to turn it off.
 
-* Json in the wild has many variations - comments are embedded, maps have unquoted keys, and so on. By default the API will adhere closely to RFC8259 when reading or writing, although this can be changed. Again see JsonReadOptions.
+* Json in the wild has many variations - comments are embedded, maps have unquoted keys, and so on.
+  By default the API will adhere closely to RFC8259 when reading or writing, although this can be changed.
+  Again see JsonReadOptions.
 
-* When reading Json numbers, they will be mapped to ints, longs, BigIntegers and double as necessary. If BigDecimal support is required, this can be turned on in JsonReadOptions
+* When reading Json numbers, they will be mapped to ints, longs, BigIntegers and double as necessary.
+  If BigDecimal support is required, this can be turned on in JsonReadOptions
 
-* Json is read from Readers and written to Appendable.
-  You can read from an InputStream too, in which case it will look for a BOM at the start of the stream.
-  CBOR/Msgpack are read from an InputStream and written to an OutputStream.
+* Json is read from `java.io.Reader` and written to `java.io.Appendable`.
+  You can read from an `InputStream` too, in which case it will look for a UTF-8 or UTF-16 BOM at the start of the stream.
+  CBOR/Msgpack are read from an `InputStream` and written to an `OutputStream`.
   Errors encountered during reading are reported with context, line and column numbers (for JSON) or byte offset (for CBOR/Msgpack).
 
 * CBOR serialization offers two complexities that are not supported in this API:
-duplicate keys in maps and "special" types that are not defined.
-Duplicate keys encountered during reading throw an IOException,
-and special types (which should really only
-be encountered while testing) are converted to a tagged null object. Tags are limited
-to 63 bits, and tags applied to Map keys are ignored.
+  duplicate keys in maps and "special" types that are not defined.
+  Duplicate keys encountered during reading throw an `IOException`,
+  and special types (which should really only be encountered while testing)
+  are converted to a tagged null object. Tags are limited
+  to 63 bits, and tags applied to Map keys are ignored.
 
 * CBOR serialization will convert tag types 2 and 3 on a "buffer" to BigInteger, as described in RFC7049.
-But other tags used to distinguish Dates, non-UTF8 strings, URLs etc. are not applied.
+  But other tags used to distinguish Dates, non-UTF8 strings, URLs etc. are not applied.
 A <code>JsonFactory</code> can easily be written to cover as many of these are needed.
 
 * Msgpack serialization is similar to CBOR, but simpler. "extension types" are stored as
-Buffers, with the extension type stored as a tag from 0..255. Like CBOR, duplicate keys encountered
-during read will throw an IOException.
+  Buffers, with the extension type stored as a tag from 0..255. Like CBOR, duplicate keys encountered
+  during read will throw an IOException.
 
 * It's possible (since v4) to read and write indefinitely large strings and buffers - the [JsonReadOptions.Filter](https://faceless2.github.io/json/docs/api/com/bfo/json/JsonReadOptions.Filter.html) class can be used to divert content away to a File, for example. The use of intermediate buffers has been kept to an absolute minimum.
 
@@ -101,6 +116,7 @@ json.put("d", "9999999999");
 System.out.println(json.get("d").numberValue().getClass()); // java.lang.Long
 json.put("d", "99999999999999999999999999");
 System.out.println(json.get("d").numberValue().getClass()); // java.math.BigInteger
+System.out.println(new Json(2).equals(new Json(2.0)));  // true - numbers compare by value not type
 System.out.println(json.get("d").booleanValue()); // true
 System.out.println(json.get("e").booleanValue()); // false
 json.put("e", Json.read("[]")); // Add a new list
@@ -154,9 +170,10 @@ json.getPath("a.b").put("c", true);  // "Added a.b.c"
 json.getPath("a.b").put("c", false);  // "Changed a.b.c" from true to false
 json.removePath("a.b"); // "Removed a.b"
 
-// JsonPath
-json = Json.parse("{\"a\":{\"b\":{\"c\":[10,20,30,40]}}}");
-json.eval("$..c[2]").intValue(); // 30
+// Conversion to/from JSR374 - the representations are independent, not shared
+javax.json.JsonValue jsrvalue = javax.json.Json.createReader(...).readValue(); // object read via JSR374
+bfovalue = new Json(jsrvalue);   // convert from JSR374 to BFO
+jsrvalue = javax.json.Json.createObjectBuilder(bfovalue.mapValue()).build(); // convert from BFO to JSR374
 ```
 
 ### JWK and COSE
@@ -205,111 +222,7 @@ assert jwt.verify(publicKey) == 0;   // Verify with the public key
 For both JWT and COSE, the [JWK](https://faceless2.github.io/json/docs/com/bfo/json/JWK.html) utility class can convert
 between the Java `PublicKey`, `PrivateKey` and `SecretKey` implementations and their JWK or COSE-key representations.
 
-# ISO BMFF and C2PA 
+# Related projects
 
-Version 5 adds the `com.bfo.box` package, which contains a general purpose parser for the
-_ISO Base Media Format_, or _BMFF_. This is a standard box model used in a number of file formats,
-including MP4, JP2 etc. The parser is very general, and will not load unrecognised boxes into memory so
-can be used to scan large files for metadata (which is the primary reason we use it; most of the
-currently recognised boxes have a metadata focus).
-
-```java
-import com.bfo.box.*;
-
-Box box;
-BoxFactory factory = new BoxFactory();
-InputStream in = new BufferedInputStream(new FileInputStream("file.mpf"));
-while ((box=factory.load(in)) != null) {
-    traverse(box, "");
-}
-
-void traverse(Box box, String prefix) {
-    System.out.println(prefix + box);
-    for (Box b=box.first();b!=null;b=b.next()) {
-        traverse(box, prefix + " ");
-    }
-}
-```
-
-A specific use of BMFF is [C2PA](https://c2pa.org), and most of this package are
-classes to read and write C2PA objects ("stores"), including a
-[helper class](https://faceless2.github.io/json/docs/com/bfo/box/C2PAHelper.html)
-to deal with embdding them into JPEG.
-While the C2PA format is built on BMFF boxes, those boxes typically contain JSON or CBOR
-and the signature is COSE. So this package makes heavy use of `com.bfo.json`.
-
-The [C2PAStore](https://faceless2.github.io/json/docs/com/bfo/box/C2PAStore.html) class is the top
-level entrypoint into the C2PA package. Here's a quick example showing how to verify C2PA embedded
-in a JPEG
-
-```java
-import com.bfo.box.*;
-import com.bfo.json.*;
-
-Json json = C2PAHelper.readJPEG(new FileInputStream(file));
-if (json.has("c2pa")) {
-    C2PAStore c2pa = (C2PAStore)new BoxFactory().load(json.bufferValue("c2pa"));
-    C2PAManifest manifest = c2pa.getActiveManifest();
-    manifest.setInputStream(new FileInputStream(file));
-    boolean valid = true;
-    for (C2PAStatus status : manifest.getSignature().verify(keystore)) {
-        System.out.println(status);
-        if (status.isError()) {
-            valid = false;
-        }
-    }
-}
-```
-
-and here's how to sign a JPEG with the bare minimum single assertion.
-
-```java
-import com.bfo.box.*;
-import com.bfo.json.*;
-
-PrivateKey key = ...
-List<X509Certificate> certs = ...
-C2PAStore c2pa = new C2PAStore();
-C2PAManifest manifest = new C2PAManifest("urn:manifestid");
-c2pa.getManifests().add(manifest);
-C2PAClaim claim = manifest.getClaim();
-C2PASignature sig = manifest.getSignature();
-claim.setFormat("image/jpeg");
-claim.setInstanceID("urn:instanceid");
-manifest.getAssertions().add(new C2PA_AssertionHashData());
-manifest.getSignature().setSigner(key, certs);
-Json json = C2PAHelper.readJPEG(new FileInputStream("unsigned.jpg"));
-C2PAHelper.writeJPEG(json, c2pa, new FileOutputStream("signed.jpg"));
-```
-
-There is a `main()` method on the `C2PAHelper` class which can be used for basic
-operations on JPEG files. To run it, download the [Jar](https://faceless2.github.io/json/dist/bfojson-5.jar) then
-`java -cp bfojson-5.jar com.bfo.box.C2PAHelper`
-
-```
-java com.bfo.box.C2PAHelper args...
-   --help                  this help
-   --verify                switch to verify mode (the default)
-   --sign                  switch to signing mode
-   --debug                 turn on debug to dump the c2pa store as CBOR-diag
-   --boxdebug              turn on debug to dump the c2pa store as a box tree
-   --nodebug               turn off --debug
-   --noboxdebug            turn off --boxdebug
-   --repackage             if signing a file with an existing C2PA, reference it from a 'repackage' action
-   --keystore <path>       if signing, the path to Keystore to load credentials from
-   --alias <name>          if signing, the alias from the keystore (default is the first one)
-   --password <password>   if signing, the password to open the keystore
-   --alg <algorithm>       if signing, the hash algorithm
-   --creativework <path>   if signing, filename containing a JSON schema to embed
-   --out <path>            if signing, filename to write signed output to (default will derive from input)
-   --c2pa <path>           if signing/verifying, filename to dump the C2PA object to (default is not dumped)
-   <path>                  the filename to sign or verify
-```
-
-The C2PA classes have been developed against C2PA 1.2; output from earlier versions may not verify.
-
-NOTE: <i>The C2PA classes are under development, so changes are likely</i>
-
--------
-
-This code is written by the team at [bfo.com](https://bfo.com). If you like it, come and see what else we do.
+* https://github.com/faceless2/c2pa - a C2PA implementation built on this package
+* https://github.com/faceless2/zpath - an XPath-like language for JSON/CBOR.
