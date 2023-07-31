@@ -43,7 +43,7 @@ containing those classes.
 * Java Web Keys (JWK) support EC, RSA and EdDSA public/private keys, and Hmac, AES-KW and AES-GCM-KW symmetric keys
 
 ## Building and Documentation
-* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-5.jar](https://faceless2.github.io/json/dist/bfojson-5.jar)
+* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-1.6.jar](https://faceless2.github.io/json/dist/bfojson-1.6.jar)
 * The API docs will always be available at [https://faceless2.github.io/json/docs/](https://faceless2.github.io/json/docs/)
 * Compiles under Java 11 or later - the API supports EdDSA keys (new in Java 15) via reflection.
 * Or download with `git clone http://github.com/faceless2/json.git`. Type `ant`. Jar is in `dist`, docs are in `docs`
