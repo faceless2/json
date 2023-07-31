@@ -2,20 +2,23 @@ package com.bfo.json;
 
 import java.io.*;
 import java.util.*;
+import java.util.function.Consumer;
+import java.util.stream.*;
 import java.math.*;
 import javax.json.*;
 import javax.json.stream.*;
 import javax.json.stream.JsonParser.Event;
 
 class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
-    
+
     private static final Object COLON = ":", COMMA = ",";
 
     private final JsonReader jr;
     private State s;
     private Event lastevent, event;
     private Object lastvalue, value;
-    private long line, col, tell;
+    private long line, col, tell, depth;
+    private boolean done;
 
     JSRJsonParser(Exception e) {
         this.event = Event.START_ARRAY; // arbitrary non-null;
@@ -30,6 +33,9 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
     }
 
     @Override public boolean hasNext() {
+        if (value instanceof JsonParsingException) {
+            throw new JsonParsingException("next failed", (JsonParsingException)value, ((JsonParsingException)value).getLocation());
+        }
         return event != null;
     }
 
@@ -47,6 +53,128 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
         this.lastvalue = this.value;
         donext();
         return lastevent;
+    }
+
+    @Override public JsonArray getArray() {
+        if (lastevent != Event.START_ARRAY) {
+            throw new IllegalStateException("Not an array");
+        }
+        return (JsonArray)read(lastevent);
+    }
+    @Override public Stream<JsonValue> getArrayStream() {
+        if (lastevent != Event.START_ARRAY) {
+            throw new IllegalStateException("Not an array");
+        }
+        Spliterator<JsonValue> spliterator = new Spliterators.AbstractSpliterator<JsonValue>(Long.MAX_VALUE, Spliterator.ORDERED) {
+            @Override public Spliterator<JsonValue> trySplit() {
+                return null;
+            }
+            @Override public boolean tryAdvance(Consumer<? super JsonValue> action) {
+                if (action == null) {
+                    throw new NullPointerException();
+                }
+                if (!hasNext() || next() == JsonParser.Event.END_ARRAY) {
+                    return false;
+                }
+                action.accept(getValue());
+                return true;
+            }
+        };
+        return StreamSupport.stream(spliterator, false);
+    }
+    @Override public JsonObject getObject() {
+        if (lastevent != Event.START_OBJECT) {
+            throw new IllegalStateException("Not an object");
+        }
+        return (JsonObject)read(lastevent);
+    }
+
+    @Override public Stream<Map.Entry<String,JsonValue>> getObjectStream() {
+        if (lastevent != Event.START_OBJECT) {
+            throw new IllegalStateException("Not an array");
+        }
+        Spliterator<Map.Entry<String,JsonValue>> spliterator = new Spliterators.AbstractSpliterator<Map.Entry<String,JsonValue>>(Long.MAX_VALUE, Spliterator.ORDERED) {
+            @Override public Spliterator<Map.Entry<String,JsonValue>> trySplit() {
+                return null;
+            }
+            @Override public boolean tryAdvance(Consumer<? super Map.Entry<String,JsonValue>> action) {
+                if (action == null) {
+                    throw new NullPointerException();
+                }
+                if (!hasNext()) {
+                    return false;
+                }
+                JsonParser.Event e = next();
+                if (e == Event.END_OBJECT) {
+                    return false;
+                } else if (e != Event.KEY_NAME) {
+                    throw new IllegalStateException("Not a key");
+                }
+                String key = getString();
+                next();
+                JsonValue value = getValue();
+                action.accept(new AbstractMap.SimpleImmutableEntry<String,JsonValue>(key, value));
+                return true;
+            }
+        };
+        return StreamSupport.stream(spliterator, false);
+    }
+
+    @Override public JsonValue getValue() {
+        return read(lastevent);
+    }
+
+    @Override public Stream<JsonValue> getValueStream() {
+        if (lastevent != Event.VALUE_STRING && lastevent != Event.VALUE_NUMBER && lastevent != Event.VALUE_TRUE && lastevent != Event.VALUE_FALSE && lastevent != Event.VALUE_NULL) {
+            throw new IllegalStateException("Not a value");
+        }
+        Spliterator<JsonValue> spliterator = new Spliterators.AbstractSpliterator<JsonValue>(Long.MAX_VALUE, Spliterator.ORDERED) {
+            @Override public Spliterator<JsonValue> trySplit() {
+                return null;
+            }
+            @Override public boolean tryAdvance(Consumer<? super JsonValue> action) {
+                if (action == null) {
+                    throw new NullPointerException();
+                }
+                if (!hasNext()) {
+                    return false;
+                }
+                 next();
+                action.accept(getValue());
+                return true;
+            }
+        };
+        return StreamSupport.stream(spliterator, false);
+    }
+
+    @Override public void skipArray() {
+        if (lastevent != Event.START_ARRAY) {
+            throw new IllegalStateException("Not an array");
+        }
+        int depth = 1;
+        do {
+            Event e = next();
+            if (e == Event.START_ARRAY) {
+                depth++;
+            } else if (e == Event.END_ARRAY) {
+                depth--;
+            }
+        } while (depth != 0);
+    }
+
+    @Override public void skipObject() {
+        if (lastevent != Event.START_OBJECT) {
+            throw new IllegalStateException("Not an object");
+        }
+        int depth = 1;
+        do {
+            Event e = next();
+            if (e == Event.START_OBJECT) {
+                depth++;
+            } else if (e == Event.END_OBJECT) {
+                depth--;
+            }
+        } while (depth != 0);
     }
 
     @Override public void close() {
@@ -122,7 +250,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                         value = null;
                         event = (Event)t;
                     } else {
-                        jr.unexpected("", c);
+                        unexpected("", c);
                     }
                     if ((s.flags & ST_AV) != 0) {
                         s.flags = ST_CM|ST_EA;
@@ -139,7 +267,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                         value = null;
                         event = (Event)t;
                     } else {
-                        jr.unexpected("", c);
+                        unexpected("", c);
                     }
                     if ((s.flags & ST_AV) != 0) {
                         s.flags = ST_CM|ST_EA;
@@ -156,7 +284,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                         value = null;
                         event = (Event)t;
                     } else {
-                        jr.unexpected("", c);
+                        unexpected("", c);
                     }
                     break;
                 } else if (t == Event.START_OBJECT) {
@@ -166,7 +294,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                         value = null;
                         event = (Event)t;
                     } else {
-                        jr.unexpected("", c);
+                        unexpected("", c);
                     }
                     break;
                 } else if (t == COMMA) {
@@ -175,13 +303,13 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                     } else if ((s.flags & (ST_CM|ST_EO)) == (ST_CM|ST_EO)) {     // comma or end-of-object
                         s.flags = ST_MK;
                     } else {
-                        jr.unexpected("", c);
+                        unexpected("", c);
                     }
                 } else if (t == COLON) {
                     if ((s.flags & ST_CL) != 0) {
                         s.flags = ST_MV;
                     } else {
-                        jr.unexpected("", c);
+                        unexpected("", c);
                     }
                 } else if ((s.flags & (ST_AV|ST_MV|ST_IV)) != 0) {
                     if (t instanceof String) {
@@ -197,7 +325,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                         value = null;
                         event = Event.VALUE_NULL;
                     } else {
-                        jr.unexpected("", c);
+                        unexpected("", c);
                     }
                     if ((s.flags & ST_AV) != 0) {
                         s.flags = ST_CM|ST_EA;
@@ -213,12 +341,15 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                         event = Event.KEY_NAME;
                         s.flags = ST_CL;
                     } else {
-                        jr.unexpected("", c);
+                        unexpected("", c);
                     }
                     break;
                 } else {
-                    jr.unexpected("", c);
+                    unexpected("", c);
                 }
+            }
+            if (t == null && s.parent != null) {
+                unexpected("", -1);
             }
             this.event = event;
             this.value = value;
@@ -226,6 +357,28 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
             this.value = e;
         }
 //        System.out.println("## out donext: e="+event+" v="+value+"/"+(value==null?null:value.getClass().getName())+" s="+s);
+    }
+
+    private void unexpected(String type, int c) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Unexpected");
+        if (c < 0) {
+            sb.append(" EOF");
+        } else {
+            sb.append(type);
+            sb.append(" character ");
+            if (c >= ' ' && c < 127) {
+                sb.append('\'');
+                sb.append((char)c);
+                sb.append('\'');
+            } else {
+                sb.append("0x");
+                sb.append(Integer.toHexString(c));
+            }
+        }
+        sb.append(" at ");
+        sb.append(jr.reader);
+        throw new JsonParsingException(sb.toString(), this);
     }
 
     private Object readToken(int c) throws IOException {
@@ -268,7 +421,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
             } else if (s.equals("null")) {
                 out = Json.NULL;
             } else {
-                jr.unexpected("", s.codePointAt(0));
+                unexpected("", s.codePointAt(0));
             }
         }
         return out;
@@ -334,19 +487,30 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
         return (JsonObject)readValue();
     }
 
-    @Override public JsonValue readValue() {
-        return read();
-    }
     @Override public JsonStructure read() {
+        return (JsonStructure)readValue();
+    }
+
+    @Override public JsonValue readValue() {
+        if (done) {
+            throw new IllegalStateException("Already read");
+        }
+        done = true;
+        return read(null);
+    }
+
+    private JsonValue read(JsonParser.Event event) {
         List<JsonStructure> stack = new ArrayList<JsonStructure>();
         String key = null;
         JsonStructure cursor = null;
 
         while (hasNext()) {
-            JsonParser.Event event = next();
+            if (event == null) {
+                event = next();
+            }
 //            System.out.println("E="+event+" C="+cursor+" K="+key+" S="+stack);
             switch (event) {
-                case START_ARRAY: 
+                case START_ARRAY:
                     if (cursor instanceof JsonArray) {
                         stack.add(cursor);
                         ((JSRJsonArray)cursor).list.add(cursor = new JSRJsonArray(new ArrayList<JsonValue>()));
@@ -382,7 +546,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                     } else if (cursor instanceof JsonObject) {
                         ((JSRJsonObject)cursor).map.put(key, JsonValue.TRUE);
                     } else {
-                        throw new IllegalStateException("Top-level " + event);
+                        return JsonValue.TRUE;
                     }
                     break;
                 case VALUE_FALSE:
@@ -391,7 +555,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                     } else if (cursor instanceof JsonObject) {
                         ((JSRJsonObject)cursor).map.put(key, JsonValue.FALSE);
                     } else {
-                        throw new IllegalStateException("Top-level " + event);
+                        return JsonValue.FALSE;
                     }
                     break;
                 case VALUE_NULL:
@@ -400,7 +564,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                     } else if (cursor instanceof JsonObject) {
                         ((JSRJsonObject)cursor).map.put(key, JsonValue.NULL);
                     } else {
-                        throw new IllegalStateException("Top-level " + event);
+                        return JsonValue.NULL;
                     }
                     break;
                 case VALUE_STRING:
@@ -409,7 +573,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                     } else if (cursor instanceof JsonObject) {
                         ((JSRJsonObject)cursor).map.put(key, new JSRJsonString(getString()));
                     } else {
-                        throw new IllegalStateException("Top-level " + event);
+                        return new JSRJsonString(getString());
                     }
                     break;
                 case VALUE_NUMBER:
@@ -418,13 +582,14 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                     } else if (cursor instanceof JsonObject) {
                         ((JSRJsonObject)cursor).map.put(key, new JSRJsonNumber(getNumber()));
                     } else {
-                        throw new IllegalStateException("Top-level " + event);
+                        return new JSRJsonNumber(getNumber());
                     }
                     break;
                 case KEY_NAME:
                     key = getString();
                     break;
             }
+            event = null;
         }
         throw new JsonParsingException("EOF", null, this);
     }

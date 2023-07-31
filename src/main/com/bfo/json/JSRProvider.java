@@ -10,7 +10,10 @@ import javax.json.spi.*;
 import javax.json.stream.*;
 
 /**
- * The JsonProvider implementation that provider the JSON-P (JSR374) implementation
+ * <p>
+ * The JsonProvider implementation that provider the JSON-P (JSR374) implementation.
+ * See {@link JsonProvider} for documentation relating to this class.
+ * </p>
  */
 public class JSRProvider extends JsonProvider {
     @Override public JsonArrayBuilder createArrayBuilder() {
@@ -40,10 +43,10 @@ public class JSRProvider extends JsonProvider {
     @Override public JsonParserFactory createParserFactory(Map<String,?> config) {
         return new JSRFactory(config);
     }
-    @Override public JsonReader createReader(InputStream in) {
+    @Override public javax.json.JsonReader createReader(InputStream in) {
         return createReaderFactory(null).createReader(in);
     }
-    @Override public JsonReader createReader(Reader reader) {
+    @Override public javax.json.JsonReader createReader(Reader reader) {
         return createReaderFactory(null).createReader(reader);
     }
     @Override public JsonReaderFactory createReaderFactory(Map<String,?> config) {
@@ -67,10 +70,10 @@ public class JSRProvider extends JsonProvider {
     @Override public JsonNumber createValue(BigInteger value) {
         return new JSRJsonNumber(value);
     }
-    @Override public JsonWriter createWriter(OutputStream out) {
+    @Override public javax.json.JsonWriter createWriter(OutputStream out) {
         return createWriterFactory(null).createWriter(out);
     }
-    @Override public JsonWriter createWriter(Writer writer) {
+    @Override public javax.json.JsonWriter createWriter(Writer writer) {
         return createWriterFactory(null).createWriter(writer);
     }
     @Override public JsonWriterFactory createWriterFactory(Map<String,?> config) {
@@ -82,31 +85,11 @@ public class JSRProvider extends JsonProvider {
     @SuppressWarnings("unchecked")
     @Override public JsonArrayBuilder createArrayBuilder(Collection<?> collection) {
         JsonArrayBuilder b = createArrayBuilder();
+        Set<Object> seen = new HashSet<Object>();
         for (Object o : collection) {
-            if (o == null) {
-                b.addNull();
-            } else if (o instanceof JsonValue) {
-                b.add((JsonValue)o);
-            } else if (o instanceof Boolean) {
-                b.add(((Boolean)o).booleanValue());
-            } else if (o instanceof Float || o instanceof Double) {
-                b.add(((Number)o).doubleValue());
-            } else if (o instanceof BigDecimal) {
-                b.add((BigDecimal)o);
-            } else if (o instanceof BigInteger) {
-                b.add((BigDecimal)o);
-            } else if (o instanceof Long) {
-                b.add((Long)o);
-            } else if (o instanceof Number) {
-                b.add(((Number)o).intValue());
-            } else if (o instanceof String) {
-                b.add(o.toString());
-            } else if (o instanceof Map) {
-                b.add(createObjectBuilder((Map<String,Object>)o));
-            } else if (o instanceof Collection) {
-                b.add(createArrayBuilder((Collection)o));
-            } else {
-                throw new IllegalArgumentException(o.getClass().getName());
+            JsonValue val = JSRFactory.toJsonValue(o, seen);
+            if (val != null) {
+                b.add( val);
             }
         }
         return b;
@@ -118,33 +101,12 @@ public class JSRProvider extends JsonProvider {
     @SuppressWarnings("unchecked")
     @Override public JsonObjectBuilder createObjectBuilder(Map<String,Object> map) {
         JsonObjectBuilder b = createObjectBuilder();
+        Set<Object> seen = new HashSet<Object>();
         for (Map.Entry<String,Object> e : map.entrySet()) {
             String key = e.getKey();
-            Object o = e.getValue();
-            if (o == null) {
-                b.addNull(key);
-            } else if (o instanceof JsonValue) {
-                b.add(key, (JsonValue)o);
-            } else if (o instanceof Boolean) {
-                b.add(key, ((Boolean)o).booleanValue());
-            } else if (o instanceof Float || o instanceof Double) {
-                b.add(key, ((Number)o).doubleValue());
-            } else if (o instanceof BigDecimal) {
-                b.add(key, (BigDecimal)o);
-            } else if (o instanceof BigInteger) {
-                b.add(key, (BigDecimal)o);
-            } else if (o instanceof Long) {
-                b.add(key, (Long)o);
-            } else if (o instanceof Number) {
-                b.add(key, ((Number)o).intValue());
-            } else if (o instanceof String) {
-                b.add(key, o.toString());
-            } else if (o instanceof Map) {
-                b.add(key, createObjectBuilder((Map<String,Object>)o));
-            } else if (o instanceof Collection) {
-                b.add(key, createArrayBuilder((Collection)o));
-            } else {
-                throw new IllegalArgumentException(o.getClass().getName());
+            JsonValue val = JSRFactory.toJsonValue(e.getValue(), seen);
+            if (val != null) {
+                b.add(key, val);
             }
         }
         return b;
@@ -162,6 +124,7 @@ public class JSRProvider extends JsonProvider {
     @Override public JsonPatch createDiff(JsonStructure source, JsonStructure target) {
         JsonPatchBuilder builder = createPatchBuilder();
         generateDiff("", source, target, builder);
+//        System.out.println("DONE");
         return builder.build();
     }
 
@@ -179,7 +142,9 @@ public class JSRProvider extends JsonProvider {
 
     @Override public JsonPatchBuilder createPatchBuilder(JsonArray array) {
         JSRJsonPatchBuilder b = new JSRJsonPatchBuilder();
-        ((JsonArray)b.build()).addAll(array);
+        for (JsonValue v : array) {
+            b.add((JsonObject)v);
+        }
         return b;
     }
 
@@ -195,8 +160,11 @@ public class JSRProvider extends JsonProvider {
             for (int i=1;i<o.length;) {
                 m.put((String)o[i++], (JsonValue)o[i++]);
             }
-            a.add(new JSRJsonObject(m));
+            add(new JSRJsonObject(m));
             return this;
+        }
+        void add(JsonObject m) {
+            a.add(m);
         }
         @Override public JsonPatchBuilder add(String path, boolean value) {
             return op("add", "path", new JSRJsonString(path), "value", value == true ? JsonValue.TRUE : JsonValue.FALSE);
@@ -211,7 +179,7 @@ public class JSRProvider extends JsonProvider {
             return op("add", "path", new JSRJsonString(path), "value", value);
         }
         @Override public JsonPatchBuilder copy(String path, String from) {
-            return op("copy", "path", new JSRJsonString(path), "from", from);
+            return op("copy", "path", new JSRJsonString(path), "from", new JSRJsonString(from));
         }
         @Override public JsonPatchBuilder move(String path, String from) {
             return op("move", "path", new JSRJsonString(path), "from", new JSRJsonString(from));
@@ -267,13 +235,14 @@ public class JSRProvider extends JsonProvider {
     }
 
     private static void generateDiff(String path, JsonValue source, JsonValue target, JsonPatchBuilder builder) {
-        if (source.equals(target)) {
+//        System.out.println("GD: p="+path+" s="+source+" t="+target);
+        if (source != null && source.equals(target)) {
             return;
         } else if (source instanceof JsonArray && target instanceof JsonArray) {
             JsonArray sa = (JsonArray)source;
             JsonArray ta = (JsonArray)target;
             int ss = sa.size();
-            int ts = sa.size();
+            int ts = ta.size();
             int[][] lut = new int[ss + 1][ts + 1];
             for (int i=0;i<ss;i++) {
                 for (int j=0;j<ts;j++) {
@@ -284,7 +253,7 @@ public class JSRProvider extends JsonProvider {
                     }
                 }
             }
-            generateDiff(path, lut, builder, sa, ta, ss, ts);
+            generateDiffLCS(path, lut, builder, sa, ta, ss, ts);
         } else if (source instanceof JsonObject && target instanceof JsonObject) {
             JsonObject so = (JsonObject)source;
             JsonObject to = (JsonObject)target;
@@ -305,32 +274,148 @@ public class JSRProvider extends JsonProvider {
         }
     }
 
-    private static void generateDiff(String path, int[][] lut, JsonPatchBuilder builder, JsonArray source, JsonArray target, int i, int j) {
+    private static final String dump(int[][] lut) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for (int[] t : lut) {
+            if (sb.length() > 1) {
+                sb.append(", ");
+            }
+            sb.append(Arrays.toString(t));
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    private static void generateDiffLCS(String path, int[][] lut, JsonPatchBuilder builder, JsonArray source, JsonArray target, int i, int j) {
+//        System.out.println("GD2: p="+path+" s="+source+" t="+target+" i="+i+" j="+j+" lut="+dump(lut)+" = "+lut[i][j]);
         if (i == 0) {
             if (j > 0) {
                 builder.add(path + "/" + (j - 1), target.get(j - 1));
-                generateDiff(path, lut, builder, source, target, i, j - 1);
+                generateDiffLCS(path, lut, builder, source, target, i, j - 1);
             }
         } else if (j == 0) {
             if (i > 0) {
                 builder.remove(path + "/" + (i - 1));
-                generateDiff(path, lut, builder, source, target, i - 1, j);
+                generateDiffLCS(path, lut, builder, source, target, i - 1, j);
             }
         } else if ((lut[i][j] & 1) == 1) {
-            generateDiff(path, lut, builder, source, target, i - 1, j - 1);
+            generateDiffLCS(path, lut, builder, source, target, i - 1, j - 1);
         } else {
             final int k = lut[i][j-1] >> 1;
             final int l = lut[i-1][j] >> 1;
             if (k < l) {
                 builder.remove(path + "/" + (i - 1));
-                generateDiff(path, lut, builder, source, target, i - 1, j);
+                generateDiffLCS(path, lut, builder, source, target, i - 1, j);
             } else if (k > l) {
+                generateDiffLCS(path, lut, builder, source, target, i, j - 1);
                 builder.add(path + "/" + (j - 1), target.get(j - 1));
-                generateDiff(path, lut, builder, source, target, i, j - 1);
             } else {
+                generateDiffLCS(path, lut, builder, source, target, i - 1, j - 1);
                 generateDiff(path + "/" + (i - 1), source.get(i - 1), target.get(j - 1), builder);
-                generateDiff(path, lut, builder, source, target, i - 1, j - 1);
             }
         }
     }
+
+    static class DiffGenerator {
+        private JsonPatchBuilder builder;
+
+        JsonArray diff(JsonStructure source, JsonStructure target) {
+            builder = javax.json.Json.createPatchBuilder();
+            diff("", source, target);
+            return builder.build().toJsonArray();
+        }
+
+        private void diff(String path, JsonValue source, JsonValue target) {
+            if (source.equals(target)) {
+                return;
+            }
+            JsonValue.ValueType s = source.getValueType();
+            JsonValue.ValueType t = target.getValueType();
+            if (s == JsonValue.ValueType.OBJECT && t == JsonValue.ValueType.OBJECT) {
+                diffObject(path, (JsonObject) source, (JsonObject) target);
+            } else if (s == JsonValue.ValueType.ARRAY && t == JsonValue.ValueType.ARRAY) {
+                diffArray(path, (JsonArray) source, (JsonArray) target);
+            } else {
+                builder.replace(path, target);
+            }
+        }
+
+        private void diffObject(String path, JsonObject source, JsonObject target) {
+            source.forEach((key, value) -> {
+                if (target.containsKey(key)) {
+                    diff(path + '/' + key, value, target.get(key));
+                } else {
+                    builder.remove(path + '/' + key);
+                }
+            });
+            target.forEach((key, value) -> {
+                if (! source.containsKey(key)) {
+                    builder.add(path + '/' + key, value);
+                }
+            });
+        }
+
+        /*
+         * For array element diff, find the longest common subsequence, per
+         * http://en.wikipedia.org/wiki/Longest_common_subsequence_problem .
+         * We modify the algorithm to generate a replace if possible.
+         */
+        private void diffArray(String path, JsonArray source, JsonArray target) {
+            /* The array c keeps track of length of the subsequence. To avoid
+             * computing the equality of array elements again, we
+             * left shift its value by 1, and use the low order bit to mark
+             * that two items are equal.
+             */
+            int m = source.size();
+            int n = target.size();
+            int [][] c = new int[m+1][n+1];
+            for (int i = 0; i < m+1; i++)
+                c[i][0] = 0;
+            for (int i = 0; i < n+1; i++)
+                c[0][i] = 0;
+            for (int i = 0; i < m; i++) {
+                for (int j = 0; j < n; j++) {
+                    if (source.get(i).equals(target.get(j))) {
+                        c[i+1][j+1] = ((c[i][j]) & ~1) + 3;
+                        // 3 = (1 << 1) | 1;
+                    } else {
+                        c[i+1][j+1] = Math.max(c[i+1][j], c[i][j+1]) & ~1;
+                    }
+                }
+            }
+
+            emit(path, source, target, c, m, n);
+        }
+
+        private void emit(final String path, final JsonArray source, final JsonArray target, final int[][] c, final int i, final int j) {
+           if (i == 0) {
+               if (j > 0) {
+                   emit(path, source, target, c, i, j - 1);
+                   builder.add(path + '/' + (j - 1), target.get(j - 1));
+               }
+           } else if (j == 0) {
+               if (i > 0) {
+                   builder.remove(path + '/' + (i - 1));
+                   emit(path, source, target, c, i - 1, j);
+               }
+           } else if ((c[i][j] & 1) == 1) {
+               emit(path, source, target, c, i - 1, j - 1);
+           } else {
+               final int f = c[i][j-1] >> 1;
+               final int g = c[i-1][j] >> 1;
+               if (f > g) {
+                   emit(path, source, target, c, i, j - 1);
+                   builder.add(path + '/' + (j - 1), target.get(j - 1));
+               } else if (f < g) {
+                   builder.remove(path + '/' + (i - 1));
+                   emit(path, source, target, c, i - 1, j);
+               } else { 
+                   diff(path + '/' + (i - 1), source.get(i - 1), target.get(j - 1));
+                   emit(path, source, target, c, i - 1, j - 1);
+               }
+           }
+        }
+    }
+
 }

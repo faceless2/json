@@ -13,6 +13,7 @@ class JSRJsonWriter implements JsonGenerator {
         final State parent;
         final int type;
         final String prefix;
+        private boolean needkey;
         private int count;
         State(State parent, int type, String prefix) {
             this.parent = parent;
@@ -24,35 +25,43 @@ class JSRJsonWriter implements JsonGenerator {
             } else {
                 this.prefix = parent.prefix.equals("") ? "\n  " : parent.prefix + "  ";
             }
+            needkey = type == OBJECT;
         }
         void prefix() throws IOException {
-            if (prefix != null && wrote) {
+            if (prefix != null) {
                 writer.write(prefix);
             }
         }
-        void map() throws IOException {
-            if (type == OBJECT) {
+        void preKey() throws IOException {
+            if (type == OBJECT && needkey) {
                 if (count > 0) {
                     writer.writeComma();
                 }
+                needkey = false;
+                count++;
+                prefix();
             } else {
                 throw new JsonGenerationException("Wrong state");
             }
-            count++;
         }
-        void rootOrArray() throws IOException {
+        void preValue() throws IOException {
             if (type == ROOT) {
                 if (count > 0) {
                     throw new JsonGenerationException("Wrong state" + this);
                 }
+                count++;
             } else if (type == ARRAY) {
                 if (count > 0) {
                     writer.writeComma();
                 }
-            } else {
-                throw new JsonGenerationException("Wrong state");
+                count++;
+                prefix();
+            } else if (type == OBJECT) {
+                if (needkey) {
+                    throw new JsonGenerationException("Wrong state" + this);
+                }
+                needkey = true;
             }
-            count++;
         }
         public String toString() {
             return "{type="+(type==ROOT?"root":type==OBJECT?"object":"array")+" count="+count+" parent="+parent+"}";
@@ -71,6 +80,7 @@ class JSRJsonWriter implements JsonGenerator {
 
     public javax.json.JsonWriter asWriter() {
         return new javax.json.JsonWriter() {
+            boolean wrote;
             @Override public void writeArray(JsonArray array) {
                 write(array);
             }
@@ -78,7 +88,14 @@ class JSRJsonWriter implements JsonGenerator {
                 write(object);
             }
             @Override public void write(JsonStructure value) {
-                JSRJsonWriter.this.write((JsonValue)value);
+                write((JsonValue)value);
+            }
+            @Override public void write(JsonValue value) {
+                if (wrote) {
+                    throw new IllegalStateException("Already written");
+                }
+                JSRJsonWriter.this.write(value);
+                wrote = true;
             }
             @Override public void close() {
                 JSRJsonWriter.this.close();
@@ -139,8 +156,7 @@ class JSRJsonWriter implements JsonGenerator {
     }
     @Override public JsonGenerator write(boolean value) {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeBoolean(value);
             wrote = true;
             return this;
@@ -150,8 +166,7 @@ class JSRJsonWriter implements JsonGenerator {
     }
     @Override public JsonGenerator write(double value) {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeNumber(value);
             wrote = true;
             return this;
@@ -161,8 +176,7 @@ class JSRJsonWriter implements JsonGenerator {
     }
     @Override public JsonGenerator write(int value) {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeNumber(value);
             wrote = true;
             return this;
@@ -172,8 +186,7 @@ class JSRJsonWriter implements JsonGenerator {
     }
     @Override public JsonGenerator write(long value) {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeNumber(value);
             wrote = true;
             return this;
@@ -183,8 +196,7 @@ class JSRJsonWriter implements JsonGenerator {
     }
     JsonGenerator write(Number value) {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeNumber(value);
             wrote = true;
             return this;
@@ -194,8 +206,7 @@ class JSRJsonWriter implements JsonGenerator {
     }
     @Override public JsonGenerator write(String value) {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeString(value);
             wrote = true;
             return this;
@@ -204,111 +215,36 @@ class JSRJsonWriter implements JsonGenerator {
         }
     }
     @Override public JsonGenerator write(String name, boolean value) {
-        try {
-            writeKey(name);
-            writer.writeBoolean(value);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).write(value);
     }
     @Override public JsonGenerator write(String name, double value) {
-        try {
-            writeKey(name);
-            writer.writeNumber(value);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).write(value);
     }
     @Override public JsonGenerator write(String name, int value) {
-        try {
-            writeKey(name);
-            writer.writeNumber(value);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).write(value);
     }
     @Override public JsonGenerator write(String name, long value) {
-        try {
-            writeKey(name);
-            writer.writeNumber(value);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).write(value);
     }
     JsonGenerator write(String name, Number value) {
-        try {
-            writeKey(name);
-            writer.writeNumber(value);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        writeKey(name);
+        return write(value);
     }
     @Override public JsonGenerator write(String name, String value) {
-        try {
-            writeKey(name);
-            writer.writeString(value);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).write(value);
     }
     @Override public JsonGenerator write(String name, BigDecimal value) {
-        try {
-            writeKey(name);
-            writer.writeNumber(value);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).write(value);
     }
     @Override public JsonGenerator write(String name, BigInteger value) {
-        try {
-            writeKey(name);
-            writer.writeNumber(value);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).write(value);
     }
     @Override public JsonGenerator write(String name, JsonValue value) {
-        if (value instanceof JsonArray) {
-            writeStartArray(name);
-            JsonArray a = (JsonArray)value;
-            for (int i=0;i<a.size();i++) {
-                write(a.get(i));
-            }
-            writeEnd();
-        } else if (value instanceof JsonObject) {
-            writeStartObject(name);
-            JsonObject m = (JsonObject)value;
-            for (Map.Entry<String,JsonValue> e : m.entrySet()) {
-                write(e.getKey(), e.getValue());
-            }
-            writeEnd();
-        } else if (value == JsonValue.TRUE) {
-            write(name, true);
-        } else if (value == JsonValue.FALSE) {
-            write(name, false);
-        } else if (value == JsonValue.NULL) {
-            writeNull(name);
-        } else if (value instanceof JSRJsonNumber) {
-            write(name, ((JSRJsonNumber)value).numberValue());
-        } else if (value instanceof JSRJsonString) {
-            write(name, ((JSRJsonString)value).getString());
-        } else {
-            throw new IllegalArgumentException();
-        }
-        return this;
+        return writeKey(name).write(value);
     }
     @Override public JsonGenerator write(BigDecimal value) {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeNumber(value);
             wrote = true;
             return this;
@@ -318,8 +254,7 @@ class JSRJsonWriter implements JsonGenerator {
     }
     @Override public JsonGenerator write(BigInteger value) {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeNumber(value);
             wrote = true;
             return this;
@@ -347,9 +282,11 @@ class JSRJsonWriter implements JsonGenerator {
     }
     @Override public JsonGenerator writeKey(String name) {
         try {
-            state.map();
-            state.prefix();
+            state.preKey();
             writer.writeKey(name);
+            if (state.prefix != null) {
+                writer.write(" ");
+            }
             return this;
         } catch (IOException e) {
             throw new JsonGenerationException(e.getMessage(), e);
@@ -357,8 +294,7 @@ class JSRJsonWriter implements JsonGenerator {
     }
     @Override public JsonGenerator writeNull() {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeNull();
             wrote = true;
             return this;
@@ -367,18 +303,11 @@ class JSRJsonWriter implements JsonGenerator {
         }
     }
     @Override public JsonGenerator writeNull(String name) {
-        try {
-            writeKey(name);
-            writer.writeNull();
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).writeNull();
     }
     @Override public JsonGenerator writeStartArray() {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeStartArray();
             state = new State(state, ARRAY, null);
             wrote = true;
@@ -388,19 +317,11 @@ class JSRJsonWriter implements JsonGenerator {
         }
     }
     @Override public JsonGenerator writeStartArray(String name) {
-        try {
-            writeKey(name);
-            writer.writeStartArray();
-            state = new State(state, ARRAY, null);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).writeStartArray();
     }
     @Override public JsonGenerator writeStartObject() {
         try {
-            state.rootOrArray();
-            state.prefix();
+            state.preValue();
             writer.writeStartObject();
             state = new State(state, OBJECT, null);
             wrote = true;
@@ -410,13 +331,6 @@ class JSRJsonWriter implements JsonGenerator {
         }
     }
     @Override public JsonGenerator writeStartObject(String name) {
-        try {
-            writeKey(name);
-            writer.writeStartObject();
-            state = new State(state, OBJECT, null);
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return writeKey(name).writeStartObject();
     }
 }

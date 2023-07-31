@@ -109,19 +109,22 @@ class JSRJsonArray extends AbstractList<JsonValue> implements JsonArray, JsonPat
             JsonPointer path = new JSRJsonPointer(m.getString("path"));
 
             if (op.equals("add")) {
-                path.add(target, m.get("value"));
+                target = path.add(target, m.get("value"));
             } else if (op.equals("replace")) {
-                path.replace(target, m.get("value"));
+                target = path.replace(target, m.get("value"));
             } else if (op.equals("remove")) {
-                path.remove(target);
+                target = path.remove(target);
             } else if (op.equals("copy")) {
                 JSRJsonPointer from = new JSRJsonPointer(m.getString("from"));
-                path.add(target, from.getValue(target));
+                target = path.add(target, from.getValue(target));
             } else if (op.equals("move")) {
+                if (m.getString("path").startsWith(m.getString("from") + "/")) {
+                    throw new JsonException("Path \"" + m.getString("path") + "\" may not be prefix of from \"" + m.getString("from") + "\"");
+                }
                 JSRJsonPointer from = new JSRJsonPointer(m.getString("from"));
                 JsonValue value = from.getValue(target);
-                from.remove(target);
-                path.add(target, value);
+                target = from.remove(target);
+                target = path.add(target, value);
             } else if (op.equals("test")) {
                 JsonValue value = path.getValue(target);
                 if (!value.equals(m.get("value"))) {

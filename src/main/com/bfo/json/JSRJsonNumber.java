@@ -58,10 +58,11 @@ class JSRJsonNumber implements JsonNumber {
         }
     }
     @Override public boolean isIntegral() {
-        return value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte || value instanceof BigDecimal || ((value instanceof Float || value instanceof Double) && value.intValue() == value.doubleValue()) || bigDecimalValue().scale() <= 0;
+        boolean integral = value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte || value instanceof BigInteger || (value instanceof BigDecimal && bigDecimalValue().scale() <= 0);
+        return integral;
     }
     @Override public long longValue() {
-        return value.intValue();
+        return value.longValue();
     }
     @Override public long longValueExact() {
         if (value instanceof BigInteger) {
