@@ -365,7 +365,7 @@ class JsonReader {
                         c = '\f';
                         break;
                     default:
-                        throw new IOException("Invalid trailing backslash in string at " + in);
+                        throw new IllegalArgumentException("Invalid trailing backslash in string at " + in);
                 }
             } else if (Character.isISOControl(c)) {
                 throw new IllegalArgumentException("Invalid string character 0x" + Integer.toHexString(c) + " at " + in);
@@ -461,7 +461,7 @@ class JsonReader {
                             d = Double.valueOf(s);
                             if (d.isInfinite()) {
                                 d = null;
-                            } else if (!options.isBigDecimal() && !d.toString().equals(s)) {
+                            } else if (!options.isBigDecimal() && !d.toString().equalsIgnoreCase(s)) {
                                 d = null;
                             }
                         } catch (NumberFormatException e) { }

@@ -238,6 +238,9 @@ public class Json {
                     for (Iterator<Map.Entry> i = ((Map)object).entrySet().iterator();i.hasNext();) {
                         Map.Entry e = i.next();
                         Object key = e.getKey();
+                        if (e.getValue() instanceof Optional && !((Optional)e.getValue()).isPresent()) {
+                            continue;
+                        }
                         Json child = new Json(e.getValue(), factory, seen);
                         child.parent = this;
                         child.parentkey = key;
