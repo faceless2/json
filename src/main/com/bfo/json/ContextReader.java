@@ -10,6 +10,7 @@ class ContextReader extends Reader {
 
     private final Reader parent;
     private int line, col, markline, markcol;
+    private long mark, tell;
     private int ctxoff, markctxoff;
     private boolean ctxwrap, markctxwrap;
     private char[] ctx = new char[32];
@@ -40,6 +41,7 @@ class ContextReader extends Reader {
         parent.mark(limit);
         markline = line;
         markcol = col;
+        mark = tell;
         markctxwrap = ctxwrap;
         markctxoff = ctxoff;
         System.arraycopy(ctx, 0, markctx, 0, ctx.length);
@@ -61,6 +63,7 @@ class ContextReader extends Reader {
         }
         if (c == 10) {
             line++;
+            tell += col;
             col = 0;
         } else {
             col++;
@@ -87,6 +90,7 @@ class ContextReader extends Reader {
         parent.reset();
         line = markline;
         col = markcol;
+        tell = mark;
         char[] t = ctx;
         ctx = markctx;
         markctx = t;
@@ -101,6 +105,18 @@ class ContextReader extends Reader {
             }
         }
         return n;
+    }
+
+    int line() {
+        return line;
+    }
+
+    int column() {
+        return col;
+    }
+
+    long tell() {
+        return tell + col;
     }
 
     public String toString() {

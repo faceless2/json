@@ -55,9 +55,14 @@
       <sourcefiles>
         <fileset dir="${src.main}"/>
       </sourcefiles>
+      <classpath>
+        <pathelement location="${jar.main}"/>
+        <path refid="path.build"/>
+      </classpath>
       <doctitle><![CDATA[${description} ${version}]]></doctitle>
       <header><![CDATA[${description} ${version}]]></header>
-      <link href="https://docs.oracle.com/javase/8/docs/api/"/>
+      <link href="https://docs.oracle.com/en/java/javase/11/docs/api/"/>
+      <link href="https://www.javadoc.io/doc/javax.json/javax.json-api/1.1.4/"/>
     </javadoc>
   </target>
 

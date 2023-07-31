@@ -12,8 +12,8 @@ import java.nio.ByteBuffer;
  */
 class JsonReader {
 
-    private final Reader reader;
-    private final JsonReadOptions options;
+    final Reader reader;
+    final JsonReadOptions options;
     private final JsonReadOptions.Filter filter;
     private final boolean strict;
     private final boolean cborDiag;
@@ -31,16 +31,16 @@ class JsonReader {
      */
     Json read() throws IOException {
         filter.initialize();
-        Json j = readToken(0);
+        Json j = readObject(next());
         int c;
-        if ((c=stripBlanks()) != -1) {
+        if ((c=next()) != -1) {
             unexpected("trailing ", c);
         }
         filter.complete(j);
         return j;
     }
 
-    private void unexpected(String type, int c) {
+    void unexpected(String type, int c) {
         StringBuilder sb = new StringBuilder();
         sb.append("Unexpected");
         if (c < 0) {
@@ -62,69 +62,75 @@ class JsonReader {
         throw new IllegalArgumentException(sb.toString());
     }
 
-
-    private Json readToken(int special) throws IOException {
-        reader.mark(8);
+    private Json readObject(int c) throws IOException {
         Json out = null;
-        int c = stripBlanks();
-        if (special > 0 && c == special) {
-            return null;
-        } else if (c < 0) {
-            throw new EOFException();
-        } else if (c == '[') {
-            // Because passing a populated collection into Json() clones items
+        if (c == '[') {
             out = filter.createList();
             List<Json> list = out._listValue();
-            special = ']';
+            int state = 0;      // 0=expecting value-or-end, 1=expecting comma-or-end, 2=expecting-value
+            int size = 0;
             while (true) {
-                int size = list.size();
-                filter.enter(out, size);
-                Json child = readToken(special);
-                filter.exit(out, size);
-                if (child  == null) {
-                    break;
-                }
-                list.add(child);
-                Json.notifyDuringLoad(out, size, child);
-                c = stripBlanks();
+                c = next();
                 if (c == ']') {
-                    break;
-                } else if (c != ',') {
+                    if (state == 0 || state == 1 || options.isAllowTrailingComma()) {
+                        break;
+                    } else {
+                        unexpected("", c);
+                    }
+                } else if (c == ',') {
+                    if (state == 1) {
+                        state = 2;
+                    } else {
+                        unexpected("", c);
+                    }
+                } else if (c == '}' || c == ':' || c == ')') {
+                    unexpected("", c);
+                } else if (state == 0 || state == 2) {
+                    filter.enter(out, size);
+                    Json child = readObject(c);
+                    filter.exit(out, size);
+                    list.add(child);
+                    Json.notifyDuringLoad(out, size, child);
+                    size++;
+                    state = 1;
+                } else {
                     unexpected("", c);
                 }
-                special = 0;
             }
         } else if (c == '{') {
-            // Because passing a populated collection into Json() clones items
             out = filter.createMap();
             Map<Object,Json> map = out._mapValue();
+            int state = 0;      // 0=expecting key-or-end, 1=expecting colon, 2=expecting value, 3=expecting comma-or-endbrace, 4=expecting key
+            Object key = null;
             while (true) {
-                reader.mark(1);
-                c = stripBlanks();
-                if (c < 0) {
-                    throw new EOFException();
-                } else if (c == '}' && (map.size() == 0 || options.isAllowTrailingComma())) {
-                    break;
-                } else {
-                    Object key;
+                c = next();
+                if (c == '}') {
+                    if (state == 0 || state == 3 || (state == 4 && options.isAllowTrailingComma())) {
+                        break;
+                    } else {
+                        unexpected("", c);
+                    }
+                } else if (c == ':') {
+                    if (state == 1) {
+                        state = 2;
+                    } else {
+                        unexpected("", c);
+                    }
+                } else if (c == ',') {
+                    if (state == 3) {
+                        state = 4;
+                    } else {
+                        unexpected("", c);
+                    }
+                } else if (c == ']' || c == ')') {
+                    unexpected("", c);
+                } else if (state == 0 || state == 4) {
+                    StringBuilder sb = new StringBuilder();
                     if (c == '"') {
-                        StringBuilder sb = new StringBuilder();
                         readString(reader, c, Integer.MAX_VALUE, sb);
                         key = sb.toString();
-                    } else if (options.isAllowUnquotedKey() && "-0123456789{}[].".indexOf(c) < 0) {
-                        StringBuilder sb = new StringBuilder();
-                        sb.append((char)c);
-                        reader.mark(1);
-                        while ((c=reader.read()) >= 0 && ((c>='a' && c<='z') || (c>='A' && c<='Z') || (c>='0' && c<='9') || c=='_' || c=='-' || c=='.')) {
-
-                            reader.mark(1);
-                            sb.append((char)c);
-                        }
-                        reader.reset();
-                        key = sb.toString();
                     } else if (cborDiag) {
-                        reader.reset();
-                        Json j = readToken(0);
+                        Json j = readObject(c);
                         if (j == null) {
                             unexpected("", c);
                             key = null;
@@ -136,217 +142,53 @@ class JsonReader {
                             unexpected(j.toString(), c);
                             key = null;
                         }
+                    } else if (options.isAllowUnquotedKey() && "-0123456789{}[].".indexOf(c) < 0) {
+                        readUnquotedString(reader, c, sb);
+                        key = sb.toString();
                     } else {
                         unexpected("", c);
-                        key = null;
                     }
-                    c = stripBlanks();
-                    if (c != ':') {
-                        unexpected("", c);
-                    }
+                    state = 1;
                     if (options.isNFC() && key instanceof String) {
                         key = Normalizer.normalize((String)key, Normalizer.Form.NFC);
                     }
+                } else if (state == 2) {
                     filter.enter(out, key);
-                    Json child = readToken(0);
+                    Json child = readObject(c);
                     filter.exit(out, key);
                     map.put(key, child);
                     Json.notifyDuringLoad(out, key, child);
-                    c = stripBlanks();
-                    if (c == '}') {
-                        break;
-                    } else if (c != ',') {
-                        unexpected("", c);
-                    }
+                    state = 3;
+                } else {
+                    unexpected("", c);
                 }
             }
         } else if ((c <= '9' && c >= '0') || c == '-') {
-            long v = 0;
-            StringBuilder sb = null;
-            boolean real = false;
-            boolean negzero = false;
-            short exp = 0;
-            Number n;
-
-            // Wringing the pips out of this one.
-            // Optimized for most common case, where we're parsing an integer or long
-            if (c == '0') {                             // "0"
+            out = filter.createNumber(readNumber(c));
+            if (cborDiag && (out.numberValue() instanceof Integer || out.numberValue() instanceof Long)) {
                 reader.mark(1);
                 c = reader.read();
-            } else if (c == '-') {
-                c = reader.read();
-                if (c == '0') {                         // "-0"
-                    negzero = true;
-                    reader.mark(1);
+                if (c == '(') {
+                    final long tag = out.longValue();
                     c = reader.read();
-                } else if (c <= '9' && c >= '0') {      // "-3"
-                    reader.mark(1);
-                    v = '0' - c;
-                    while ((c = reader.read()) <= '9' && c >= '0') {
+                    Json j = readObject(c);
+                    if (j != null) {
                         reader.mark(1);
-                        long q = v * 10 - (c - '0');
-                        if (q >= 0) {   // long overflow
-                            sb = new StringBuilder();
-                            sb.append(v);
-                            sb.append((char)c);
-                            while ((c = reader.read()) <= '9' && c >= '0') {
-                                reader.mark(1);
-                                sb.append((char)c);
-                            }
-                            break;
+                        c = reader.read();
+                        if (c != ')') {
+                            reader.reset();
+                            throw new IllegalArgumentException("Invalid CBOR-diag tag \""+tag+"(" + j + c + "\" at "+reader);
                         } else {
-                            v = q;
+                            out = j;
+                            out.setTag(tag);
                         }
-                    }
-                } else if (c == 'I' && cborDiag) {
-                    reader.mark(10);
-                    if (reader.read() == 'n' && reader.read() == 'f' && reader.read() == 'i' && reader.read() == 'n' && reader.read() == 'i' && reader.read() == 't' && reader.read() == 'y') {
-                        out = new Json(Float.NEGATIVE_INFINITY);
                     } else {
                         reader.reset();
-                        throw new IllegalArgumentException("Invalid token \"-\" at "+reader);
+                        throw new IllegalArgumentException("Invalid CBOR-diag tag \""+tag+"(\" at "+reader);
                     }
                 } else {
                     reader.reset();
-                    throw new IllegalArgumentException("Invalid token \"-\" at "+reader);
                 }
-            } else if (c <= '9' && c >= '0') {          // "3"
-                reader.mark(1);
-                v = c - '0';
-                while ((c = reader.read()) <= '9' && c >= '0') {
-                    reader.mark(1);
-                    long q = v * 10 + (c - '0');
-                    if (q < 0) {   // long overflow
-                        sb = new StringBuilder();
-                        sb.append(v);
-                        sb.append((char)c);
-                        while ((c = reader.read()) <= '9' && c >= '0') {
-                            reader.mark(1);
-                            sb.append((char)c);
-                        }
-                        break;
-                    } else {
-                        v = q;
-                    }
-                }
-            }
-            if (c == '(' && cborDiag && out == null) {
-                // We have read a tag.
-                Json j = readToken(0);
-                if (j != null) {
-                    reader.mark(1);
-                    c = reader.read();
-                    if (c != ')') {
-                        reader.reset();
-                        throw new IllegalArgumentException("Invalid CBOR-diag tag \""+sb+"(" + j + c + "\" at "+reader);
-                    } else {
-                        out = j;
-                        j.setTag(v);
-                    }
-                } else {
-                    reader.reset();
-                    throw new IllegalArgumentException("Invalid CBOR-diag tag \""+sb+"(\" at "+reader);
-                }
-            }
-            if (out == null) {
-                if (c == '.') {
-                    real = true;
-                    if (sb == null) {
-                        sb = new StringBuilder();
-                        if (negzero) {
-                            sb.append('-');
-                        }
-                        sb.append(v);
-                    }
-                    sb.append((char)c);
-                    reader.mark(1);
-                    c = reader.read();
-                    if (c >= '0' && c <= '9') {
-                        sb.append((char)c);
-                        reader.mark(1);
-                        while ((c = reader.read()) <= '9' && c >= '0') {
-                            reader.mark(1);
-                            sb.append((char)c);
-                        }
-                    } else {
-                        reader.reset();
-                        throw new IllegalArgumentException("Invalid number \""+sb+"\" at "+reader);
-                    }
-                }
-                if (c == 'e' || c == 'E') {
-                    exp = 1;
-                    if (sb == null) {
-                        sb = new StringBuilder();
-                        sb.append(v);
-                    }
-                    sb.append('E');
-                    reader.mark(1);
-                    c = reader.read();
-                    if (c == '+') {
-                        reader.mark(1);
-                        c = reader.read();
-                    } else if (c == '-') {
-                        sb.append((char)c);
-                        reader.mark(1);
-                        real = true;
-                        c = reader.read();
-                    }
-                    if (c >= '0' && c <= '9') {
-                        reader.mark(1);
-                        sb.append((char)c);
-                        while ((c = reader.read()) <= '9' && c >= '0') {
-                            reader.mark(1);
-                            sb.append((char)c);
-                            exp++;
-                        }
-                    } else {
-                        throw new IllegalArgumentException("Invalid number \""+sb+"\" at "+reader);
-                    }
-                }
-                if (sb == null) {
-                    int iv = (int)v;
-                    if (v == iv) {
-                        n = Integer.valueOf(iv);
-                    } else {
-                        n = Long.valueOf(v);
-                    }
-                } else {
-                    String s = sb.toString();
-                    try {
-                        if (real) {
-                            Double d = null;
-                            try {
-                                if (exp < 2) {
-                                    d = Double.valueOf(s);
-                                    if (d.isInfinite()) {
-                                        d = null;
-                                    } else if (!options.isBigDecimal() && !d.toString().equals(s)) {
-                                        d = null;
-                                    }
-                                }
-                            } catch (NumberFormatException e) { }
-                            if (d == null) {
-                                BigDecimal bd = new BigDecimal(s);
-                                double d2 = bd.doubleValue();
-                                if (d2 == d2 && !Double.isInfinite(d2) && bd.equals(new BigDecimal(d2))) {
-                                    n = d2;
-                                } else {
-                                    n = bd;
-                                }
-                            } else {
-                                n = d;
-                            }
-                        } else if (exp != 0) {
-                            n = new BigDecimal(s).toBigInteger();
-                        } else {
-                            n = new BigInteger(s);
-                        }
-                    } catch (NumberFormatException e) {
-                        throw new IllegalArgumentException("Invalid number \""+s+"\" at "+reader, e);
-                    }
-                }
-                reader.reset();
-                out = filter.createNumber(n).setStrict(strict);
             }
         } else if (c == '"') {
             out = filter.createString(new JsonStringReader(c, reader), -1);
@@ -418,42 +260,45 @@ class JsonReader {
         } else {
             unexpected("", c);
         }
-        out.setStrict(strict);
         return out;
     }
 
-    private int stripBlanks() throws IOException {
+    int next() throws IOException {
         int c;
-        while ((c=reader.read()) >= 0 && (c==' ' || c=='\n' || c=='\t' || c=='\r')) {
+        while ((c=reader.read()) >= 0 && (c == ' ' || c == '\n' || c == '\t' || c == '\r')) {
 //            System.out.println("-> skip(1)="+((char)c));
         }
-        if (c == '/') {
+        if (c == '/' && options.isAllowComments()) {
             reader.mark(1);
-            if ((c=reader.read()) == '*') {
-                if (!options.isAllowComments()) {
-                    reader.reset();
-                    throw new IllegalArgumentException("Comments disallowed");
-                }
-                StringBuilder comment = new StringBuilder();
-                comment.append("/*");
+            c = reader.read();
+            if (c == '*') {
+                // StringBuilder comment = new StringBuilder();
+                // comment.append("/*");
                 int lastc = reader.read();
                 while ((c=reader.read())>=0 && (c != '/' || lastc != '*')) {
-                    comment.append((char)lastc);
+                    // comment.append((char)lastc);
                     lastc = c;
                 }
                 if (lastc < 0) {
                     throw new IllegalArgumentException("Unterminated comment");
                 }
-                comment.append("*/");
-//                System.out.println("Read Comment \""+comment+"\": c="+((char)c)+" "+((int)c));
-                return stripBlanks();
-            } else if (c < 0) {
-                throw new EOFException("Trailing /");
-            } else {
-                reader.reset();
+                // comment.append("*/");
+                // System.out.println("Read Comment \""+comment+"\");
+                return next();
             }
+            reader.reset();
         }
         return c;
+    }
+
+    private static void readUnquotedString(Reader reader, int c, StringBuilder sb) throws IOException {
+        sb.append((char)c);
+        reader.mark(1);
+        while ((c=reader.read()) >= 0 && ((c>='a' && c<='z') || (c>='A' && c<='Z') || (c>='0' && c<='9') || c=='_' || c=='-' || c=='.')) {
+            reader.mark(1);
+            sb.append((char)c);
+        }
+        reader.reset();
     }
 
     /**
@@ -501,7 +346,7 @@ class JsonReader {
                             if (q < 0) {
                                 throw new IllegalArgumentException("Invalid hex digit 0x" + Integer.toHexString(v) + " in string at " + in);
                             }
-                            c |= v;
+                            c |= q;
                         }
                         break;
                     case 'n':
@@ -520,7 +365,7 @@ class JsonReader {
                         c = '\f';
                         break;
                     default:
-                        throw new IOException("Invalid trailing backslash in string at " + in);
+                        throw new IllegalArgumentException("Invalid trailing backslash in string at " + in);
                 }
             } else if (Character.isISOControl(c)) {
                 throw new IllegalArgumentException("Invalid string character 0x" + Integer.toHexString(c) + " at " + in);
@@ -528,6 +373,137 @@ class JsonReader {
             sb.append((char)c);
         }
         return -1;
+    }
+
+    Number readNumber(int c) throws IOException {
+        boolean neg = false;
+        Number n = null;
+        if (c == '-') {
+            neg = true;
+            c = reader.read();
+            if (c == 'I' && cborDiag) {
+                if (reader.read() == 'n' && reader.read() == 'f' && reader.read() == 'i' && reader.read() == 'n' && reader.read() == 'i' && reader.read() == 't' && reader.read() == 'y') {
+                    n = Float.NEGATIVE_INFINITY;
+                } else {
+                    unexpected("", c);
+                }
+            } else if (c < '0' || c > '9') {
+                unexpected("", c);
+            }
+        }
+        if (n == null) {
+            // First, try parsing directly to a long with no buffer
+            StringBuilder sb = null;
+            long lv = 0;
+            if (c >= '1' && c <= '9') {
+                do {
+                    lv = lv * 10 + c - '0';
+                    reader.mark(1);
+                    c = reader.read();
+                } while (c >= '0' && c <= '9' && lv < Long.MAX_VALUE / 10);
+            } else {
+                reader.mark(1);
+                c = reader.read();
+            }
+            if (c == '.' || c == 'e' || c == 'E' || lv >= Long.MAX_VALUE / 10) {
+                boolean decimal = false;
+                sb = new StringBuilder(32);
+                if (neg) {
+                    sb.append('-');
+                }
+                sb.append(lv);
+                while (c >= '0' && c <= '9') {
+                    sb.append((char)c);
+                    reader.mark(1);
+                    c = reader.read();
+                }
+                if (c == '.') {
+                    decimal = true;
+                    sb.append('.');
+                    c = reader.read();
+                    if (c >= '0' && c <= '9') {
+                        do {
+                            sb.append((char)c);
+                            reader.mark(1);
+                            c = reader.read();
+                        } while (c >= '0' && c <= '9');
+                    } else {
+                        unexpected("", c);
+                    }
+                }
+                if (c == 'e' || c == 'E') {
+                    sb.append('e');
+                    c = reader.read();
+                    if (c == '+') {
+                        // noop
+                        c = reader.read();
+                    } else if (c == '-') {
+                        decimal = true;
+                        sb.append('-');
+                        c = reader.read();
+                    }
+                    if (c >= '0' && c <= '9') {
+                        do {
+                            sb.append((char)c);
+                            reader.mark(1);
+                            c = reader.read();
+                        } while (c >= '0' && c <= '9');
+                    } else {
+                        unexpected("", c);
+                    }
+                }
+                reader.reset();
+                String s = sb.toString();
+                try {
+                    if (decimal) {
+                        Double d = null;
+                        try {
+                            d = Double.valueOf(s);
+                            if (d.isInfinite()) {
+                                d = null;
+                            } else if (!options.isBigDecimal() && !d.toString().equalsIgnoreCase(s)) {
+                                d = null;
+                            }
+                        } catch (NumberFormatException e) { }
+                        if (d == null) {
+                            BigDecimal bd = new BigDecimal(s);
+                            double d2 = bd.doubleValue();
+                            if (d2 == d2 && !Double.isInfinite(d2) && bd.equals(new BigDecimal(d2))) {
+                                n = d2;
+                            } else {
+                                n = bd;
+                            }
+                        } else {
+                            n = d;
+                        }
+                    } else {
+                        n = new BigDecimal(s);
+                        try {
+                            n = Long.valueOf(((BigDecimal)n).longValueExact());
+                        } catch (Exception e) {
+                            n = ((BigDecimal)n).toBigIntegerExact();
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid number \"" + s + "\" at " + reader, e);
+                }
+            } else if (c == ' ' || c == ']' || c == ',' || c == '}' || c == ':' || c == '\n' || c == '\t' || c == '\r' || c == '(' || c < 0 || c == ')' || c == ')') {
+                if (c >= 0) {
+                    reader.reset();
+                }
+                if (neg) {
+                    lv = -lv;
+                }
+                if (lv > Integer.MAX_VALUE || lv < Integer.MIN_VALUE) {
+                    n = lv;
+                } else {
+                    n = (int)lv;
+                }
+            } else {
+                unexpected("", c);
+            }
+        }
+        return n;
     }
 
     private static final boolean[] literal = new boolean[128];
@@ -604,6 +580,59 @@ class JsonReader {
             JsonReader.readString(in, quote, Integer.MAX_VALUE, sb);
             return sb.toString();
         }
+    }
+
+    static Reader createReader(InputStream in) throws IOException {
+        if (in == null) {
+            throw new IllegalArgumentException("InputStream is null");
+        }
+        if (!in.markSupported()) {
+            in = new BufferedInputStream(in);
+        }
+        in.mark(3);
+        int v = in.read();
+        Reader reader;
+        if (v < 0) {
+            throw new EOFException("Empty file");
+        } else if (v == 0xEF) {
+            if ((v = in.read()) == 0xBB) {
+                if ((v = in.read()) == 0xBF) {
+                    reader = new InputStreamReader(in, "UTF-8");
+                } else {
+                    throw new IOException("Invalid Json (begins with 0xEF 0xBB 0x"+Integer.toHexString(v));
+                }
+            } else {
+                throw new IOException("Invalid Json (begins with 0xEF 0x"+Integer.toHexString(v));
+            }
+        } else if (v == 0xFE) {
+            if ((v = in.read()) == 0xFF) {
+                reader = new InputStreamReader(in, "UTF-16BE");
+            } else {
+                throw new IOException("Invalid Json (begins with 0xFE 0x"+Integer.toHexString(v));
+            }
+        } else if (v == 0xFF) {
+            if ((v = in.read()) == 0xFE) {
+                reader = new InputStreamReader(in, "UTF-16LE");
+            } else {
+                throw new IOException("Invalid Json (begins with 0xFF 0x"+Integer.toHexString(v));
+            }
+        } else if (v == 0) {
+            if ((v = in.read()) >= 0x20) { // Sniff: probably UTF-16BE
+                in.reset();
+                reader = new InputStreamReader(in, "UTF-16BE");
+            } else {
+                throw new IOException("Invalid Json (begins with 0x0 0x"+Integer.toHexString(v));
+            }
+        } else {
+            if (in.read() == 0x0) { // Sniff: probably UTF-16LE
+                in.reset();
+                reader = new InputStreamReader(in, "UTF-16LE");
+            } else {
+                in.reset();
+                reader = new InputStreamReader(in, "UTF-8");
+            }
+        }
+        return reader;
     }
 
 }

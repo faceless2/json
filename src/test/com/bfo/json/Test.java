@@ -1,7 +1,5 @@
 package com.bfo.json;
 
-import com.bfo.box.*;
-
 public class Test {
     public static void main(String[] args) throws Exception {
         System.setErr(System.out);
@@ -17,7 +15,7 @@ public class Test {
         System.out.flush();
         TestCOSE.main(args);
         System.out.flush();
-        TestC2PA.main(args);
+        TestJSR.main(args);
         System.out.flush();
         Speed.main(args);
         System.out.flush();

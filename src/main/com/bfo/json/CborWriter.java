@@ -138,10 +138,14 @@ class CborWriter {
     }
 
     private static void writeNumber(Number n, OutputStream out) throws IOException {
-        if (n instanceof BigDecimal) {      // No BigDecimal in CBOR
-            n = Double.valueOf(n.doubleValue());
-        }
-        if (n instanceof Long) {
+        if (n instanceof BigDecimal) {
+            // No native BigDecimal in CBOR, write as tag 5 [exponent-10, mantissa]
+            BigDecimal d = (BigDecimal)n;
+            writeNum(6, CborReader.TAG_BIGDECIMAL10, out);      // tag
+            writeNum(4, 2, out);                                // list of 2
+            writeNumber(Integer.valueOf(-d.scale()), out);      // scale
+            writeNumber(d.unscaledValue(), out);                // mantissa
+        } else if (n instanceof Long) {
             long l = n.longValue();
             if (l < 0) {
                 writeNum(1, -l - 1, out);
