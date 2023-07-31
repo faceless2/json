@@ -4,13 +4,14 @@ import java.io.*;
 import java.util.*;
 import java.text.*;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 
 /**
  * Because OutputStreamWriter is dog-slow.
  * Appendable is more convenient than Writer, so a slight misnomer
  * @hidden
  */
-public class UTF8Writer implements Appendable {
+public class UTF8Writer extends Writer {
 
     private final OutputStream out;
     private final boolean nfc;
@@ -20,6 +21,22 @@ public class UTF8Writer implements Appendable {
         this.nfc = nfc;
     }
 
+    @Override public void close() throws IOException {
+        out.close();
+    }
+
+    @Override public void flush() throws IOException {
+        out.flush();
+    }
+
+    @Override public void write(int c) throws IOException {
+        append((char)c);
+    }
+
+    @Override public void write(char[] buf, int off, int len) throws IOException {
+        append(CharBuffer.wrap(buf, off, len));
+    }
+
     /**
      * Write the length of the string about to be written.
      * Overriden by msgpack and definite-length cbor writers
@@ -27,15 +44,15 @@ public class UTF8Writer implements Appendable {
     void writeLength(int len) throws IOException {
     }
 
-    public Appendable append(char c) throws IOException {
+    @Override public Writer append(char c) throws IOException {
         return append(Character.toString(c), 0, 1);
     }
 
-    public Appendable append(CharSequence s) throws IOException {
+    @Override public Writer append(CharSequence s) throws IOException {
         return append(s, 0, s.length());
     }
 
-    public Appendable append(CharSequence s, int off, int slen) throws IOException {
+    @Override public Writer append(CharSequence s, int off, int slen) throws IOException {
         if (nfc) {
             s = Normalizer.normalize(s.subSequence(off, slen).toString(), Normalizer.Form.NFC);
             off = 0;
