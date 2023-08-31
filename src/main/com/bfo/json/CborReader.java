@@ -19,7 +19,8 @@ class CborReader {
 
     private final CountingInputStream in;
     private final JsonReadOptions options;
-    private final JsonReadOptions.Filter filter;
+    private final JsonReadOptions.Filter keyfilter;
+    private JsonReadOptions.Filter filter;
     private final boolean strict;
 
     CborReader(CountingInputStream in, JsonReadOptions options) {
@@ -27,6 +28,10 @@ class CborReader {
         this.options = options;
         this.strict = options.isStrictTypes();
         this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
+        this.keyfilter = new JsonReadOptions.Filter();
+        // Msgpack/CBOR use any type of key so call the filter.createNNN methods
+        // to load them, but the Filter API does not expect this. So don't pass
+        // loading of key objects into that filter.
     }
 
     Json read() throws IOException {
@@ -131,10 +136,13 @@ class CborReader {
                 // Because passing a populated collection into Json() clones items
                 j = filter.createMap();
                 map = j._mapValue();
+                final JsonReadOptions.Filter valfilter = filter;
                 if (n == INDEFINITE) {
                     Json key;
                     tell = in.tell();
+                    filter = keyfilter;
                     while ((key = readPrivate()) != BREAK) {
+                        filter = valfilter;
                         if (key == null) {
                             throw new EOFException();
                         }
@@ -157,12 +165,16 @@ class CborReader {
                         }
                         Json.notifyDuringLoad(j, k, val);
                         tell = in.tell();
+                        filter = keyfilter;
                     }
+                    filter = valfilter;
                 } else {
                     int len = n.intValue();
                     for (int i=0;i<len;i++) {
                         tell = in.tell();
+                        filter = keyfilter;
                         Json key = readPrivate();
+                        filter = valfilter;
                         if (key == null) {
                             throw new EOFException();
                         } else if (key == BREAK) {

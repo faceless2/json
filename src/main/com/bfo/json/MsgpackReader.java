@@ -10,7 +10,8 @@ class MsgpackReader {
 
     private final CountingInputStream in;
     private final JsonReadOptions options;
-    private final JsonReadOptions.Filter filter;
+    private JsonReadOptions.Filter filter;
+    private final JsonReadOptions.Filter keyfilter;
     private final boolean strict;
 
     MsgpackReader(CountingInputStream in, JsonReadOptions options) {
@@ -18,6 +19,10 @@ class MsgpackReader {
         this.options = options;
         this.strict = options.isStrictTypes();
         this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
+        this.keyfilter = new JsonReadOptions.Filter() {};
+        // Msgpack/CBOR use any type of key so call the filter.createNNN methods
+        // to load them, but the Filter API does not expect this. So don't pass
+        // loading of key objects into that filter.
     }
 
     Json read() throws IOException {
@@ -274,9 +279,12 @@ class MsgpackReader {
         // Because passing a populated collection into Json() clones items
         Json j = filter.createMap();
         Map<Object,Json> map = j._mapValue();
+        final JsonReadOptions.Filter valfilter = filter;
         while (len-- > 0) {
             long tell = in.tell();
+            filter = keyfilter;
             Json key = readPrivate();
+            filter = valfilter;
             if (key == null) {
                 throw new EOFException();
             }
