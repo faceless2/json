@@ -1905,7 +1905,7 @@ public class Json {
         if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof ByteBuffer) {
-            return ((ByteBuffer)core).position(0);
+            return (ByteBuffer)((ByteBuffer)core).position(0);  // cast for old Java compilation
         } else if (core instanceof CharSequence) {
             CharSequence value = (CharSequence)core;
             int ilen = value.length();
@@ -2552,7 +2552,7 @@ public class Json {
      * @since 4
      */
     protected void writeBuffer(OutputStream out) throws IOException {
-        ByteBuffer buf = bufferValue().position(0);
+        ByteBuffer buf = (ByteBuffer)bufferValue().position(0); // cast for old Java compilation
         Channels.newChannel(out).write(buf);
     }
 

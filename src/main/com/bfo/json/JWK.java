@@ -1237,6 +1237,8 @@ public class JWK extends Json {
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static Json getEdECKeyDetails(Key key) {
+        // NOTE NOTE - this method compiles under Java 11 but require Java 15 to do anything
+        // useful. If compiling with Java older than 11, just make it return null
         try {
             Json j = Json.read("{}");
             if (EdECPublicKey != null && EdECPublicKey.isInstance(key)) {
@@ -1259,6 +1261,8 @@ public class JWK extends Json {
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static KeySpec generateEdECKeySpec(String crv, boolean xIsOdd, BigInteger y, byte[] d) {
+        // NOTE NOTE - this method compiles under Java 11 but require Java 15 to do anything
+        // useful. If compiling with Java older than 11, just make it throw an Exception
         try {
             NamedParameterSpec np;
             if ("Ed25519".equals(crv)) {
