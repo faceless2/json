@@ -373,10 +373,18 @@ public class Json {
      * @return this
      */
     public Json setFactory(JsonFactory factory) {
-        this.factory = factory;
-        for (Iterator<Map.Entry<String,Json>> i = leafIterator();i.hasNext();) {
-            Map.Entry<String,Json> e = i.next();
-            e.getValue().factory = factory;
+        List<Json> q = new ArrayList<Json>();
+        q.add(this);
+        for (int i=0;i<q.size();i++) {
+            Json j = q.get(i);
+            if (q.indexOf(j) == i) {
+                j.factory = factory;
+                if (j.isList()) {
+                    q.addAll(j.listValue());
+                } else if (j.isMap()) {
+                    q.addAll(j.mapValue().values());
+                }
+            }
         }
         return this;
     }
