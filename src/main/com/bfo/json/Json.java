@@ -868,7 +868,7 @@ public class Json {
         }
         if (!isMap()) {
             if (isList()) {
-                if (key instanceof Number && !(key instanceof Float && key instanceof Double)) {
+                if (key instanceof Number && !(key instanceof Float || key instanceof Double)) {
                     long l = ((Number)key).longValue();
                     if (l >= 0 && l <= Integer.MAX_VALUE) {
                         int index = (int)l;
@@ -905,7 +905,7 @@ public class Json {
             Map<Object,Json> map = _mapValue();
             return map.get(key);
         } else if (isList()) {
-            if (key instanceof Number && !(key instanceof Float && key instanceof Double)) {
+            if (key instanceof Number && !(key instanceof Float || key instanceof Double)) {
                 long l = ((Number)key).longValue();
                 if (l >= 0 && l <= Integer.MAX_VALUE) {
                     int index = (int)l;
@@ -945,7 +945,7 @@ public class Json {
                 }
             }
         } else if (isList()) {
-            if (object instanceof Number && !(object instanceof Float && object instanceof Double)) {
+            if (object instanceof Number && !(object instanceof Float || object instanceof Double)) {
                 long l = ((Number)object).longValue();
                 if (l >= 0 && l <= Integer.MAX_VALUE) {
                     int index = (int)l;
@@ -997,7 +997,7 @@ public class Json {
                 }
             }
         } else if (isList()) {
-            if (object instanceof Number && !(object instanceof Float && object instanceof Double)) {
+            if (object instanceof Number && !(object instanceof Float || object instanceof Double)) {
                 long l = ((Number)object).longValue();
                 if (l >= 0 && l <= Integer.MAX_VALUE) {
                     int index = (int)l;
