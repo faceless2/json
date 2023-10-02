@@ -298,8 +298,6 @@ class MsgpackWriter {
             stringWriter.append((String)o);
         } else if (o instanceof Number) {
             writeNumber((Number)o);
-        } else if (o instanceof Boolean) {
-            writeNumber((Number)o);
         } else if (o instanceof Boolean && ((Boolean)o).booleanValue()) {
             out.write(0xc3);
         } else if (o instanceof Boolean) {
