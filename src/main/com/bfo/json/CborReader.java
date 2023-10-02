@@ -281,7 +281,7 @@ class CborReader {
                         if (e == 0) {
                             n = Float.valueOf((float)((s != 0 ? -1f : 1f) * Math.pow(2, -14) * (f / Math.pow(2, 10))));
                         } else if (e == 0x1f) {
-                            n = f != 0 ? Float.NaN : Float.valueOf((s != 0 ? -1f : 1f) * Float.POSITIVE_INFINITY);
+                            n = f != 0 ? Float.NaN : s == 0 ? Float.POSITIVE_INFINITY : Float.NEGATIVE_INFINITY;
                         } else {
                             n = Float.valueOf((float)((s != 0 ? -1f : 1f) * Math.pow(2, e - 15) * (1 + f / Math.pow(2, 10))));
                         }
