@@ -637,7 +637,7 @@ public class JWK extends Json {
             List<X509Certificate> certs = new ArrayList<X509Certificate>();
             if (jsonurl.isString()) {
                 CertificateFactory factory = CertificateFactory.getInstance("X.509");
-                URL url = new URL(jsonurl.stringValue());
+                URL url = new URI(jsonurl.stringValue()).toURL();
                 InputStream in = null;
                 Collection<? extends Certificate> cl = null;
                 try {
@@ -668,6 +668,8 @@ public class JWK extends Json {
                 }
             }
             return certs;
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException("Invalid URL to \"" + jsonurl.stringValue() + "\"", e);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("Algorithm missing", e);
         } catch (CertificateException e) {
