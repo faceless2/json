@@ -487,7 +487,7 @@ class JsonReader {
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Invalid number \"" + s + "\" at " + reader, e);
                 }
-            } else if (c == ' ' || c == ']' || c == ',' || c == '}' || c == ':' || c == '\n' || c == '\t' || c == '\r' || c == '(' || c < 0 || c == ')' || c == ')') {
+            } else if (c == ' ' || c == ']' || c == ',' || c == '}' || c == ':' || c == '\n' || c == '\t' || c == '\r' || c == '(' || c < 0 || c == ')') {
                 if (c >= 0) {
                     reader.reset();
                 }

@@ -195,11 +195,14 @@ public class JWK extends Json {
                 case 4: kty = "oct"; break;         // "oct" is JWT, sym is name of COSE tag
                 default: kty = Integer.toString(v);
             }
-        } else if (in.has(1)) {
+        } else if (in.isString(1)) {
             kty = in.remove(1).stringValue();
+        } else if (in.isString("kty")) {
+            kty = in.remove("kty").stringValue();
         } else {
-            kty = in.has("kty") ? in.remove("kty").stringValue() : null;
+            throw new IllegalArgumentException("kty not specified");
         }
+
 
         Json out = Json.read("{}");
         out.put("kty", kty);
