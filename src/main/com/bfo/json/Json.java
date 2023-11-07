@@ -217,7 +217,7 @@ public class Json {
                 } else if (object instanceof byte[]) {
                     core = ByteBuffer.wrap((byte[])object);
                 } else if (object instanceof ByteBuffer) {
-                    core = ((ByteBuffer)object).position(0);
+                    core = ((Buffer)object).position(0);
                 } else if (object instanceof Boolean) {
                     core = object;
                 } else if (object instanceof Number) {
@@ -1905,7 +1905,7 @@ public class Json {
         if (core == NULL || core == UNDEFINED) {
             return null;
         } else if (core instanceof ByteBuffer) {
-            return (ByteBuffer)((ByteBuffer)core).position(0);  // cast for old Java compilation
+            return (ByteBuffer)((Buffer)core).position(0);  // cast for old Java compilation
         } else if (core instanceof CharSequence) {
             CharSequence value = (CharSequence)core;
             int ilen = value.length();
@@ -2468,7 +2468,7 @@ public class Json {
                 return false;
             } else if (isBuffer()) {
                 if (j.isBuffer()) {
-                    return bufferValue().position(0).equals(j.bufferValue().position(0));
+                    return ((Buffer)bufferValue()).position(0).equals(((Buffer)j.bufferValue()).position(0));
                 }
             } else {
                 return core.equals(j.core);
@@ -2552,7 +2552,7 @@ public class Json {
      * @since 4
      */
     protected void writeBuffer(OutputStream out) throws IOException {
-        ByteBuffer buf = (ByteBuffer)bufferValue().position(0); // cast for old Java compilation
+        ByteBuffer buf = (ByteBuffer)((Buffer)bufferValue()).position(0); // cast for old Java compilation
         Channels.newChannel(out).write(buf);
     }
 

@@ -11,7 +11,7 @@ import java.nio.charset.*;
  */
 public class ByteBufferInputStream extends CountingInputStream {
 
-    ByteBuffer in;
+    private final ByteBuffer in;
 
     public ByteBufferInputStream(ByteBuffer in) {
         super(null);
@@ -19,7 +19,7 @@ public class ByteBufferInputStream extends CountingInputStream {
     }
 
     @Override public void rewind(byte[] buf) {
-        int pos = in.position();
+        int pos = ((Buffer)in).position();
         if (pos - buf.length < 0) {
             throw new IllegalStateException("Too far");
         }
@@ -28,7 +28,7 @@ public class ByteBufferInputStream extends CountingInputStream {
                 throw new IllegalStateException("Already rewound: " + this+" " +i);
             }
         }
-        in.position(pos - buf.length);
+        ((Buffer)in).position(pos - buf.length);
     }
 
     @Override public int read() {
@@ -65,12 +65,12 @@ public class ByteBufferInputStream extends CountingInputStream {
 
     @Override public long skip(long skip) {
         int r = Math.min(available(), (int)skip);
-        in.position(in.position() + r);
+        ((Buffer)in).position(((Buffer)in).position() + r);
         return r;
     }
 
     @Override public long tell() {
-        return in.position();
+        return ((Buffer)in).position();
     }
 
 }

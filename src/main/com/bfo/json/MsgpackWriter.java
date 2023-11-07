@@ -61,7 +61,7 @@ class MsgpackWriter {
                 bout.close();
             }
             ByteBuffer b = holder[0];
-            b.position(0);
+            ((Buffer)b).position(0);
             int s = b.limit();
             if (tag >= 0) {
                 if (s == 1) {

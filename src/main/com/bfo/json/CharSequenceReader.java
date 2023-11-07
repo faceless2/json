@@ -1,6 +1,7 @@
 package com.bfo.json;
 
 import java.io.*;
+import java.nio.Buffer;
 import java.nio.CharBuffer;
 
 /**
@@ -80,7 +81,7 @@ class CharSequenceReader extends Reader {
             ((StringBuilder)buf).getChars(off, off + len, obuf, ooff);
             off += len;
         } else if (buf instanceof CharBuffer) {
-            ((CharBuffer)buf).position(off);
+            ((Buffer)buf).position(off);
             ((CharBuffer)buf).get(obuf, ooff, len);
             off += len;
         } else {

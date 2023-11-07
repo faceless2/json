@@ -45,7 +45,7 @@ class CborWriter {
             } else {
                 ByteBuffer b = j.bufferValue();
                 writeNum(2, b.limit(), out);
-                b.position(0);
+                ((Buffer)b).position(0);
                 Channels.newChannel(out).write(b);
             }
         } else if (j.isString()) { 
