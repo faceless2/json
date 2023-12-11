@@ -20,12 +20,14 @@ class CborReader {
     private final CountingInputStream in;
     private final JsonReadOptions options;
     private final JsonReadOptions.Filter keyfilter;
+    private final JsonFactory factory;
     private JsonReadOptions.Filter filter;
     private final boolean strict;
 
     CborReader(CountingInputStream in, JsonReadOptions options) {
         this.in = in;
         this.options = options;
+        this.factory = options.getFactory();
         this.strict = options.isStrictTypes();
         this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
         this.keyfilter = new JsonReadOptions.Filter();
@@ -317,6 +319,9 @@ class CborReader {
                 }
         }
         j.setStrict(strict);
+        if (factory != null) {
+            j._setFactory(factory);
+        }
         // if (DEBUG) System.out.println("# [CBOR] off=" + origtell + " v=" + origv + " v>>5=" + (origv>>5) + " type=" + j.type() + " out=" + j.toString(new JsonWriteOptions().setCborDiag("hex")));
         return j;
     }

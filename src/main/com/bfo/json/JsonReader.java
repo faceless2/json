@@ -15,6 +15,7 @@ class JsonReader {
     final Reader reader;
     final JsonReadOptions options;
     private final JsonReadOptions.Filter filter;
+    private final JsonFactory factory;
     private final boolean strict;
     private final boolean cborDiag;
 
@@ -22,6 +23,7 @@ class JsonReader {
         this.reader = reader;
         this.options = options;
         this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
+        this.factory = options.getFactory();
         this.strict = options.isStrictTypes();
         this.cborDiag = options.isCborDiag();
     }
@@ -259,6 +261,9 @@ class JsonReader {
             }
         } else {
             unexpected("", c);
+        }
+        if (factory != null && out != null) {
+            out._setFactory(factory);
         }
         return out;
     }

@@ -389,6 +389,11 @@ public class Json {
         return this;
     }
 
+    // Non recursive, so must only be called by the various readers
+    void _setFactory(JsonFactory factory) {
+        this.factory = factory;
+    }
+
     /**
      * Return the default JsonFactory, as set by {@link #setFactory}
      * @since 2

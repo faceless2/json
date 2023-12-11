@@ -11,6 +11,7 @@ class MsgpackReader {
     private final CountingInputStream in;
     private final JsonReadOptions options;
     private JsonReadOptions.Filter filter;
+    private JsonFactory factory;
     private final JsonReadOptions.Filter keyfilter;
     private final boolean strict;
 
@@ -18,6 +19,7 @@ class MsgpackReader {
         this.in = in;
         this.options = options;
         this.strict = options.isStrictTypes();
+        this.factory = options.getFactory();
         this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
         this.keyfilter = new JsonReadOptions.Filter() {};
         // Msgpack/CBOR use any type of key so call the filter.createNNN methods
@@ -234,6 +236,9 @@ class MsgpackReader {
         }
         if (j != null) {
             j.setStrict(strict);
+            if (factory != null) {
+                j._setFactory(factory);
+            }
         }
         return j;
     }

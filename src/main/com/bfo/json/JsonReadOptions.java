@@ -36,6 +36,7 @@ public class JsonReadOptions {
     private int fastStringLength = 262144;
     private Filter filter;
     private CodingErrorAction codingErrorAction = CodingErrorAction.REPLACE;
+    private JsonFactory factory;
 
     static final byte FLAG_STRICT = 1;
     static final byte FLAG_LOOSEEMPTY = 2;
@@ -341,6 +342,29 @@ public class JsonReadOptions {
      */
     public Filter getFilter() {
         return filter;
+    }
+
+    /**
+     * Set the default {@link JsonFactory} that will be set on all objects
+     * read with these options, as an alternative to calling {@link Json#setFactory}
+     * on them after reading
+     * @see Json#setFactory
+     * @param factory the factory, or null for no factory
+     * @return this
+     * @since 7
+     */
+    public JsonReadOptions setFactory(JsonFactory factory) {
+        this.factory = factory;
+        return this;
+    }
+
+    /**
+     * Return the value of the Factory as set by {@link #setFactory}
+     * @since 7
+     * @return the factory
+     */
+    public JsonFactory getFactory() {
+        return factory;
     }
 
     /**
