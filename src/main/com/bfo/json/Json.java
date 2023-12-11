@@ -688,8 +688,7 @@ public class Json {
     public Json duplicate() {
         Json json;
         if (isMap()) {
-            json = new Json(null);
-            json.setFactory(getFactory());
+            json = new Json(null, getFactory());
             Map<Object,Json> map = new LinkedHashMap<Object,Json>(((Map)core).size());
             for (Map.Entry<Object,Json> e : mapValue().entrySet()) {
                 Object o = e.getKey();
@@ -700,17 +699,16 @@ public class Json {
             }
             json.core = map;
         } else if (isList()) {
-            json = new Json(null);
-            json.setFactory(getFactory());
+            json = new Json(null, getFactory());
             List<Json> list = new ArrayList<Json>(((List)core).size());
             for (Json e : listValue()) {
                 list.add(e.duplicate());
             }
             json.core = list;
         } else if (isString()) {
-            json = new Json(core.toString());
+            json = new Json(core.toString(), getFactory());
         } else {
-            json = new Json(core);
+            json = new Json(core, getFactory());
         }
         json.tag = tag;
         json.flags = flags;
@@ -853,7 +851,7 @@ public class Json {
         }
         Json object;
         if (value == null) {
-            object = new Json(null, null);
+            object = new Json(null, getFactory());
         } else if (value instanceof Json) {
             object = (Json)value;
             Json t = this;
@@ -864,7 +862,7 @@ public class Json {
                 t = t.parent;
             }
         } else {
-            object = new Json(value);
+            object = new Json(value, getFactory());
         }
         if (!isMap()) {
             if (isList()) {
@@ -1038,7 +1036,7 @@ public class Json {
         }
         Json object;
         if (value == null) {
-            object = new Json(null);
+            object = new Json(null, getFactory());
         } else if (value instanceof Json) {
             object = (Json)value;
             Json t = this;
@@ -1510,15 +1508,16 @@ public class Json {
 
     private static Json buildlist(int ix, List<Json> ilist, Json ctx, Json child) {
         Json out = null;
+        JsonFactory factory = ctx.getFactory();
         while (ilist.size() < ix) {
-            Json t = new Json(null);
+            Json t = new Json(null, factory);
             int s = ilist.size();
             ilist.add(t);
             notify(ctx, Integer.valueOf(s), null, t);
         }
         if (ix == ilist.size()) {
             if (child == null) {
-                child = new Json(null);
+                child = new Json(null, factory);
             }
             ilist.add(child);
             notify(ctx, Integer.valueOf(ix), null, child);
@@ -1621,7 +1620,7 @@ public class Json {
                             }
                         }
                         if (finalchild != null && (newctx == null || last)) {
-                            Json t = map.put(key, newctx = last ? finalchild : new Json(null));
+                            Json t = map.put(key, newctx = last ? finalchild : new Json(null, getFactory()));
                             if (output == null) {
                                 output = t;
                             }
@@ -1644,7 +1643,7 @@ public class Json {
                     int ix = ((Integer)stack[1]).intValue();
                     if (finalchild != null) {
                         if (output == null) {
-                            output = new Json(ctx.core);
+                            output = new Json(ctx.core, ctx.getFactory());
                         }
                         ctx.convertToList();
                     }
@@ -1674,7 +1673,7 @@ public class Json {
                             }
                         }
                         if (finalchild != null && (newctx == null || last)) {
-                            Json t = map.put(key, newctx = last ? finalchild : new Json(null));
+                            Json t = map.put(key, newctx = last ? finalchild : new Json(null, getFactory()));
                             if (output == null) {
                                 output = t;
                             }
