@@ -76,7 +76,7 @@ class JsonWriter {
                 out.append("'");
             } else {
                 if (cbordiag != null) {
-                    out.append("b64'");
+                    out.append("b'");
                 } else {
                     out.append('"');
                 }
@@ -290,7 +290,7 @@ class JsonWriter {
                     if (n.isNaN()) {
                         out.append("NaN");
                     } else if (n.floatValue() == Float.POSITIVE_INFINITY) {
-                        out.append("+Infinity");
+                        out.append("Infinity");
                     } else if (n.floatValue() == Float.NEGATIVE_INFINITY) {
                         out.append("-Infinity");
                     }
@@ -310,7 +310,7 @@ class JsonWriter {
                     if (n.isNaN()) {
                         out.append("NaN");
                     } else if (n.floatValue() == Double.POSITIVE_INFINITY) {
-                        out.append("+Infinity");
+                        out.append("Infinity");
                     } else if (n.floatValue() == Double.NEGATIVE_INFINITY) {
                         out.append("-Infinity");
                     }

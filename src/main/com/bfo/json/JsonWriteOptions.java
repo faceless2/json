@@ -260,7 +260,7 @@ public class JsonWriteOptions {
      * @since 5
      */
     public JsonWriteOptions setCborDiag(String format) {
-        if (format == null || format.equals("hex") || format.equals("HEX") || format.equals("base64")) {
+        if (format == null || format.equals("hex") || format.equals("HEX") || format.equalsIgnoreCase("base64")) {
             this.cborDiag = format;
         } else {
             throw new IllegalArgumentException(format);
