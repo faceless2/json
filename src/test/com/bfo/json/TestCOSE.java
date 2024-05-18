@@ -25,9 +25,10 @@ public class TestCOSE {
             Json j = Json.read(s);
             if (j.hasPath("output.cbor_diag")) {
                 Json raw = j.getPath("output.cbor").isString() ? read(j.getPath("output.cbor").stringValue()) : j.getPath("output.cbor");;
-                Json raw2 = Json.read(new StringReader(j.getPath("output.cbor_diag").stringValue()), new JsonReadOptions().setCborDiag(true));
-                String s1 = raw.toString(new JsonWriteOptions().setCborDiag("hex"));
-                String s2 = raw2 == null ? null : raw2.toString(new JsonWriteOptions().setCborDiag("hex"));
+                Json raw2 = Json.read(new JsonReader().setInput(new StringReader(j.getPath("output.cbor_diag").stringValue())).setCborDiag(true));
+//                Json raw2 = Json.read(new JsonReader().setInput(j.getPath("output.cbor_diag").stringValue()).setCborDiag(true));
+                String s1 = raw.toString(new JsonWriter().setCborDiag("hex"));
+                String s2 = raw2 == null ? null : raw2.toString(new JsonWriter().setCborDiag("hex"));
                 if (!s1.equals(s2)) {
                     assert false : "cbor_diag mismatch " + test + " " + s1 + " " + s2;
                 } else {
@@ -174,7 +175,7 @@ public class TestCOSE {
         for (int i=0;i<b.length;i++) {
             b[i] = (byte)((Character.digit(s.charAt(i*2), 16) << 4) + Character.digit(s.charAt(i*2 + 1), 16));
         }
-        return Json.readCbor(new ByteArrayInputStream(b), null);
+        return Json.readCbor(ByteBuffer.wrap(b));
     }
 
 }

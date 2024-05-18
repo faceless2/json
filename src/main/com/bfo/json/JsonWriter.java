@@ -1,292 +1,578 @@
 package com.bfo.json;
 
+import java.nio.*;
+import java.nio.channels.ReadableByteChannel;
 import java.io.*;
 import java.util.*;
-import java.text.*;
-import java.nio.ByteBuffer;
 
-class JsonWriter {
+public class JsonWriter implements JsonStream {
+    
+    private static final char[] B64STD_C, B64URL_C;
+    private static final int STATE_ROOT         = 0x0001;
+    private static final int STATE_LIST         = 0x0001;
+    private static final int STATE_MAP_KEY      = 0x0002;
+    private static final int STATE_MAP_VALUE    = 0x0003;
+    private static final int STATE_STRING       = 0x0040;
+    private static final int STATE_BUFFER       = 0x0080;
+    private static final int STATE_DONE         = 0x0200;
 
-    private final Appendable out;
-    private final StringBuilder prefix;
-    final JsonWriteOptions options;
-    private final JsonWriteOptions.Filter filter;
-    private final Appendable stringWriter;
-    private final String cbordiag;
-    private boolean simple;
-    private String indent = "  ";
+    private static final int NONE = 0;
+    private static final int HEX = 1;
+    private static final int B64STD = 2;
+    private static final int B64URL = 3;
+    private static final int B64STDPAD = 6;
+    private static final int B64URLPAD = 7;
+    private static final int B64PAD = 4;
 
-    JsonWriter(Appendable out, final JsonWriteOptions options, final Json root) {
-        this.out = out;
-        this.options = options;
-        this.prefix = options.isPretty() ? new StringBuilder("\n") : null;
-        this.filter = options.initializeFilter(root);
-        this.cbordiag = options.getCborDiag();
-        this.stringWriter = new Appendable() {
-             final int maxlen = options.getMaxStringLength();
-             public Appendable append(char c) throws IOException {
-                 throw new UnsupportedOperationException("Must be a whole string");
-             }
-             public Appendable append(CharSequence s, int off, int len) throws IOException {
-                 return append(s.subSequence(off, len));
-             }
-             public Appendable append(CharSequence s) throws IOException {
-                 simple = writeString(s, maxlen, JsonWriter.this.out) && maxlen == 0;
-                 return this;
-             }
-        };
-    }
+    private State state;
+    private Appendable out;
+    private int optionCborDiag;
+    private char[] b64 = B64URL_C;
+    private boolean sorted, pretty;
+    private int maxArraySize, maxStringLength, stringLength, b64_0, b64_1, indent;
+    private boolean optionAllowNaN;
+    private String floatFormat = "%.8g", doubleFormat = "%.16g";
+    private String colon = ":", comma = ",";
 
-    void write(Json j) throws IOException {
-        if (cbordiag != null && j != null && j.getTag() >= 0) {
-            out.append(Long.toString(j.getTag()));
-            out.append('(');
+    private final class State {
+        final State parent;
+        int mode, size, indent;
+        Appendable out;
+        long tag;
+
+        State(State parent, int mode) {
+            this.parent = parent;
+            this.mode = mode;
+            this.out = parent == null ? null : parent.out;
         }
-        if (j == null || j.isNull()) {
-            out.append("null");
-        } else if (j.isUndefined()) {
-            out.append(cbordiag != null ? "undefined" : "null");
-        } else if (j.isBoolean()) {
-            out.append(j.booleanValue() ? "true" : "false");
-        } else if (j.isBuffer()) {
-            if ("hex".equals(cbordiag) || "HEX".equals(cbordiag)) {
-                out.append("h'");
-                int len = options.getMaxStringLength();
-                if (len == 0) {
-                    final boolean upper = "HEX".equals(cbordiag);
-                    j.writeBuffer(new OutputStream() {
-                        public void write(byte[] buf, int off, int len) throws IOException {
-                            len += off;
-                            for (int i=off;i<len;i++) {
-                                write(buf[i]);
+
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("{");
+            if ((mode & STATE_ROOT) != 0) sb.append("root+");
+            if ((mode & STATE_LIST) != 0) sb.append("list+");
+            if ((mode & STATE_MAP_KEY) != 0) sb.append("map-key+");
+            if ((mode & STATE_MAP_VALUE) != 0) sb.append("map-value+");
+            if ((mode & STATE_STRING) != 0) sb.append("string+");
+            if ((mode & STATE_BUFFER) != 0) sb.append("buffer+");
+            if ((mode & STATE_DONE) != 0) sb.append("done+");
+            if (sb.length() > 0) {
+                sb.setLength(sb.length() - 1);
+            }
+            if (tag != 0) {
+                sb.append(" tag="+(tag - 1));
+            }
+            sb.append('}');
+            return sb.toString();
+        }
+
+        void setTag(long tag) {
+            this.tag = tag + 1;
+        }
+        boolean isKey() {
+            return mode == STATE_MAP_KEY;
+        }
+
+        void preKey() throws IOException {
+            if (mode == STATE_MAP_KEY) {
+                if (size++ > 0) {
+                    out.append(comma);
+                    if (pretty) {
+                        out.append('\n');
+                        if (indent == 0) {
+                            for (State s=this;s!=null;s=s.parent) {
+                                indent++;
                             }
+                            indent *= JsonWriter.this.indent;
                         }
-                        public void write(int c) throws IOException {
-                            c &= 0xFF;
-                            if (c < 0x10) {
-                                out.append('0');
-                            }
-                            out.append(upper ? Integer.toHexString(c).toUpperCase() : Integer.toHexString(c));
+                        for (int i=0;i<indent;i++) {
+                            out.append(' ');
                         }
-                    });
-                } else {
-                    ByteBuffer buf = j.bufferValue();
-                    out.append("(" + buf.limit() + " bytes)");
+                    }
+                    if (size < 0) {
+                        size = 1; // Catch wrap;
+                    }
                 }
-                out.append("'");
+                mode = STATE_MAP_VALUE;
             } else {
-                if (cbordiag != null) {
-                    out.append("b'");
-                } else {
-                    out.append('"');
-                }
-                int len = options.getMaxStringLength();
-                if (len == 0) {
-                    Base64OutputStream bout = new Base64OutputStream(out, options.isBase64Standard());
-                    j.writeBuffer(bout);
-                    bout.close();
-                } else {
-                    ByteBuffer buf = j.bufferValue();
-                    out.append("(" + buf.limit() + " bytes)");
-                }
-                if (cbordiag != null) {
-                    out.append('\'');
-                } else {
-                    out.append('"');
-                }
+                throw new IllegalStateException("Invalid state");
             }
-        } else if (j.isString()) {
-            int len = options.getMaxStringLength();
-            if (options.isNFC()) {
-                CharSequence orig = (CharSequence)j.value();
-                String v = Normalizer.normalize(orig.toString(), Normalizer.Form.NFC);
-                if (writeString(v, len, out) && v.equals(orig)) {
-                    j.setSimpleString(true);
-                }
-            } else if (j.isSimpleString()) {
-                out.append('"');
-                Appendable a = out;
-                if (len != 0 && len < j.stringValue().length()) {
-                    final int flen = len;
-                    a = new Appendable() {
-                        int r = flen;
-                        public Appendable append(CharSequence s, int off, int len) throws IOException {
-                            if (r < 0) {
-                                // noop
-                            } else if (len > r) {
-                                out.append(s, off, r);
-                                out.append("...");
-                                r = -1;
-                            } else {
-                                out.append(s, off, len);
-                                r -= s.length();
+        }
+
+        Appendable preValue() throws IOException {
+            if (mode == STATE_LIST) {
+                if (size++ > 0) {
+                    out.append(comma);
+                    if (pretty) {
+                        out.append('\n');
+                        if (indent == 0) {
+                            for (State s=this;s!=null;s=s.parent) {
+                                indent++;
                             }
-                            return this;
+                            indent *= JsonWriter.this.indent;
                         }
-                        public Appendable append(CharSequence s) throws IOException {
-                            return append(s, 0, s.length());
+                        for (int i=0;i<indent;i++) {
+                            out.append(' ');
                         }
-                        public Appendable append(char c) throws IOException {
-                            throw new UnsupportedOperationException("Must be entire string");
-                        }
-                    };
+                    }
+                    if (size < 0) {
+                        size = 1; // Catch wrap;
+                    } else if (maxArraySize > 0 && size > maxArraySize) {
+                        size = maxArraySize;
+                        out.append(comma + "...");
+                        out = new ZeroAppendable();
+                    }
                 }
-                j.writeString(a);
-                out.append('"');
+            } else if (mode == STATE_MAP_VALUE) {
+                out.append(colon);
+                mode = STATE_MAP_KEY;
+            } else if (mode == STATE_ROOT) {
+                mode = STATE_DONE;
             } else {
-                simple = true;
-                j.writeString(stringWriter);
-                if (simple && j.value() instanceof String) {
-                    j.setSimpleString(true);
-                }
+                throw new IllegalStateException("Invalid state");
             }
-        } else if (j.isNumber()) {
-            writeNumber(j.numberValue());
-        } else if (j.isList()) {
-            List<Json> list = j._listValue();
-            out.append("[");
-            if (prefix != null) {
-                prefix.append(indent);
+            if (tag != 0) {
+                writeNumber(tag - 1, out);
+                out.append('(');
             }
-            int len = options.getMaxArraySize();
-            int ll = list.size();
-            if (len == 0 || len > ll) {
-                len = ll;
+            return out;
+        }
+
+        void postValue() throws IOException {
+            if (tag != 0) {
+                out.append(')');
             }
-            for (int i=0;i<len;i++) {
-                if (i > 0) {
-                    out.append(',');
-                }
-                if (prefix != null) {
-                    out.append(prefix);
-                }
-                String key = Integer.toString(i);
-                Json ochild = list.get(i);
-                Json child = filter.enter(key, ochild);
-                write(child);
-                filter.exit(key, ochild);
-            }
-            if (ll > len) {
-                out.append(",...");
-            }
-            if (prefix != null) {
-                prefix.setLength(prefix.length() - indent.length());
-                out.append(prefix);
-            }
-            out.append("]");
-        } else if (j.isMap()) {
-            Map<Object,Json> map = j._mapValue();
-            if (options.isSorted()) {
-                Map<Object,Json> m = new TreeMap<Object,Json>();
-                for (Map.Entry<Object,Json> e : map.entrySet()) {
-                    m.put(e.getKey().toString(), e.getValue());
-                }
-                map = m;
-            } else if (j.isNonStringKeys() && cbordiag == null) {
-                Map<Object,Json> m = new LinkedHashMap<Object,Json>();
-                for (Map.Entry<Object,Json> e : map.entrySet()) {
-                    String key = e.getKey().toString();
-                    if (!m.containsKey(key)) {
-                        m.put(key, e.getValue());
-                    }
-                }
-                map = m;
-            }
-            out.append("{");
-            if (prefix != null) {
-                prefix.append(indent);
-                out.append(prefix);
-            }
-            boolean first = true;
-            for (Map.Entry<Object,Json> e : map.entrySet()) {
-                Object key = e.getKey();
-                Json ovalue = e.getValue();
-                Json value = filter.enter(key, ovalue);
-                if (value != null) {
-                    if (first) {
-                        first = false;
-                    } else {
-                        out.append(",");
-                        if (prefix != null) {
-                            out.append(prefix);
-                        }
-                    }
-                    if (key instanceof String) {
-                        if (options.isNFC()) {
-                            writeString(Normalizer.normalize((String)key, Normalizer.Form.NFC), 0, out);
-                        } else {
-                            writeString((String)key, 0, out);
-                        }
-                    } else {
-                        write(new Json(key, null));
-                    }
-                    out.append(':');
-                    if (options.isSpaceAfterColon()) {
+        }
+
+        State close() throws IOException {
+            if (mode == STATE_LIST) {
+                if (pretty) {
+                    indent -= JsonWriter.this.indent;
+                    out.append('\n');
+                    for (int i=0;i<indent;i++) {
                         out.append(' ');
                     }
-                    write(value);
                 }
-                filter.exit(key, ovalue);
+                out.append(']');
+                return parent;
+            } else if (mode == STATE_MAP_KEY) {
+                if (pretty) {
+                    indent -= JsonWriter.this.indent;
+                    out.append('\n');
+                    for (int i=0;i<indent;i++) {
+                        out.append(' ');
+                    }
+                }
+                out.append('}');
+                return parent;
+            } else {
+                throw new IllegalStateException("Invalid state");
             }
-            if (prefix != null) {
-               prefix.setLength(prefix.length() - indent.length());
-               out.append(prefix);
-            }
-            out.append("}");
-        }
-        if (cbordiag != null && j != null && j.getTag() >= 0) {
-            out.append(')');
         }
     }
 
-    void write(String s) throws IOException {
-        out.append(s);
+    public JsonWriter() {
     }
-    void writeBoolean(boolean b) throws IOException {
-        out.append(b ? "true" : "false");
+
+    public JsonWriter setSorted(boolean sorted) {
+        this.sorted = sorted;
+        return this;
     }
-    void writeNull() throws IOException {
-        out.append("null");
+
+    public boolean isSorted() {
+        return sorted;
     }
-    void writeKey(String s) throws IOException {
-        writeString(s);
-        out.append(':');
+
+    /**
+     * Configure this JsonWriter to write CBOR-diag format
+     * @param option either "hex", "base64", "base64-standard"  or "none"
+     * @return this
+     */
+    public JsonWriter setCborDiag(String option) {
+        if ("hex".equalsIgnoreCase(option)) {
+            this.optionCborDiag = HEX;
+            this.b64 = B64URL_C;
+        } else if ("base64".equalsIgnoreCase(option)) {
+            this.optionCborDiag = B64URL;
+            this.b64 = B64URL_C;
+        } else if ("base64-pad".equalsIgnoreCase(option)) {
+            this.optionCborDiag = B64URLPAD;
+            this.b64 = B64URL_C;
+        } else if ("base64-standard".equalsIgnoreCase(option)) {
+            this.optionCborDiag = B64STD;
+            this.b64 = B64STD_C;
+        } else if ("base64-pad-standard".equalsIgnoreCase(option)) {
+            this.optionCborDiag = B64STDPAD;
+            this.b64 = B64STD_C;
+        } else {
+            this.optionCborDiag = NONE;
+            this.b64 = B64URL_C;
+        }
+        return this;
     }
-    void writeComma() throws IOException {
-        out.append(',');
+
+    public JsonWriter setFloatFormat(String format) {
+        floatFormat = format;
+        return this;
     }
-    void writeStartArray() throws IOException {
-        out.append('[');
+
+    public JsonWriter setDoubleFormat(String format) {
+        doubleFormat = format;
+        return this;
     }
-    void writeEndArray() throws IOException {
-        out.append(']');
+
+    public JsonWriter setAllowNaN(boolean allow) {
+        optionAllowNaN = allow;
+        return this;
     }
-    void writeStartObject() throws IOException {
-        out.append('{');
+
+    public JsonWriter setIndent(int size) {
+        indent = size;
+        pretty = indent > 0;
+        return this;
     }
-    void writeEndObject() throws IOException {
-        out.append('}');
+
+    public JsonWriter setSpaceAfterColon(boolean space) {
+        colon = space ? ": " : ":";
+        return this;
     }
-    void writeString(String s) throws IOException {
-        writeString(s, Integer.MAX_VALUE, out);
+
+    public JsonWriter setSpaceAfterComma(boolean space) {
+        comma = space ? ", " : ",";
+        return this;
     }
-    void flush() throws IOException {
+
+    /**
+     * Set the maximum number of items to print in an array. Additional entries will
+     * be replaced with an ellipsis; the result will not be valid Json, but is useful
+     * for use in toString()
+     * @param size the maximum number of items to print, or 0 for no limit (the default)
+     * @return this
+     */
+    public JsonWriter setMaxArraySize(int size) {
+        this.maxArraySize = size <= 0 || size >= 0xFFFF ? 0 : size - 1;
+        return this;
+    }
+
+    /**
+     * Set the maximum length of a string. Additional characters will be replaced with
+     * an ellipsis
+     * @param size the maximum length of a string to print, or 0 for no limit (the default)
+     * @return this
+     */
+    public JsonWriter setMaxStringLength(int size) {
+        this.maxStringLength = size;
+        return this;
+    }
+
+    public JsonWriter setOutput(Appendable out) {
+        this.out = out;
+        return this;
+    }
+
+    public void flush() throws IOException {
         if (out instanceof Flushable) {
             ((Flushable)out).flush();
         }
     }
-    void close() throws IOException {
+
+    public void close() throws IOException {
         if (out instanceof Closeable) {
             ((Closeable)out).close();
         }
     }
 
-    void writeNumber(Number value) throws IOException {
+
+    private String dump() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for (State s=state;s!=null;s=s.parent) {
+            if (s != state) {
+                sb.append(", ");
+            }
+            sb.append(s);
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
+    @Override public boolean event(JsonStream.Event event) throws IOException {
+        if (state == null) {
+            state = new State(null, STATE_ROOT);
+            state.out = out;
+            if (pretty) {
+                comma = ",";
+            }
+        } else if (state.mode == STATE_DONE) {
+            throw new IllegalStateException("Completed");
+        }
+        final int type = event.type();
+        Appendable out = state.out;
+        switch(type) {
+            case JsonStream.Event.TYPE_STARTMAP:
+                out = state.preValue();
+                state = new State(state, STATE_MAP_KEY);
+                out.append('{');
+                break;
+            case JsonStream.Event.TYPE_STARTLIST:
+                out = state.preValue();
+                state = new State(state, STATE_LIST);
+                out.append('[');
+                break;
+            case JsonStream.Event.TYPE_ENDMAP:
+                state = state.close();
+                state.postValue();
+                break;
+            case JsonStream.Event.TYPE_ENDLIST:
+                state = state.close();
+                state.postValue();
+                break;
+            case JsonStream.Event.TYPE_PRIMITIVE:
+                Object value = event.value();
+                if (state.isKey()) {
+                    state.preKey();
+                    if (optionCborDiag == NONE) {
+                        value = value.toString();
+                    }
+                } else {
+                    out = state.preValue();
+                }
+                if (value instanceof Number) {
+                    writeNumber((Number)value, out);
+                } else if (Boolean.TRUE.equals(value)) {
+                    out.append("true");
+                } else if (Boolean.FALSE.equals(value)) {
+                    out.append("false");
+                } else if (value == Json.NULL) {
+                    out.append("null");
+                } else if (value == Json.UNDEFINED) {
+                    out.append(optionCborDiag != NONE ? "undefined" : "null");
+                } else if (value instanceof CharSequence) {   // If we've made it so in state.isKey above
+                    out.append('"');
+                    CharSequence s = (CharSequence)value;
+                    writeString((CharSequence)value, out, s.length());
+                    out.append('"');
+                } else {
+                    throw new IllegalStateException("Unknown data " + (value == null ? null : value.getClass().getName()));
+                }
+                state.postValue();
+                break;
+            case JsonStream.Event.TYPE_STARTSTRING:
+                if (state.isKey()) {
+                    state.preKey();
+                } else {
+                    out = state.preValue();
+                }
+                out.append('"');
+                state.mode |= STATE_STRING;
+                stringLength = 0;
+                break;
+            case JsonStream.Event.TYPE_STRINGDATA:
+                if ((state.mode & STATE_STRING) != 0) {
+                    CharSequence seq = event.stringValue();
+                    if (seq != null) {
+                        int l = maxStringLength == 0 ? seq.length() : Math.min(seq.length(), maxStringLength - stringLength);
+                        writeString(seq, out, l);
+                        stringLength += l;
+                    } else {
+                        Readable r = event.readableValue();
+                        CharBuffer buf = CharBuffer.allocate(8192);
+                        while (r.read(buf) > 0 && (maxStringLength == 0 || stringLength < maxStringLength)) {
+                            buf.flip();
+                            int l = maxStringLength == 0 ? buf.remaining() : Math.min(buf.remaining(), maxStringLength - stringLength);
+                            writeString(buf, out, l);
+                            stringLength += l;
+                        }
+                        if (r instanceof Closeable) {
+                            ((Closeable)r).close();
+                        }
+                    }
+                } else {
+                    throw new IllegalStateException("String not started");
+                }
+                break;
+            case JsonStream.Event.TYPE_ENDSTRING:
+                if ((state.mode & STATE_STRING) != 0) {
+                    if (maxStringLength != 0 && stringLength == maxStringLength) {
+                        out.append("...");
+                    }
+                    out.append('"');
+                    state.mode &= ~STATE_STRING;
+                    state.postValue();
+                } else {
+                    throw new IllegalStateException("String not started");
+                }
+                break;
+            case JsonStream.Event.TYPE_STARTBUFFER:
+                if (state.isKey()) {
+                    state.preKey();
+                } else {
+                    out = state.preValue();
+                }
+                if (optionCborDiag == HEX) {
+                    out.append("h'");
+                } else if (optionCborDiag != NONE) {
+                    out.append("b'");
+                } else {
+                    out.append('"');
+                }
+                state.mode |= STATE_BUFFER;
+                stringLength = 0;
+                b64_0 = b64_1 = -1;
+                break;
+            case JsonStream.Event.TYPE_BUFFERDATA:
+                if ((state.mode & STATE_BUFFER) != 0) {
+                    ByteBuffer buf = event.bufferValue();
+                    if (buf != null) {
+                        int l = maxStringLength == 0 ? buf.remaining() : Math.min(buf.remaining(), maxStringLength - stringLength);
+                        writeByteBuffer(buf, out, l);
+                        stringLength += l;
+                    } else {
+                        ReadableByteChannel r = event.readableByteChannelValue();
+                        buf = ByteBuffer.allocate(8192);
+                        while (r.read(buf) > 0 && (maxStringLength == 0 || stringLength < maxStringLength)) {
+                            buf.flip();
+                            int l = maxStringLength == 0 ? buf.remaining() : Math.min(buf.remaining(), maxStringLength - stringLength);
+                            writeByteBuffer(buf, out, l);
+                            stringLength += l;
+                        }
+                        r.close();
+                    }
+                } else {
+                    throw new IllegalStateException("Buffer not started");
+                }
+                break;
+            case JsonStream.Event.TYPE_ENDBUFFER:
+                if ((state.mode & STATE_BUFFER) != 0) {
+                    if (maxStringLength != 0 && stringLength == maxStringLength) {
+                        out.append("...");
+                    } else if (b64_1 >= 0) {
+                        writeb64(b64_0, b64_1, 0, 3);
+                    } else if (b64_0 >= 0) {
+                        writeb64(b64_0, 0, 0, 2);
+                    }
+                    out.append(optionCborDiag == NONE ? '"' : '\'');
+                    state.mode &= ~STATE_BUFFER;
+                    state.postValue();
+                } else {
+                    throw new IllegalStateException("Buffer not started");
+                }
+                break;
+            case JsonStream.Event.TYPE_TAG:
+                if (optionCborDiag != NONE) {
+                    state.setTag(event.tagValue());
+                }
+                break;
+            default:
+                throw new IllegalStateException("Unknown event 0x" + type);
+        }
+        return state.mode == STATE_DONE;
+    }
+
+    private static final char hex(int v) {
+        if (v >= 0 && v < 10) {
+            return (char)('0' + v);
+        } else if (v < 16) {
+            return (char)('A' + v - 10);        // Use UC for consistancy with earlier versions
+        } else {
+            throw new IllegalArgumentException(Integer.toString(v));
+        }
+    }
+
+    private static void writeString(CharSequence seq, Appendable out, int l) throws IOException {
+        int s = 0;
+        for (int i=0;i<l;i++) {
+            char c = seq.charAt(i);
+            if (c < 0x20 || c == '"' || c == '\\') {
+                if (s < i) {
+                    out.append(seq, s, i);
+                }
+                String v;
+                switch (c) {
+                    case '\n': out.append("\\n"); break;
+                    case '\r': out.append("\\r"); break;
+                    case '\t': out.append("\\t"); break;
+                    case '\"': out.append("\\\""); break;
+                    case '\\': out.append("\\\\"); break;
+                    default:
+                        out.append("\\u00");
+                        out.append(hex(c>>4));
+                        out.append(hex(c&0xF));
+                }
+                s = i + 1;
+            } else if (c >= 0x80 && c < 0xA0) {
+                if (s < i) {
+                    out.append(seq, s, i);
+                }
+                out.append("\\u00");
+                out.append(hex(c>>4));
+                out.append(hex(c&0xF));
+                s = i + 1;
+            }
+        }
+        if (s < l) {
+            out.append(seq, s, l);
+        }
+    }
+
+    private void writeByteBuffer(ByteBuffer buf, Appendable out, int l) throws IOException {
+        if (optionCborDiag != HEX) {
+            int i = 0;
+            if (b64_0 >= 0 && b64_1 >= 0) {
+                int b2 = buf.get() & 0xff;
+                writeb64(b64_0, b64_1, b2, 4);
+                i++;
+            } else if (b64_0 >= 0) {
+                int b1 = buf.get() & 0xff;
+                int b2 = buf.get() & 0xff;
+                i+=2;
+                writeb64(b64_0, b1, b2, 4);
+            }
+            for (i=0;i+2<l;i+=3) {
+                int b0 = buf.get() & 0xff;
+                int b1 = buf.get() & 0xff;
+                int b2 = buf.get() & 0xff;
+                writeb64(b0, b1, b2, 4);
+            }
+            b64_0 = b64_1 = -1;
+            if (i++ < l) {
+                b64_0 = buf.get() & 0xff;
+                if (i++ < l) {
+                    b64_1 = buf.get() & 0xff;
+                }
+            }
+        } else {
+            for (int i=0;i<l;i++) {
+                int b = buf.get() & 0xff;
+                int v0 = b>>4;
+                int v1 = b&0xf;
+                out.append(hex(v0));
+                out.append(hex(v1));
+            }
+        }
+    }
+
+    private void writeb64(int b0, int b1, int b2, int c) throws IOException {
+        out.append(b64[(b0>>2) & 0x3f]);
+        out.append(b64[((b0<<4) | (b1>>4)) & 0x3f]);
+        if (c > 2) {
+            out.append(b64[((b1<<2) | (b2>>6)) & 0x3f]);
+            if (c > 3) {
+                out.append(b64[b2 & 0x3f]);
+            } else if ((optionCborDiag & B64PAD) != 0) {
+                out.append('=');
+            }
+        } else if ((optionCborDiag & B64PAD) != 0) {
+            out.append("==");
+        }
+    }
+
+    private void writeNumber(Number value, Appendable out) throws IOException {
         StringBuilder temp = null;
         if (value instanceof Float) {
             Float n = (Float)value;
             if (n.isNaN() || n.isInfinite()) {
-                if (cbordiag != null) {
+                if (optionCborDiag != NONE) {
                     if (n.isNaN()) {
                         out.append("NaN");
                     } else if (n.floatValue() == Float.POSITIVE_INFINITY) {
@@ -294,19 +580,19 @@ class JsonWriter {
                     } else if (n.floatValue() == Float.NEGATIVE_INFINITY) {
                         out.append("-Infinity");
                     }
-                } else if (options.isAllowNaN()) {
+                } else if (optionAllowNaN) {
                     out.append("null");
                 } else {
                     throw new IllegalArgumentException("Infinite or NaN");
                 }
             } else {
                 temp = new StringBuilder();
-                new Formatter(temp, Locale.ENGLISH).format(options.getFloatFormat(), n);
+                new Formatter(temp, Locale.ENGLISH).format(floatFormat, n);
             }
         } else if (value instanceof Double) {
             Double n = (Double)value;
             if (n.isNaN() || n.isInfinite()) {
-                if (cbordiag != null) {
+                if (optionCborDiag != NONE) {
                     if (n.isNaN()) {
                         out.append("NaN");
                     } else if (n.floatValue() == Double.POSITIVE_INFINITY) {
@@ -314,14 +600,14 @@ class JsonWriter {
                     } else if (n.floatValue() == Double.NEGATIVE_INFINITY) {
                         out.append("-Infinity");
                     }
-                } else if (options.isAllowNaN()) {
+                } else if (optionAllowNaN) {
                     out.append("null");
                 } else {
                     throw new IllegalArgumentException("Infinite or NaN");
                 }
             } else {
                 temp = new StringBuilder();
-                new Formatter(temp, Locale.ENGLISH).format(options.getDoubleFormat(), n);
+                new Formatter(temp, Locale.ENGLISH).format(doubleFormat, n);
             }
         } else {
             out.append(value.toString());
@@ -359,68 +645,49 @@ class JsonWriter {
         }
     }
 
-    static boolean writeString(CharSequence value, int maxLength, Appendable sb) throws IOException {
-        sb.append('"');
-        int len = value.length();
-        if (maxLength == 0 || maxLength > len) {
-            maxLength = len;
+    private static class ZeroAppendable implements Appendable {
+        public Appendable append(char c) { return this; }
+        public Appendable append(CharSequence c) { return this; }
+        public Appendable append(CharSequence c, int off, int len) { return this; }
+    }
+
+
+    /*
+    public static void main(String[] args) throws Exception {
+        String s = "5AC05E289D5D0E1B0A7F048A5D2B643813DED50BC9E49220F4F7278F85F19D4A77D655C9D3B51E805A74B099E1E085AACD97FC29D72F887E8802BB6650CCEB2C";
+        byte[] b = Json.hex(s);
+
+        for (String s : args) {
+            JsonStreamReader reader = new JsonStreamReader().setOptionCborDiag(true);
+            JsonStream.EventBuilder builder = new JsonStream.EventBuilder();
+            reader.setSink(builder);
+            //reader.setSink(new JsonStreamDebugger(builder));
+            reader.setOptionCborDiag(true);
+            reader.read(new StringReader(s));
+            reader.complete();
+            Json j = builder.complete();
+            System.out.println("----");
+//            Json j = Json.read(new StringReader(s), new JsonReadOptions().setCborDiag(true));
+            Appendable out = new StringBuilder();
+            JsonWriter writer = new JsonWriter();
+            writer.setCborDiag("base64");
+//            writer.setIndent(1).setSpaceAfterComma(true).setSpaceAfterColon(true);
+            writer.setOutput(out);
+            JsonStreamSender.send(j, writer);
+            System.out.println(out);
         }
-        boolean testsimple = true;
-        for (int i = 0; i < maxLength; i++) {
-            char c = value.charAt(i);
-            if (c >= 0x30 && c < 0x80 && c != 0x5c) {        // Optimize for most common case
-                sb.append(c);
-            } else {
-                switch (c) {
-                case '\\':
-                case '"':
-                    sb.append('\\');
-                    sb.append(c);
-                    testsimple = false;
-                    break;
-                case '\b':
-                    sb.append("\\b");
-                    testsimple = false;
-                    break;
-                case '\t':
-                    sb.append("\\t");
-                    testsimple = false;
-                    break;
-                case '\n':
-                    sb.append("\\n");
-                    testsimple = false;
-                    break;
-                case '\f':
-                    sb.append("\\f");
-                    testsimple = false;
-                    break;
-                case '\r':
-                    sb.append("\\r");
-                    testsimple = false;
-                    break;
-                default:
-                    if (c < 0x20 || (c >= 0x80 && c < 0xA0) || c == 0x2028 || c == 0x2029) {
-                        String t = Integer.toHexString(c);
-                        sb.append("\\u");
-                        switch(t.length()) {
-                            case 1: sb.append('0');
-                            case 2: sb.append('0');
-                            case 3: sb.append('0');
-                            default:
-                        }
-                        sb.append(t);
-                        testsimple = false;
-                    } else {
-                        sb.append(c);
-                    }
-                }
-            }
+    }
+    */
+
+    static {
+        char[] b64 = new char[64];
+        for (int i=0;i<64;i++) {
+            b64[i] = (char)(i < 26 ? 'A' + i : i < 52 ? 'a' + i - 26 : i < 62 ? '0' + i - 52 : i == 62 ? '-' : '_');
         }
-        if (maxLength != len) {
-            sb.append("...");
-        }
-        sb.append('"');
-        return testsimple;
+        B64URL_C = b64;
+        B64STD_C = Arrays.copyOf(b64, b64.length);
+        B64STD_C[62] = '+';
+        B64STD_C[63] = '/';
     }
 
 }

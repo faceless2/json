@@ -56,7 +56,7 @@ public class Test2 {
             b = j.get("a").bufferValue().array();
             assert b.length == i : "Base64 roundtrip failed at " + i;
             for (int k=0;k<i;k++) {
-                assert b[k] == 'a' : "Base64 roundtrip failed at " + i;
+                assert b[k] == 'a' : "Base64 roundtrip failed at " + i + ": j="+j+" a="+Arrays.toString(b);
             }
             String s = j.get("a").stringValue();
             while ((s.length() & 3) != 0) {
@@ -101,9 +101,9 @@ public class Test2 {
         assert (q=json.putPath("a[3][3]", true)).toString().equals("123456789123456789") : q;
         assert json.toString().equals("{\"a\":[null,null,null,[null,null,null,true]]}") : json.toString();
         assert dup.toString().equals(origstring);
-        JsonWriteOptions options = new JsonWriteOptions().setSorted(true);
         StringBuilder sb = new StringBuilder();
-        assert (json=Json.read("{\"a\":1, \"z\":2, \"n\":3, \"g\":4, \"t\":5, \"e\":6}")).write(sb, options).toString().equals("{\"a\":1,\"e\":6,\"g\":4,\"n\":3,\"t\":5,\"z\":2}") : sb.toString();
+        (json=Json.read("{\"a\":1, \"z\":2, \"n\":3, \"g\":4, \"t\":5, \"e\":6}")).write(new JsonWriter().setOutput(sb).setSorted(true));
+        assert sb.toString().equals("{\"a\":1,\"e\":6,\"g\":4,\"n\":3,\"t\":5,\"z\":2}") : sb.toString();
 
         json = Json.read("{}");
         json.putPath("a.b.c", true);

@@ -129,6 +129,8 @@ import java.nio.charset.*;
  */
 public class Json {
 
+    private static final boolean NEWAPI = System.getProperty("NEWAPI") != null;
+
     private static final JSRProvider jsr2json;
     static {
         JSRProvider j = null;
@@ -140,19 +142,17 @@ public class Json {
 
     /**
      * A constant object that can be passed into the Json constructor to create a Cbor "undefined" value
-     * @since 5
+     * @since 1.5
      */
     public static final Object UNDEFINED = new Object() { public String toString() { return "<undefined>"; } };
     static final Object NULL = new Object() { public String toString() { return "<null>"; } };
 
     private static final int FLAG_STRICT = 1;
-    private static final int FLAG_SIMPLESTRING = 2;
     private static final int FLAG_NONSTRINGKEY = 4;
-    private static final JsonWriteOptions DEFAULTWRITEOPTIONS = new JsonWriteOptions();
-    private static final JsonReadOptions DEFAULTREADOPTIONS = new JsonReadOptions();
 
     private Object core;
     private byte flags;
+    private int stringByteLength = -1;
     private Json parent;
     private Object parentkey;
     private List<JsonListener> listeners;
@@ -218,6 +218,8 @@ public class Json {
                     core = ByteBuffer.wrap((byte[])object);
                 } else if (object instanceof ByteBuffer) {
                     core = ((Buffer)object).position(0);
+                } else if (object instanceof ExtendingByteBuffer) {
+                    core = object;      // temporary while building
                 } else if (object instanceof Boolean) {
                     core = object;
                 } else if (object instanceof Number) {
@@ -333,7 +335,7 @@ public class Json {
         // subclass of Json, write CBOR output as indefinite.
         if (getClass() != Json.class) {
             try {
-                getClass().getDeclaredMethod("writeBuffer", OutputStream.class);
+                getClass().getDeclaredMethod("getBufferStream");
                 return true;
             } catch (Exception e) {}
         }
@@ -343,24 +345,11 @@ public class Json {
     boolean isIndefiniteString() {
         if (getClass() != Json.class) {
             try {
-                getClass().getDeclaredMethod("writeString", Appendable.class);
+                getClass().getDeclaredMethod("getStringStream");
                 return true;
             } catch (Exception e) {}
         }
         return false;
-    }
-
-    boolean isSimpleString() {
-        return (flags & FLAG_SIMPLESTRING) != 0;
-    }
-
-    Json setSimpleString(boolean simple) {
-        if (simple) {
-            flags |= FLAG_SIMPLESTRING;
-        } else {
-            flags &= ~FLAG_SIMPLESTRING;
-        }
-        return this;
     }
 
     /**
@@ -369,7 +358,7 @@ public class Json {
      * this factory. The default is null
      *
      * @param factory the factory
-     * @since 2
+     * @since 1.2
      * @return this
      */
     public Json setFactory(JsonFactory factory) {
@@ -396,7 +385,7 @@ public class Json {
 
     /**
      * Return the default JsonFactory, as set by {@link #setFactory}
-     * @since 2
+     * @since 1.2
      * @return the Factory set by {@link #setFactory}
      */
     public JsonFactory getFactory() {
@@ -406,7 +395,10 @@ public class Json {
     /**
      * Read a Json object from the specified String. The object may be a structured
      * type or a primitive value (boolean, number or string). The values "{}" and "[]"
-     * may be supplied to create a new Json map or array.
+     * may be supplied to quickly create a new Json map or array.
+     * <p>
+     * A wrapper calling {@link #read(AbstractReader) read(new JsonReader().setInput(in))}
+     * </p>
      * @param in the String, which must not be null or empty.
      * @return the Json object
      * @throws IllegalArgumentException if the JSON is invalid
@@ -422,7 +414,7 @@ public class Json {
             return new Json(Collections.EMPTY_LIST);
         } else {
             try {
-                return read(new CharSequenceReader(in), null);
+                return read(new JsonReader().setInput(in));
             } catch (IOException e) {
                 throw new IllegalArgumentException(e);
             }
@@ -437,176 +429,179 @@ public class Json {
      * otherwise the stream will be sniffed for UTF-16, and otherwise
      * parsed as UTF-8.
      * </p><p>
-     * If you are sure the InputStream is in UTF-8 and has no
-     * byte-order mark, as recommended in RFC8259, then you're better
-     * off calling {@link #read(Reader,JsonReadOptions) read(new InputStreamReader(in, "UTF-8"), options)}
-     * as this will remove the possibility of guessing an incorrect encoding
+     * To load Json from a stream with a different charset, create
+     * a {@link JsonReader} and set the charset on that before reading
+     * from it.
      * </p>
-     *
+     * <p>
+     * A wrapper calling {@link #read(AbstractReader) read(new JsonReader().setInput(in))}
+     * </p>
      * @param in the InputStream
-     * @param options the options to use for reading, or null to use the default
      * @return the Json object
-     * @throws IOException if an IO exception was encountered during reading
-     * @throws IllegalArgumentException if the JSON is invalid
+     * @throws IOException if an I/O exception was encountered during reading or the stream does not meet the CBOR format
+     * @since 2.0
      */
-    public static Json read(InputStream in, JsonReadOptions options) throws IOException {
-        if (in == null) {
-            throw new IllegalArgumentException("Input is null");
-        }
-        Reader reader = JsonReader.createReader(in);
-        return read(reader, options);
+    public static Json read(InputStream in) throws IOException {
+        return read(new JsonReader().setInput(in));
     }
 
     /**
-     * Read a Json object from the specified Reader.
-     * @param in the Reader
-     * @param options the options to use for reading, or null to use the default
-     * @return the Json object
-     * @throws IOException if an IO exception was encountered during reading
-     * @throws IllegalArgumentException if the JSON is invalid
-     */
-    public static Json read(Reader in, JsonReadOptions options) throws IOException {
-        if (in == null) {
-            throw new IllegalArgumentException("Input is null");
-        }
-        if (options == null) {
-            options = DEFAULTREADOPTIONS;
-        }
-        if (!in.markSupported()) {
-            in = new BufferedReader(in);
-        }
-        if (!(in instanceof CharSequenceReader) && !options.isContextFree()) {
-            in = new ContextReader(in);
-        }
-        return new JsonReader(in, options).read();
-    }
-
-    /**
+     * <p>
      * Read a CBOR formatted object from the specified InputStream.
+     * </p><p>
+     * A wrapper calling {@link #read(AbstractReader) read(new CborReader().setInput(in))}
+     * </p>
      * @param in the InputStream
-     * @param options the options to use for reading, or null to use the default
      * @return the Json object
      * @throws IOException if an I/O exception was encountered during reading or the stream does not meet the CBOR format
-     * @since 2
+     * @since 2.0
      */
-    public static Json readCbor(InputStream in, JsonReadOptions options) throws IOException {
-        if (in == null) {
-            throw new IllegalArgumentException("Input is null");
-        }
-        if (options == null) {
-            options = DEFAULTREADOPTIONS;
-        }
-        if (!in.markSupported()) {
-            in = new BufferedInputStream(in);
-        }
-        if (!(in instanceof CountingInputStream)) {
-            in = new CountingInputStream(in);
-        }
-        return new CborReader((CountingInputStream)in, options).read();
+    public static Json readCbor(InputStream in) throws IOException {
+        return read(new CborReader().setInput(in));
     }
 
     /**
+     * <p>
      * Read a CBOR formatted object from the specified ByteBuffer.
-     * @param in the ByteBuffer
-     * @param options the options to use for reading, or null to use the default
-     * @return the Json object
-     * @throws IOException if an I/O exception was encountered during reading or the stream does not meet the CBOR format
-     * @since 2
-     */
-    public static Json readCbor(final ByteBuffer in, JsonReadOptions options) throws IOException {
-        if (in == null) {
-            throw new IllegalArgumentException("Input is null");
-        }
-        InputStream stream;
-        if (!in.isDirect()) {
-            stream = new ByteArrayInputStream(in.array(), in.arrayOffset(), in.remaining());        // seems faster
-        } else {
-            stream = new ByteBufferInputStream(in);
-        }
-        return readCbor(stream, options);
-    }
-
-    /**
-     * Read a Msgpack formatted object from the specified InputStream.
+     * </p><p>
+     * A wrapper calling {@link #read(AbstractReader) read(new CborReader().setInput(in))}
+     * </p>
      * @param in the InputStream
-     * @param options the options to use for reading, or null to use the default
-     * @return the Json object
-     * @throws IOException if an I/O exception was encountered during reading or the stream does not meet the MsgPack format
-     * @since 3
-     */
-    public static Json readMsgpack(InputStream in, JsonReadOptions options) throws IOException {
-        if (in == null) {
-            throw new IllegalArgumentException("Input is null");
-        }
-        if (options == null) {
-            options = DEFAULTREADOPTIONS;
-        }
-        if (!in.markSupported()) {
-            in = new BufferedInputStream(in);
-        }
-        if (!(in instanceof CountingInputStream)) {
-            in = new CountingInputStream(in);
-        }
-        return new MsgpackReader((CountingInputStream)in, options).read();
-    }
-
-    /**
-     * Read a Msgpack formatted object from the specified ByteBuffer.
-     * @param in the ByteBuffer
-     * @param options the options to use for reading, or null to use the default
      * @return the Json object
      * @throws IOException if an I/O exception was encountered during reading or the stream does not meet the CBOR format
-     * @since 3
+     * @since 2.0
      */
-    public static Json readMsgpack(final ByteBuffer in, JsonReadOptions options) throws IOException {
-        if (in == null) {
-            throw new IllegalArgumentException("Input is null");
+    public static Json readCbor(ByteBuffer in) {
+        try {
+            return read(new CborReader().setInput(in));
+        } catch (IOException e) {
+            throw new IllegalArgumentException(e);
         }
-        InputStream stream;
-        if (!in.isDirect()) {
-            stream = new ByteArrayInputStream(in.array(), in.arrayOffset(), in.remaining());        // seems faster
-        } else {
-            stream = new ByteBufferInputStream(in);
-        }
-        return readMsgpack(stream, options);
     }
 
     /**
-     * Write the Json object in the CBOR format to the specified output
-     * @param out the output
-     * @param options the JsonWriteOptions to use when writing, or null to use the default
-     * @return the "out" parameter
-     * @throws IOException if an IOException is thrown while writing
-     * @since 2
+     * Read an object from the specified {@link AbstractReader}
+     * @param reader the reader
+     * @return the Json object
+     * @throws IOException if an IO exception was encountered during reading
+     * @since 2.0
      */
-    public OutputStream writeCbor(OutputStream out, JsonWriteOptions options) throws IOException {
-        if (out == null) {
-            throw new IllegalArgumentException("Output is null");
+    public static Json read(AbstractReader reader) throws IOException {
+        if (reader == null) {
+            throw new NullPointerException("Reader is null");
         }
-        if (options == null) {
-            options = DEFAULTWRITEOPTIONS;
+        JsonBuilder builder = new JsonBuilder();
+        if (!reader.setFinal().setDraining().write(builder)) {
+            throw new EOFException(builder.eoferror());
         }
-        new CborWriter(out, options, this).write(this);
-        return out;
+        return builder.build();
     }
 
     /**
-     * Write the Json object in the Msgpack format to the specified output
-     * @param out the output
-     * @param options the JsonWriteOptions to use when writing, or null to use the default
-     * @return the "out" parameter
+     * Write the Json object to the specified stream
+     * @param output the output
      * @throws IOException if an IOException is thrown while writing
-     * @since 3
+     * @since 2.0
      */
-    public OutputStream writeMsgpack(OutputStream out, JsonWriteOptions options) throws IOException {
-        if (out == null) {
-            throw new IllegalArgumentException("Output is null");
-        }
-        if (options == null) {
-            options = DEFAULTWRITEOPTIONS;
-        }
-        new MsgpackWriter(out, options, this).write(this);
-        return out;
+    public void write(JsonStream output) throws IOException {
+        Iterator<?> iterator = null;
+        Deque<Iterator<?>> stack = new ArrayDeque<Iterator<?>>();
+        int count = 0;
+        Json value = this;
+        do {
+            if (iterator != null) {
+                if (!iterator.hasNext()) {
+                    if (iterator instanceof ListIterator) {
+                        output.event(JsonStream.Event.endList());
+                    } else {
+                        output.event(JsonStream.Event.endMap());
+                    }
+                    stack.pop();
+                    iterator = stack.isEmpty() ? null : stack.peek();
+                    continue;
+                } else {
+                    Object o = iterator.next();
+                    if (o instanceof Map.Entry) {
+                        Object key = ((Map.Entry)o).getKey();
+                        // String, Number or Boolean?
+                        if (key instanceof CharSequence) {
+                            output.event(JsonStream.Event.stringValue((CharSequence)key, stringByteLength));
+                        } else if (key instanceof Number) {
+                            output.event(JsonStream.Event.numberValue((Number)key));
+                        } else if (key instanceof Boolean) {
+                            output.event(JsonStream.Event.booleanValue((Boolean)key));
+                        } else if (key instanceof ByteBuffer) {
+                            ByteBuffer buf = (ByteBuffer)key;
+                            buf.position(0);
+                            output.event(JsonStream.Event.startBuffer(buf.remaining()));
+                            output.event(JsonStream.Event.bufferData(buf));
+                            output.event(JsonStream.Event.endBuffer());
+                            buf.position(0);
+                        } else if (key == Json.NULL) {
+                            output.event(JsonStream.Event.nullValue());
+                        } else if (key == Json.UNDEFINED) {
+                            output.event(JsonStream.Event.undefinedValue());
+                        } else {
+                            throw new IllegalStateException("Bad key");
+                        }
+                        value = (Json)((Map.Entry)o).getValue();
+                    } else {
+                        value = (Json)o;
+                    }
+                }
+            }
+            if (value.getTag() >= 0) {
+                output.event(JsonStream.Event.tagNext(value.getTag()));
+            }
+            if (value.isString()) {
+                if (value.isIndefiniteString()) {
+                    output.event(JsonStream.Event.startString(value.getStringStreamByteLength()));
+                    output.event(JsonStream.Event.stringData(value.getStringStream()));
+                    output.event(JsonStream.Event.endString());
+                } else {
+                    CharSequence v = (CharSequence)value.value();
+                    output.event(JsonStream.Event.stringValue(v, value.stringByteLength));
+                }
+            } else if (value.isBuffer()) {
+                if (value.isIndefiniteBuffer()) {
+                    output.event(JsonStream.Event.startBuffer(value.getBufferStreamLength()));
+                    output.event(JsonStream.Event.bufferData(value.getBufferStream()));
+                    output.event(JsonStream.Event.endBuffer());
+                } else {
+                    ByteBuffer v = value.bufferValue();
+                    output.event(JsonStream.Event.startBuffer(v.remaining()));
+                    output.event(JsonStream.Event.bufferData(v));
+                    output.event(JsonStream.Event.endBuffer());
+                }
+            } else if (value.isNumber()) {
+                output.event(JsonStream.Event.numberValue(value.numberValue()));
+            } else if (value.isBoolean()) {
+                output.event(JsonStream.Event.booleanValue(value.booleanValue()));
+            } else if (value.isNull()) {
+                output.event(JsonStream.Event.nullValue());
+            } else if (value.isUndefined()) {
+                output.event(JsonStream.Event.undefinedValue());
+            } else if (value.isList()) {
+                int size = value.size();
+                output.event(JsonStream.Event.startList(size));
+                stack.push(iterator = value._listValue().listIterator());
+            } else if (value.isMap()) {
+                int size = value.size();
+                output.event(JsonStream.Event.startMap(size));
+                Map<Object,Json> map = value._mapValue();
+                if (output.isSorted()) {
+                    map = new TreeMap<Object,Json>(new Comparator<Object>() {
+                        public int compare(Object o1, Object o2) {
+                            return o1.toString().compareTo(o2.toString());
+                        }
+                    });
+                    map.putAll(value._mapValue());
+                }
+                stack.push(iterator = map.entrySet().iterator());
+            } else {
+                throw new IllegalStateException("Unknown object " + value);
+            }
+        } while (iterator != null);
     }
 
     /**
@@ -667,24 +662,6 @@ public class Json {
     }
 
     /**
-     * Write the Json object to the specified output
-     * @param out the output
-     * @param options the JsonWriteOptions to use when writing, or null to use the default
-     * @return the "out" parameter
-     * @throws IOException if an IOException is thrown while writing
-     */
-    public Appendable write(Appendable out, JsonWriteOptions options) throws IOException {
-        if (options == null) {
-            options = DEFAULTWRITEOPTIONS;
-        }
-        new JsonWriter(out, options, this).write(this);
-        if (out instanceof Flushable) {
-            ((Flushable)out).flush();
-        }
-        return out;
-    }
-
-    /**
      * Create and return a deep copy of this Json tree.
      * Note that ByteBuffers values will <i>not</i> be cloned,
      * and the returned item will have no listeners
@@ -712,6 +689,7 @@ public class Json {
             json.core = list;
         } else if (isString()) {
             json = new Json(core.toString(), getFactory());
+            json.stringByteLength = stringByteLength;
         } else {
             json = new Json(core, getFactory());
         }
@@ -775,7 +753,7 @@ public class Json {
      * </p>
      * @param descendant the presumed descendant of this object to find in the tree
      * @return the path from this node to the descendant object
-     * @since 5 (was called "find" prior to that)
+     * @since 1.5 (was called "find" prior to that)
      */
     public String find(Json descendant) {
         if (descendant == null) {
@@ -810,11 +788,7 @@ public class Json {
                     sb.append(parentkey);
                 } else {
                     sb.append("[");
-                    try {
-                        JsonWriter.writeString(pk, 0, sb);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);      // Can't happen.
-                    }
+                    esc(pk, sb);
                     sb.append("]");
                 }
             } else {
@@ -927,7 +901,7 @@ public class Json {
      * Otherwise return true if this object is a list or map and contains a non-null/non-undefined object at that entry.
      * @param object the object
      * @return true if this is a list or map and the object is either a Json and present in this object as a value, or is used as a key for a non-null/non-undefined value
-     * @since 5
+     * @since 1.5
      */
     public boolean has(Object object) {
         if (object instanceof Json) {
@@ -975,7 +949,7 @@ public class Json {
      * If called on an object that is not a list or map, this method has no effect.
      * @param object if a Json object, the value to remove, otherwise the key to remove from this object.
      * @return the object that was removed, or null if nothing was removed
-     * @since 5
+     * @since 1.5
      */
     public Json remove(Object object) {
         if (object instanceof Json) {
@@ -1033,7 +1007,7 @@ public class Json {
      * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
      * @param value the value to insert, which must not be this or an ancestor of this
      * @return the object that was previously found at that path, which may be null
-     * @since 5 - prior that that revision was called "put"
+     * @since 1.5 - prior that that revision was called "put"
      */
     public Json putPath(String path, Object value) {
         if (path == null) {
@@ -1154,7 +1128,7 @@ public class Json {
      * Remove the item at the specified path from this object or one of its descendants.
      * @param path the key, which may be a compound key (e.g "a.b" or "a.b[2]") and must not be null
      * @return the object that was removed, or null if nothing was removed
-     * @since 5 was called remove() prior to version 5
+     * @since 1.5 was called remove() prior to version 5
      */
     public Json removePath(String path) {
         Json json = traverse(path, null);
@@ -1201,7 +1175,7 @@ public class Json {
      * Although CBOR alows positive tag values of any size, this implementation limits
      * them to 63 bits.
      * If no tag is set (the default) this method returns -1.
-     * @since 2
+     * @since 1.2
      * @return the tag, or -1 if none is set.
      */
     public long getTag() {
@@ -1214,7 +1188,7 @@ public class Json {
      * any size, this implementation limits them to 63 bits.
      * @param tag the tag, or a negative number to remove the tag.
      * @return this
-     * @since 2
+     * @since 1.2
      */
     public Json setTag(long tag) {
         this.tag = tag < 0 ? -1 : tag;
@@ -1458,7 +1432,7 @@ public class Json {
      * For Json objects that are maps, sort the map keys.
      * For other types this is a no-op
      * @return this
-     * @since 5
+     * @since 1.5
      */
     public Json sort() {
         if (core instanceof Map) {
@@ -1495,7 +1469,7 @@ public class Json {
                 notify(parent, null, this, null);
             }
             core = map;
-            setSimpleString(false);
+            stringByteLength = -1;
         }
     }
 
@@ -1503,7 +1477,7 @@ public class Json {
         if (!isList() && !isMap()) {
             notify(parent, null, this, null);
             core = new ArrayList<Json>();
-            setSimpleString(false);
+            stringByteLength = -1;
         }
     }
 
@@ -1550,14 +1524,18 @@ public class Json {
             char c = i == len ? '.' : path.charAt(i);
             boolean last = i == len || (i == len -1 && c == ']');
             if (c == '\'' || c == '\"') {
-                try {
-                    CharSequenceReader r = new CharSequenceReader(path, i + 1, path.length() - i - 1);
-                    new JsonReader.JsonStringReader(c, r).readString(); // discard
-                    i = r.tell() - 1;
-                    continue;
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                for (++i;i<path.length();i++) {
+                    char c2 = path.charAt(i);
+                    if (c2 == '\\' && i + 1 < path.length()) {
+                        i++;
+                    } else if (c2 == c) {
+                        break;
+                    }
                 }
+                if (i == path.length()) {
+                    throw new IllegalArgumentException("Unclosed string");
+                }
+                continue;
             } else if (c == '.') {
                 String p = path.substring(lasti, i);
                 if (p.length() > 0) {
@@ -1745,7 +1723,7 @@ public class Json {
      * Return true if this node is undefined.
      * Undefined is a CBOR concept; in JSON serialization, this will collapse to null
      * @return true if the object is null
-     * @since 5
+     * @since 1.5
      */
     public boolean isUndefined() {
         return core == UNDEFINED;
@@ -1824,8 +1802,15 @@ public class Json {
      */
     public Json setValue(Json json) {
         core = json == null ? NULL : json.core;
-        setSimpleString(json != null && json.isSimpleString());
+        stringByteLength = json == null ? -1 : json.stringByteLength;
         return this;
+    }
+
+    void _setValue(Object o) {
+        core = o;
+    }
+    void setStringByteLength(int length) {
+        this.stringByteLength = length;
     }
 
     /**
@@ -1841,15 +1826,9 @@ public class Json {
             return (String)core;
         } else if (isBuffer()) {
             ByteBuffer buf = bufferValue();
-            StringBuilder sb = new StringBuilder(buf.remaining() * 4 / 3 + 2);
-            try {
-                Base64OutputStream out = new Base64OutputStream(sb, false);
-                writeBuffer(out);
-                out.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            return sb.toString();
+            buf = Base64.getUrlEncoder().withoutPadding().encode(buf);
+            String s = new String(buf.array(), buf.arrayOffset(), buf.remaining(), StandardCharsets.ISO_8859_1);
+            return s;
         } else {
             return core.toString();
         }
@@ -1860,7 +1839,7 @@ public class Json {
      * the {@link #stringValue} method on it, otherwise return null
      * @return the string value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public String stringValue(Object key) {
         Json j = get(key);
@@ -1903,7 +1882,7 @@ public class Json {
      * @see JsonReadOptions
      * @throws ClassCastException if none of these conditions are met
      * @return the buffer value of this object, which will always have position=0
-     * @since 2
+     * @since 1.2
      */
     public ByteBuffer bufferValue() {
         if (core == NULL || core == UNDEFINED) {
@@ -1980,7 +1959,7 @@ public class Json {
      * the {@link #bufferValue} method on it, otherwise return null
      * @return the buffer value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public ByteBuffer bufferValue(Object key) {
         Json j = get(key);
@@ -2013,32 +1992,31 @@ public class Json {
             }
         } else if (core instanceof CharSequence) {
             if (isStrict()) {
-                throw new ClassCastException("Cannot convert string \"" + core + "\" to number in strict mode");
+                throw new ClassCastException("Cannot convert string \"" + esc((CharSequence)core, null) + "\" to number in strict mode");
             } else {
-                CharSequence value = (CharSequence)core;
-                SimplestReader r = new SimplestReader(value);
+                CharBuffer r = CharBuffer.wrap((CharSequence)core);
                 // Necessary to ensure we only parse exactly what is specified at json.org
                 boolean valid = true;
                 boolean real = false;
-                int c = r.read();
+                int c = r.hasRemaining() ? r.get() : -1;
                 if (c == '-') {
-                    c = r.read();
+                    c = r.hasRemaining() ? r.get() : -1;
                 }
                 if (c >= '1' && c <= '9') {
                     do {
-                        c = r.read();
+                        c = r.hasRemaining() ? r.get() : -1;
                     } while (c >= '0' && c <= '9');
                 } else if (c == '0') {
-                    c = r.read();
+                    c = r.hasRemaining() ? r.get() : -1;
                 } else {
                     valid = false;
                 }
                 if (valid && c == '.') {
                     real = true;
-                    c = r.read();
+                    c = r.hasRemaining() ? r.get() : -1;
                     if (c >= '0' && c <= '9') {
                         do {
-                            c = r.read();
+                            c = r.hasRemaining() ? r.get() : -1;
                         } while (c >= '0' && c <= '9');
                     } else {
                         valid = false;
@@ -2046,38 +2024,31 @@ public class Json {
                 }
                 if (valid && (c == 'e' || c == 'E')) {
                     real = true;
-                    c = r.read();
+                    c = r.hasRemaining() ? r.get() : -1;
                     if (c == '-' || c == '+') {
-                        c = r.read();
+                        c = r.hasRemaining() ? r.get() : -1;
                     }
                     if (c >= '0' && c <= '9') {
                         do {
-                            c = r.read();
+                            c = r.hasRemaining() ? r.get() : -1;
                         } while (c >= '0' && c <= '9');
                     } else {
                         valid = false;
                     }
                 }
                 if (valid && c == -1) {
+                    r.position(0);
                     try {
-                        if (!real && value.length() < 10) {
-                            return Integer.valueOf(value.toString());
+                        if (!real && r.remaining() < 10) {
+                            return Integer.valueOf(r.toString());
                         }
-                        if (!real && value.length() < 19) {
-                            return Long.valueOf(value.toString());
+                        if (!real && r.remaining() < 19) {
+                            return Long.valueOf(r.toString());
                         }
-                        return Double.valueOf(value.toString());
+                        return Double.valueOf(r.toString());
                     } catch (NumberFormatException e) { }
                 }
-                try {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("Cannot convert ");
-                    JsonWriter.writeString(value, 0, sb);
-                    sb.append(" to number");
-                    throw new ClassCastException(sb.toString());
-                } catch (IOException e2) {
-                    throw new RuntimeException(e2); // can't happen
-                }
+                throw new ClassCastException("Cannot convert " + esc(r, null) + " to number");
             }
         } else {
             throw new ClassCastException("Value is a " + type());
@@ -2089,7 +2060,7 @@ public class Json {
      * the {@link #intValue} method on it, otherwise return null
      * @return the number value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public Number numberValue(Object key) {
         Json j = get(key);
@@ -2121,7 +2092,7 @@ public class Json {
             }
         } else if (core instanceof CharSequence) {
             if (isStrict()) {
-                throw new ClassCastException("Cannot convert string \"" + core + "\" to integer in strict mode");
+                throw new ClassCastException("Cannot convert string \"" + esc((CharSequence)core, null) + "\" to integer in strict mode");
             } else {
                 CharSequence value = (CharSequence)core;
                 try {
@@ -2129,15 +2100,7 @@ public class Json {
                         return Integer.parseInt(value.toString());     // Faster than numberValue.toString()
                     }
                 } catch (NumberFormatException e) {}
-                try {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("Cannot convert ");
-                    JsonWriter.writeString(value, 0, sb);
-                    sb.append(" to int");
-                    throw new ClassCastException(sb.toString());
-                } catch (IOException e2) {
-                    throw new RuntimeException(e2); // can't happen
-                }
+                throw new ClassCastException("Cannot convert " + esc(value, null) + " to int");
             }
         } else {
             throw new ClassCastException("Value is a " + type());
@@ -2149,7 +2112,7 @@ public class Json {
      * the {@link #intValue} method on it, otherwise return 0
      * @return the int value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public int intValue(Object key) {
         Json j = get(key);
@@ -2177,7 +2140,7 @@ public class Json {
             return intValue();
         } else if (core instanceof CharSequence) {
             if (isStrict()) {
-                throw new ClassCastException("Cannot convert string \"" + core + "\" to long in strict mode");
+                throw new ClassCastException("Cannot convert string \"" + esc((CharSequence)core, null) + "\" to long in strict mode");
             } else {
                 CharSequence value = core.toString();
                 try {
@@ -2185,15 +2148,7 @@ public class Json {
                         return Long.parseLong(value.toString()); // Faster than numberValue.toString()
                     }
                 } catch (NumberFormatException e) {}
-                try {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("Cannot convert ");
-                    JsonWriter.writeString(value, 0, sb);
-                    sb.append(" to long");
-                    throw new ClassCastException(sb.toString());
-                } catch (IOException e2) {
-                    throw new RuntimeException(e2); // can't happen
-                }
+                throw new ClassCastException("Cannot convert " + esc(value, null) + " to long");
             }
         } else {
             throw new ClassCastException("Value is a " + type());
@@ -2205,7 +2160,7 @@ public class Json {
      * the {@link #longValue} method on it, otherwise return 0
      * @return the long value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public long longValue(Object key) {
         Json j = get(key);
@@ -2237,7 +2192,7 @@ public class Json {
      * the {@link #floatValue} method on it, otherwise return 0
      * @return the float value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public float floatValue(Object key) {
         Json j = get(key);
@@ -2269,7 +2224,7 @@ public class Json {
      * the {@link #doubleValue} method on it, otherwise return 0
      * @return the double value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public double doubleValue(Object key) {
         Json j = get(key);
@@ -2316,7 +2271,7 @@ public class Json {
      * the {@link #booleanValue} method on it, otherwise return false
      * @return the boolean value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public boolean booleanValue(Object key) {
         Json j = get(key);
@@ -2351,7 +2306,7 @@ public class Json {
      * the {@link #mapValue} method on it, otherwise return null
      * @return the read-only map value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public Map<Object,Json> mapValue(Object key) {
         Json j = get(key);
@@ -2378,7 +2333,7 @@ public class Json {
      * the {@link #listValue} method on it, otherwise return null
      * @return the read-only list value of that object
      * @param key the key
-     * @since 4
+     * @since 1.4
      */
     public List<Json> listValue(Object key) {
         Json j = get(key);
@@ -2496,25 +2451,16 @@ public class Json {
      * to calling <code>return {@link #write write}(new StringBuilder(), options).toString()</code>
      * @param options the {@link JsonWriteOptions} to use for serializing, or null to use the default
      * @return the serialized object
-     * @since 5
+     * @since 1.5
      */
-    public String toString(JsonWriteOptions options) {
-        if (options == null) {
-            options = new JsonWriteOptions().setAllowNaN(true);
+    public String toString(JsonWriter output) {
+        if (output == null) {
+            output = new JsonWriter().setAllowNaN(true);
         }
         try {
             StringBuilder sb = new StringBuilder();
-            /*
-            if (getTag() >= 0) {
-                sb.append(getTag() + "(");
-            }
-            */
-            write(sb, options);
-            /*
-            if (getTag() >= 0) {
-                sb.append(")");
-            }
-            */
+            output.setOutput(sb);
+            write(output);
             return sb.toString();
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -2524,61 +2470,151 @@ public class Json {
     /**
      * Return a Cbor representation of this Json object.
      * @return the Cbor representation as an array-backed ByteBuffer
-     * @since 5
+     * @since 1.5
      */
     public ByteBuffer toCbor() {
-        return toCbor(new JsonWriteOptions());
-    }
-
-    /**
-     * Return a Cbor representation of this Json object with the specified options
-     * @param options the {@link JsonWriteOptions} to use for serializing, or null to use the default
-     * @return the Cbor representation as an array-backed ByteBuffer
-     * @since 5
-     */
-    public ByteBuffer toCbor(JsonWriteOptions options) {
-        if (options == null) {
-            options = new JsonWriteOptions();
-        }
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
-            writeCbor(out, options);
-            return ByteBuffer.wrap(out.toByteArray());
+            ExtendingByteBuffer out = new ExtendingByteBuffer();
+            CborWriter writer = new CborWriter();
+            writer.setOutput(out);
+            write(writer);
+            return out.toByteBuffer();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     /**
-     * Write this objects BufferValue to the specified OutputStream.
-     * Can be overridden if the BufferValue needs to be derived externally,
+     * Return a {@link ReadableByteChannel} that can be used to read
+     * the buffer value from this object.
+     * Can be overridden if the buffer value needs to be derived externally,
      * perhaps because it's very large and of indeterminate length.
-     * @since 4
+     * @see #getBufferStreamLength
+     * @since 2.0
      */
-    protected void writeBuffer(OutputStream out) throws IOException {
-        ByteBuffer buf = (ByteBuffer)((Buffer)bufferValue()).position(0); // cast for old Java compilation
-        Channels.newChannel(out).write(buf);
+    protected ReadableByteChannel getBufferStream() throws IOException {
+        final ByteBuffer buf = (ByteBuffer)((Buffer)bufferValue()).duplicate().position(0); // cast for old Java compilation
+        return new ReadableByteChannel() {
+            private boolean closed;
+            @Override public int read(ByteBuffer out) throws IOException {
+                if (closed) {
+                    throw new IOException("closed");
+                }
+                int len = Math.min(buf.remaining(), out.remaining());
+                int limit = buf.limit();
+                buf.limit(buf.position() + len);
+                out.put(buf);
+                buf.limit(limit);
+                return len == 0 ? -1 : len;
+            }
+            @Override public boolean isOpen() {
+                return !closed;
+            }
+            @Override public void close() {
+                closed = true;
+            }
+        };
     }
 
     /**
-     * Write this objects StringValue to the specified Appendable.
-     * Can be overridden if the Appendable needs to be derived externally,
+     * Return the number of bytes that can be read from the stream returned
+     * by {@link #getBufferStream} or -1 if it is of indeterminate length.
+     * Can be overridden if the buffer value needs to be derived externally,
      * perhaps because it's very large and of indeterminate length.
-     * @since 4
+     * @see #getBufferStream
+     * @since 2.0
      */
-    protected void writeString(Appendable out) throws IOException {
-        out.append((CharSequence)core);
+    protected long getBufferStreamLength() throws IOException {
+        ByteBuffer buf = (ByteBuffer)((Buffer)bufferValue()).duplicate().position(0); // cast for old Java compilation
+        return buf.remaining();
     }
 
-    private static class SimplestReader {
-        private final CharSequence s;
-        private int i;
-        SimplestReader(CharSequence s) {
-            this.s = s;
+    /**
+     * Return a {@link Readable} that can be used to read 
+     * the string value from this object.
+     * Can be overridden if the string value needs to be derived externally,
+     * perhaps because it's very large and of indeterminate length.
+     * @since 1.4
+     */
+    protected Readable getStringStream() throws IOException {
+        final CharBuffer buf = CharBuffer.wrap((CharSequence)core);
+        return new Readable() {
+            @Override public int read(CharBuffer out) throws IOException {
+                int len = Math.min(buf.remaining(), out.remaining());
+                int limit = buf.limit();
+                buf.limit(buf.position() + len);
+                out.put(buf);
+                buf.limit(limit);
+                return len == 0 ? -1 : len;
+            }
+        };
+    }
+
+    /**
+     * Return the UTF-8 byte-length of Readable returned by
+     * {@link #getStringStream} if known, or -1 if it is of indeterminate length.
+     * Note this is the <b>byte length</b> not the character length.
+     * Can be overridden if the string value needs to be derived externally,
+     * perhaps because it's very large and of indeterminate length.
+     * @since 1.4
+     */
+    protected long getStringStreamByteLength() throws IOException {
+        return -1; // stringByteLength;
+    }
+
+    static StringBuilder esc(CharSequence value, StringBuilder sb) {
+        if (sb == null) {
+            sb = new StringBuilder();
         }
-        int read() {
-            return i == s.length() ? -1 : s.charAt(i++);
+        sb.append('"');
+        int len = value.length();
+        for (int i = 0; i < len; i++) {
+            char c = value.charAt(i);
+            if (c >= 0x30 && c < 0x80 && c != 0x5c) {        // Optimize for most common case
+                sb.append(c);
+            } else {
+                switch (c) {
+                    case '\\': sb.append("\\\\"); break;
+                    case '"':  sb.append("\\\""); break;
+                    case '\b': sb.append("\\b"); break;
+                    case '\t': sb.append("\\t"); break;
+                    case '\n': sb.append("\\n"); break;
+                    case '\f': sb.append("\\f"); break;
+                    case '\r': sb.append("\\r"); break;
+                    default:
+                        if (c < 0x20 || (c >= 0x80 && c < 0xA0) || c == 0x2028 || c == 0x2029) {
+                            String t = Integer.toHexString(c);
+                            sb.append("\\u");
+                            switch (t.length()) {
+                                case 1: sb.append('0');
+                                case 2: sb.append('0');
+                                case 3: sb.append('0');
+                                default:
+                            }
+                            sb.append(t);
+                        } else {
+                            sb.append(c);
+                        }
+                }
+            }
         }
+        sb.append('"');
+        return sb;
+    }
+
+    static String hex(ByteBuffer buf) {
+        return hex(buf.array(), buf.arrayOffset() + buf.position(), buf.remaining());
+    }
+    static String hex(byte[] buf, int off, int len) {
+        StringBuilder sb = new StringBuilder(len * 2);
+        for (int i=0;i<len;i++) {
+            int v = buf[off + i] & 0xFF;
+            if (v < 0x10) {
+                sb.append('0');
+            }
+            sb.append(Integer.toHexString(v));
+        }
+        return sb.toString();
     }
 
 }

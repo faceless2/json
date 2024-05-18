@@ -6,61 +6,34 @@ import java.util.*;
 import javax.json.*;
 import javax.json.stream.*;
 
-class JSRJsonWriter implements JsonGenerator {
+class JSRJsonGenerator implements JsonGenerator {
 
     private static final int ROOT = 0, OBJECT = 1, ARRAY = 2;
+
     private class State {
         final State parent;
         final int type;
-        final String prefix;
-        private boolean needkey;
         private int count;
-        State(State parent, int type, String prefix) {
+        State(State parent, int type) {
             this.parent = parent;
             this.type = type;
-            if (parent == null) {
-                this.prefix = prefix;
-            } else if (parent.prefix == null) {
-                this.prefix = null;
-            } else {
-                this.prefix = parent.prefix.equals("") ? "\n  " : parent.prefix + "  ";
-            }
-            needkey = type == OBJECT;
-        }
-        void prefix() throws IOException {
-            if (prefix != null) {
-                writer.write(prefix);
-            }
         }
         void preKey() throws IOException {
-            if (type == OBJECT && needkey) {
-                if (count > 0) {
-                    writer.writeComma();
-                }
-                needkey = false;
+            if (type == OBJECT && (count & 1) == 0) {
                 count++;
-                prefix();
             } else {
                 throw new JsonGenerationException("Wrong state");
             }
         }
         void preValue() throws IOException {
-            if (type == ROOT) {
-                if (count > 0) {
-                    throw new JsonGenerationException("Wrong state" + this);
-                }
+            if (type == ROOT && count == 0) {
                 count++;
             } else if (type == ARRAY) {
-                if (count > 0) {
-                    writer.writeComma();
-                }
                 count++;
-                prefix();
-            } else if (type == OBJECT) {
-                if (needkey) {
-                    throw new JsonGenerationException("Wrong state" + this);
-                }
-                needkey = true;
+            } else if (type == OBJECT && (count & 1) == 1) {
+                count++;
+            } else {
+                throw new JsonGenerationException("Wrong state");
             }
         }
         public String toString() {
@@ -69,13 +42,12 @@ class JSRJsonWriter implements JsonGenerator {
     }
 
     private State state;
-    private final JsonWriter writer;
-    private boolean wrote = false;
-    private StringBuilder prefix;
+    private final JsonWriter out;
+    boolean wrote;
 
-    JSRJsonWriter(JsonWriter writer) {
-        this.writer = writer;
-        state = new State(null, ROOT, writer.options.isPretty() ? "\n" : null);
+    JSRJsonGenerator(JsonWriter out) {
+        this.out = out;
+        state = new State(null, ROOT);
     }
 
     public javax.json.JsonWriter asWriter() {
@@ -94,11 +66,11 @@ class JSRJsonWriter implements JsonGenerator {
                 if (wrote) {
                     throw new IllegalStateException("Already written");
                 }
-                JSRJsonWriter.this.write(value);
+                JSRJsonGenerator.this.write(value);
                 wrote = true;
             }
             @Override public void close() {
-                JSRJsonWriter.this.close();
+                JSRJsonGenerator.this.close();
             }
         };
     }
@@ -111,14 +83,14 @@ class JSRJsonWriter implements JsonGenerator {
             if (state.parent != null) {
                 throw new JsonGenerationException("Needs a writeEnd");
             }
-            writer.close();
+            out.close();
         } catch (IOException e) {
             throw new JsonGenerationException(e.getMessage(), e);
         }
     }
     @Override public void flush() {
         try {
-            writer.flush();
+            out.flush();
         } catch (IOException e) {
             throw new JsonGenerationException(e.getMessage(), e);
         }
@@ -157,7 +129,7 @@ class JSRJsonWriter implements JsonGenerator {
     @Override public JsonGenerator write(boolean value) {
         try {
             state.preValue();
-            writer.writeBoolean(value);
+            out.event(JsonStream.Event.booleanValue(value));
             wrote = true;
             return this;
         } catch (IOException e) {
@@ -165,39 +137,18 @@ class JSRJsonWriter implements JsonGenerator {
         }
     }
     @Override public JsonGenerator write(double value) {
-        try {
-            state.preValue();
-            writer.writeNumber(value);
-            wrote = true;
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return write(Double.valueOf(value));
     }
     @Override public JsonGenerator write(int value) {
-        try {
-            state.preValue();
-            writer.writeNumber(value);
-            wrote = true;
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return write(Integer.valueOf(value));
     }
     @Override public JsonGenerator write(long value) {
-        try {
-            state.preValue();
-            writer.writeNumber(value);
-            wrote = true;
-            return this;
-        } catch (IOException e) {
-            throw new JsonGenerationException(e.getMessage(), e);
-        }
+        return write(Long.valueOf(value));
     }
     JsonGenerator write(Number value) {
         try {
             state.preValue();
-            writer.writeNumber(value);
+            out.event(JsonStream.Event.numberValue(value));
             wrote = true;
             return this;
         } catch (IOException e) {
@@ -207,7 +158,9 @@ class JSRJsonWriter implements JsonGenerator {
     @Override public JsonGenerator write(String value) {
         try {
             state.preValue();
-            writer.writeString(value);
+            out.event(JsonStream.Event.startString(value.length()));
+            out.event(JsonStream.Event.stringData(value));
+            out.event(JsonStream.Event.endString());
             wrote = true;
             return this;
         } catch (IOException e) {
@@ -245,7 +198,8 @@ class JSRJsonWriter implements JsonGenerator {
     @Override public JsonGenerator write(BigDecimal value) {
         try {
             state.preValue();
-            writer.writeNumber(value);
+            out.event(JsonStream.Event.numberValue(value));
+            state.preValue();
             wrote = true;
             return this;
         } catch (IOException e) {
@@ -255,7 +209,7 @@ class JSRJsonWriter implements JsonGenerator {
     @Override public JsonGenerator write(BigInteger value) {
         try {
             state.preValue();
-            writer.writeNumber(value);
+            out.event(JsonStream.Event.numberValue(value));
             wrote = true;
             return this;
         } catch (IOException e) {
@@ -266,12 +220,10 @@ class JSRJsonWriter implements JsonGenerator {
         try {
             if (state.type == ARRAY) {
                 state = state.parent;
-                state.prefix();
-                writer.writeEndArray();
+                out.event(JsonStream.Event.endList());
             } else if (state.type == OBJECT) {
                 state = state.parent;
-                state.prefix();
-                writer.writeEndObject();
+                out.event(JsonStream.Event.endMap());
             } else {
                 throw new JsonGenerationException("Wrong state");
             }
@@ -280,13 +232,12 @@ class JSRJsonWriter implements JsonGenerator {
             throw new JsonGenerationException(e.getMessage(), e);
         }
     }
-    @Override public JsonGenerator writeKey(String name) {
+    @Override public JsonGenerator writeKey(String value) {
         try {
             state.preKey();
-            writer.writeKey(name);
-            if (state.prefix != null) {
-                writer.write(" ");
-            }
+            out.event(JsonStream.Event.startString(value.length()));
+            out.event(JsonStream.Event.stringData(value));
+            out.event(JsonStream.Event.endString());
             return this;
         } catch (IOException e) {
             throw new JsonGenerationException(e.getMessage(), e);
@@ -295,7 +246,7 @@ class JSRJsonWriter implements JsonGenerator {
     @Override public JsonGenerator writeNull() {
         try {
             state.preValue();
-            writer.writeNull();
+            out.event(JsonStream.Event.nullValue());
             wrote = true;
             return this;
         } catch (IOException e) {
@@ -308,9 +259,8 @@ class JSRJsonWriter implements JsonGenerator {
     @Override public JsonGenerator writeStartArray() {
         try {
             state.preValue();
-            writer.writeStartArray();
-            state = new State(state, ARRAY, null);
-            wrote = true;
+            out.event(JsonStream.Event.startList(-1));
+            state = new State(state, ARRAY);
             return this;
         } catch (IOException e) {
             throw new JsonGenerationException(e.getMessage(), e);
@@ -322,9 +272,8 @@ class JSRJsonWriter implements JsonGenerator {
     @Override public JsonGenerator writeStartObject() {
         try {
             state.preValue();
-            writer.writeStartObject();
-            state = new State(state, OBJECT, null);
-            wrote = true;
+            out.event(JsonStream.Event.startMap(-1));
+            state = new State(state, OBJECT);
             return this;
         } catch (IOException e) {
             throw new JsonGenerationException(e.getMessage(), e);

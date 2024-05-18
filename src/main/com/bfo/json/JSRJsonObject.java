@@ -73,23 +73,19 @@ class JSRJsonObject extends AbstractMap<String,JsonValue> implements JsonObject 
         return JsonValue.ValueType.OBJECT;
     }
     @Override public String toString() {
-        try {
-            StringBuilder sb = new StringBuilder();
-            sb.append("{");
-            boolean first = true;
-            for (Map.Entry<String,JsonValue> e : entrySet()) {
-                if (!first) {
-                    sb.append(',');
-                }
-                JsonWriter.writeString(e.getKey(), Integer.MAX_VALUE, sb);
-                sb.append(':');
-                sb.append(e.getValue().toString());
-                first = false;
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        boolean first = true;
+        for (Map.Entry<String,JsonValue> e : entrySet()) {
+            if (!first) {
+                sb.append(',');
             }
-            sb.append('}');
-            return sb.toString();
-        } catch (java.io.IOException e) {
-            throw new RuntimeException(e);
+            Json.esc(e.getKey(), sb);
+            sb.append(':');
+            sb.append(e.getValue().toString());
+            first = false;
         }
+        sb.append('}');
+        return sb.toString();
     }
 }

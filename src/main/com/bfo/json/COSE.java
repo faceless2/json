@@ -192,7 +192,7 @@ public class COSE extends Json {
     public Json getProtectedAttributes() {
         if (isInitialized()) {
             try {
-                Json j = Json.readCbor((ByteBuffer)((Buffer)this.get(0).bufferValue()).position(0), null);
+                Json j = Json.readCbor((ByteBuffer)((Buffer)this.get(0).bufferValue()).position(0));
                 return j.isEmpty() ? null : j;
             } catch (Exception e) {
                  return null;
@@ -250,9 +250,7 @@ public class COSE extends Json {
             Json j = null;
             if (single) {
                 if (signature == 0) {
-                    try {
-                        j = Json.readCbor((ByteBuffer)((Buffer)this.get(0).bufferValue()).position(0), null);
-                    } catch (IOException e) {}
+                    j = Json.readCbor((ByteBuffer)((Buffer)this.get(0).bufferValue()).position(0));
                     alg = j != null && j.isNumber(1) ? j.intValue(1) : 0;
                 } else {
                     throw new IllegalArgumentException("Invalid signature index " + signature + ": single signature");
@@ -260,9 +258,7 @@ public class COSE extends Json {
             } else {
                 Json sigs = this.get(3);    // array of COSE_Signature (SIGN) or single signature (SIGN1)
                 if (signature >= 0 && signature < sigs.size()) {
-                    try {
-                        j = Json.readCbor((ByteBuffer)((Buffer)sigs.get(signature).get(0).bufferValue()).position(0), null);
-                    } catch (IOException e) {}
+                    j = Json.readCbor((ByteBuffer)((Buffer)sigs.get(signature).get(0).bufferValue()).position(0));
                     alg = j != null && j.isNumber(1) ? j.intValue(1) : 0;
                 } else {
                     throw new IllegalArgumentException("Invalid signature index " + signature + ": not between 0.." + (sigs.size() - 1));
@@ -410,7 +406,7 @@ public class COSE extends Json {
      * @param provider the Provider
      */
     private static boolean verifySignature(String type, ByteBuffer protectedAtts, ByteBuffer sigProtectedAtts, Json externalProtectedAtts, ByteBuffer payload, ByteBuffer signature, PublicKey key, Provider provider) throws IOException {
-        Json protectedAttsMap = Json.readCbor((ByteBuffer)((Buffer)sigProtectedAtts).position(0), null);
+        Json protectedAttsMap = Json.readCbor((ByteBuffer)((Buffer)sigProtectedAtts).position(0));
         String alg = JWK.fromCOSEAlgorithm(protectedAttsMap.get(1)).stringValue();    // "alg" is key 1 in header. This gives us (eg) "ES256"
         Signature sig ;
         try {

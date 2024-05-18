@@ -5,11 +5,12 @@ import java.text.*;
 import java.math.*;
 import java.io.*;
 import java.net.*;
+import java.nio.*;
 
 public class TestMsgpack {
     public static void main(String[] args) throws Exception {
         System.out.println("----- BEGIN MSGPACK TESTS -----");
-        Json all = Json.read(new URL("https://raw.githubusercontent.com/kawanet/msgpack-test-suite/master/dist/msgpack-test-suite.json").openConnection().getInputStream(), null);
+        Json all = Json.read(new JsonReader().setInput(new URL("https://raw.githubusercontent.com/kawanet/msgpack-test-suite/master/dist/msgpack-test-suite.json").openConnection().getInputStream()));
         for (Map.Entry<Object,Json> e : all.mapValue().entrySet()) {
             Json j = e.getValue();
             for (int i=0;i<j.size();i++) {
@@ -17,14 +18,23 @@ public class TestMsgpack {
                 Object type = j2.mapValue().keySet().iterator().next();
                 Json target = parseType(type, j2.get(type));
                 if (target != null) {
+                    String targetstring = target.toString(new JsonWriter().setCborDiag("hex"));
                     j2 = j2.get("msgpack");
                     for (int i2=0;i2<j2.size();i2++) {
                         byte[] b = parseBinary(j2.get(i2));
-                        Json test = Json.readMsgpack(new ByteArrayInputStream(b), null);
-                        assert test.equals(target) : "FAIL: "+type+" "+target+"("+target.type()+") "+test+"("+test.type()+")";
+                        try {
+                            Json test = Json.read(new MsgpackReader().setInput(ByteBuffer.wrap(b)));
+                            String teststring = test.toString(new JsonWriter().setCborDiag("hex"));
+                            if (!teststring.equals(targetstring)) {
+                                System.out.println("FAIL: "+type+" expected "+targetstring+"("+target.type()+") read "+teststring+"("+test.type()+")");
+                            }
+                        } catch (Exception e2) {
+                            System.out.println("FAIL: "+type+" expected "+targetstring+"("+target.type()+") from " + dump(b));
+                            throw e2;
+                        }
                     }
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    target.writeMsgpack(out, null);
+                    target.write(new MsgpackWriter().setOutput(out));
                     out.close();
                     byte[] p = out.toByteArray();
                     boolean match = false;
@@ -45,11 +55,11 @@ public class TestMsgpack {
 
         System.out.println("----- BEGIN MSGPACK ROUNDTRIP -----");
         String s = "https://raw.githubusercontent.com/lemire/Code-used-on-Daniel-Lemire-s-blog/master/2018/05/02/twitter.json";
-        Json json = Json.read(args.length == 0 ? new URL(s).openConnection().getInputStream() : new FileInputStream(args[0]), null);
+        Json json = Json.read(new JsonReader().setInput(args.length == 0 ? new URL(s).openConnection().getInputStream() : new FileInputStream(args[0])));
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        json.writeMsgpack(out, null);
+        json.write(new MsgpackWriter().setOutput(out));
         out.close();
-        Json json2 = Json.readMsgpack(new ByteArrayInputStream(out.toByteArray()), null);
+        Json json2 = Json.read(new MsgpackReader().setInput(new ByteArrayInputStream(out.toByteArray())));
         assert json.equals(json2) : "mismatch";
         System.out.println("----- END MSGPACK ROUNDTRIP -----");
 

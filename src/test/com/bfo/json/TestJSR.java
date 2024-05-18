@@ -45,7 +45,7 @@ public class TestJSR {
         String result = json.toString();
         JsonReader jsonReader = Json.createReader(new StringReader("{\"name\":\"Falco\",\"age\":3,\"biteable\":false}"));
         JsonObject jobj = jsonReader.readObject();
-        assert result.equals(jobj.toString());
+        assert result.equals(jobj.toString()) : "OLD="+result+" JSR="+jobj;
     }
 
     static void test2(String in, String test) {

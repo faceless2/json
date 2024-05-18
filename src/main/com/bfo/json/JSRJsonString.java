@@ -27,12 +27,6 @@ class JSRJsonString implements JsonString {
         return JsonValue.ValueType.STRING;
     }
     public String toString() {
-        try {
-            StringBuilder sb = new StringBuilder();
-            JsonWriter.writeString(value, Integer.MAX_VALUE, sb);
-            return sb.toString();
-        } catch (java.io.IOException e) {
-            throw new RuntimeException(e);
-        }
+        return Json.esc(value, null).toString();
     }
 }

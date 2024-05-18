@@ -5,496 +5,476 @@ import java.util.*;
 import java.math.*;
 import java.nio.*;
 import java.nio.charset.*;
+import java.nio.channels.*;
 
-class CborReader {
+/**
+ * A CBOR reader
+ */
+public class CborReader extends AbstractReader {
 
     static final int TAG_UNSIGNEDBIGNUM = 2;
     static final int TAG_SIGNEDBIGNUM   = 3;
     static final int TAG_BIGDECIMAL10   = 4;
     static final int TAG_BIGDECIMAL2    = 5;
 
-    // private static final boolean DEBUG = false;
+    private static final int MODE_INIT    = 0;
+    private static final int MODE_ROOT    = 1;
+    private static final int MODE_LIST    = 2;
+    private static final int MODE_MAP     = 3;
+    private static final int MODE_DSTRING = 4;
+    private static final int MODE_DBUFFER = 5;
+    private static final int MODE_ISTRING = 6;
+    private static final int MODE_IBUFFER = 7;
+    private static final int MODE_DONE    = 8;
+
     private static final Number INDEFINITE = Float.intBitsToFloat(0x12345678);       // As good as any
-    private static final Json BREAK = new Json(INDEFINITE, null) { @Override Json setStrict(boolean strict) { return this; } };
 
-    private final CountingInputStream in;
-    private final JsonReadOptions options;
-    private final JsonReadOptions.Filter keyfilter;
-    private final JsonFactory factory;
-    private JsonReadOptions.Filter filter;
-    private final boolean strict;
+    private final ArrayDeque<JsonStream.Event> eq;
+    private long mode, len;
+    private ByteSource in;
+    private SpecialTagHandler divert;
+    private long[] stack;
+    private int stackLength;
+    private long worknum;    // The number we are assembling
+    private int worknuml;    // The number of bytes we have assembled in the number
+    private int worknumt;    // The target number of bytes to assemble in the number
+    private int worknumv;    // When the number is assembled, the value of "v" to reuse
+    private CharBuffer cbuf;
+    private CharsetDecoder decoder;
 
-    CborReader(CountingInputStream in, JsonReadOptions options) {
-        this.in = in;
-        this.options = options;
-        this.factory = options.getFactory();
-        this.strict = options.isStrictTypes();
-        this.filter = options.getFilter() != null ? options.getFilter() : new JsonReadOptions.Filter() {};
-        this.keyfilter = new JsonReadOptions.Filter();
-        // Msgpack/CBOR use any type of key so call the filter.createNNN methods
-        // to load them, but the Filter API does not expect this. So don't pass
-        // loading of key objects into that filter.
+    public CborReader() {
+        eq = new ArrayDeque<JsonStream.Event>();
+        stack = new long[32];
+        stack[0] = 0;
+        stack[1] = MODE_DONE;
+        stackLength = 2;
+        len = 1;
+        mode = MODE_INIT;
     }
 
-    Json read() throws IOException {
-        filter.initialize();
-        Json j = readPrivate();
-        filter.complete(j);
-        return j;
+    @Override public CborReader setInput(ReadableByteChannel in) {
+        return (CborReader)super.setInput(in);
+    }
+    @Override public CborReader setInput(InputStream in) {
+        return (CborReader)super.setInput(in);
+    }
+    @Override public CborReader setInput(ByteBuffer in) {
+        return (CborReader)super.setInput(in);
+    }
+    @Override public CborReader setPartial() {
+        return (CborReader)super.setPartial();
+    }
+    @Override public CborReader setFinal() {
+        return (CborReader)super.setFinal();
+    }
+    @Override public CborReader setDraining() {
+        return (CborReader)super.setDraining();
+    }
+    @Override public CborReader setNonDraining() {
+        return (CborReader)super.setNonDraining();
+    }
+    @Override void setSource(ByteSource source) {
+        in = source;
     }
 
-    /**
-     * Read a CBOR serialized object
-     */
-    private Json readPrivate() throws IOException {
-        int v = in.read();
-        if (v < 0) {
-            return null;
+    @Override public JsonStream.Event next() throws IOException {
+        if (eq.isEmpty()) {
+            hasNext();
         }
-        // final int origv = v;
-        // final long origtell = in.tell();
-        Number n;
-        Json j;
-        List<Json> list;
-        Map<Object,Json> map;
-        long tell;
-        switch (v>>5) {
-            case 0:
-                j = filter.createNumber(readNumber(v, false));
-                break;
-            case 1:
-                n = readNumber(v, false);
-                if (n instanceof Integer) {
-                    n = Integer.valueOf(-1 - n.intValue());
-                } else if (n instanceof Long) {
-                    n = Long.valueOf(-1l - n.longValue());
-                } else if (n instanceof BigInteger) {
-                    n = BigInteger.valueOf(-1).subtract((BigInteger)n);
-                }
-                j = filter.createNumber(n);
-                break;
-            case 2:
-                n = readNumber(v, true);
-                j = filter.createBuffer(createBufferInputStream(n, null), n == INDEFINITE ? -1 : n.longValue());
-                break;
-            case 3:
-                n = readNumber(v, true);
-                InputStream tin = createBufferInputStream(n, options.getCborStringCodingErrorAction());
-                final String tostring = tin.toString();        // will be null if tostring not possible
-                Reader r;
-                long llen = -1;
-                if (tostring != null) {
-                    r = new StringReader(tostring) {
-                        public String toString() {
-                            return tostring;
-                        }
-                    };
-                    llen = tostring.length();
-                } else {
-                    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
-                    decoder.onMalformedInput(options.getCborStringCodingErrorAction());
-                    r = new InputStreamReader(tin, decoder);
-                }
-                j = filter.createString(r, llen);
-                break;
-            case 4:
-                n = readNumber(v, true);
-                // Because passing a populated collection into Json() clones items
-                j = filter.createList();
-                list = j._listValue();
-                if (n == INDEFINITE) {
-                    Json j2;
-                    int i = 0;
-                    filter.enter(j, i);
-                    while ((j2 = readPrivate()) != BREAK) {
-                        filter.exit(j, i);
-                        if (j2 == null) {
-                            throw new EOFException();
-                        }
-                        list.add(j2);
-                        Json.notifyDuringLoad(j, i++, j2);
-                        filter.enter(j, i);
-                    }
-                    filter.exit(j, i);
-                } else {
-                    int len = n.intValue();
-                    for (int i=0;i<len;i++) {
-                        tell = in.tell();
-                        filter.enter(j, i);
-                        Json j2 = readPrivate();
-                        filter.exit(j, i);
-                        if (j2 == BREAK) {
-                            throw new IOException("Unexpected break at " + tell);
-                        } else if (j2 == null) {
-                            throw new EOFException();
-                        }
-                        list.add(j2);
-                        Json.notifyDuringLoad(j, i, j2);
-                    }
-                }
-                break;
-            case 5:
-                n = readNumber(v, true);
-                // Because passing a populated collection into Json() clones items
-                j = filter.createMap();
-                map = j._mapValue();
-                final JsonReadOptions.Filter valfilter = filter;
-                if (n == INDEFINITE) {
-                    Json key;
-                    tell = in.tell();
-                    filter = keyfilter;
-                    while ((key = readPrivate()) != BREAK) {
-                        filter = valfilter;
-                        if (key == null) {
-                            throw new EOFException();
-                        }
-                        tell = in.tell();
-                        Object k = Json.fixKey(key, options.isFailOnComplexKeys(), tell);
-                        if (!(k instanceof String)) {
-                            j.setNonStringKeys();
-                        }
-                        filter.enter(j, k);
-                        Json val = readPrivate();
-                        filter.exit(j, k);
-                        if (val == BREAK) {
-                            throw new IOException("Unexpected break at " + tell);
-                        } else if (val == null) {
-                            throw new EOFException();
-                        }
-                        Object o = map.put(k, val);
-                        if (o != null) {
-                            throw new IOException("Duplicate key \"" + k + "\" at " + tell);
-                        }
-                        Json.notifyDuringLoad(j, k, val);
-                        tell = in.tell();
-                        filter = keyfilter;
-                    }
-                    filter = valfilter;
-                } else {
-                    int len = n.intValue();
-                    for (int i=0;i<len;i++) {
-                        tell = in.tell();
-                        filter = keyfilter;
-                        Json key = readPrivate();
-                        filter = valfilter;
-                        if (key == null) {
-                            throw new EOFException();
-                        } else if (key == BREAK) {
-                            throw new IOException("Unexpected break at " + tell);
-                        }
-                        Object k = Json.fixKey(key, options.isFailOnComplexKeys(), tell);
-                        if (!(k instanceof String)) {
-                            j.setNonStringKeys();
-                        }
-                        filter.enter(j, k);
-                        Json val = readPrivate();
-                        filter.exit(j, k);
-                        if (val == BREAK) {
-                            throw new IOException("Unexpected break at " + tell);
-                        } else if (val == null) {
-                            throw new EOFException();
-                        }
-                        Object o = map.put(k, val);
-                        if (o != null) {
-                            throw new IOException("Duplicate key \"" + key + "\" at " + tell);
-                        }
-                        Json.notifyDuringLoad(j, k, val);
-                    }
-                }
-                break;
-            case 6:
-                tell = in.tell();
-                n = readNumber(v, false);
-                if (n instanceof BigInteger && ((BigInteger)n).bitLength() > 63) {
-                    throw new IOException("Tag "+n+" with "+((BigInteger)n).bitLength()+" bits is unsupported at "+tell);
-                }
-                j = readPrivate();
-                if (j == null) {
-                    throw new EOFException();
-                } else if (j == BREAK) {
-                    throw new IOException("Unexpected break at " + tell);
-                }
-                switch (n.intValue()) {
-                    case TAG_UNSIGNEDBIGNUM:
-                    case TAG_SIGNEDBIGNUM:
-                        if (j.isBuffer()) {
-                            int tag = n.intValue();
-                            ByteBuffer b = j.bufferValue();
-                            n = new BigInteger(1, b.array());
-                            if (tag == TAG_SIGNEDBIGNUM) {
-                                n = BigInteger.valueOf(-1).subtract((BigInteger)n);
-                            }
-                            j = filter.createNumber(n);
-                            n = null;
-                        }
-                        break;
-                    case TAG_BIGDECIMAL2:
-                    case TAG_BIGDECIMAL10:
-                        if (j.isList() && j.size() == 2 && j.get(0).isNumber() && j.get(1).isNumber()) {
-                            Number v0 = j.get(0).numberValue();
-                            Number v1 = j.get(1).numberValue();
-                            if (v1 instanceof Integer || v1 instanceof Long) {
-                                v1 = BigInteger.valueOf(v1.longValue());
-                            }
-                            if (v1 instanceof BigInteger && v0 instanceof Integer) {
-                                int tag = n.intValue();
-                                if (tag == TAG_BIGDECIMAL10) {
-                                    j = filter.createNumber(new BigDecimal((BigInteger)v1, -v0.intValue()));
-                                    n = null;
-                                } else {
-                                    BigDecimal d = new BigDecimal((BigInteger)v1);
-                                    if (v0.intValue() > 0) {
-                                        d = d.multiply(BigDecimal.valueOf(2).pow(v0.intValue()));
-                                    } else {
-                                        d = d.divide(BigDecimal.valueOf(2).pow(-v0.intValue()));
-                                    }
-                                    j = filter.createNumber(d);
-                                    n = null;
-                                }
-                            }
-                        }
-                        break;
-                }
-                if (n != null) {
-                    j.setTag(n.longValue());
-                }
-                break;
-            default:
-                v &= 0x1f;
-                tell = in.tell();
-                switch (v) {
-                    case 20:
-                        j = filter.createBoolean(false);
-                        break;
-                    case 21:
-                        j = filter.createBoolean(true);
-                        break;
-                    case 22:
-                        j = filter.createNull();
-                        break;
-                    case 23:
-                        j = filter.createUndefined();
-                        break;
-                    case 25:
-                        v = readNumber(v, false).intValue();
-                        int s = (v & 0x8000) >> 15;
-                        int e = (v & 0x7c00) >> 10;
-                        int f = v & 0x3ff;
-                        if (e == 0) {
-                            n = Float.valueOf((float)((s != 0 ? -1f : 1f) * Math.pow(2, -14) * (f / Math.pow(2, 10))));
-                        } else if (e == 0x1f) {
-                            n = f != 0 ? Float.NaN : s == 0 ? Float.POSITIVE_INFINITY : Float.NEGATIVE_INFINITY;
-                        } else {
-                            n = Float.valueOf((float)((s != 0 ? -1f : 1f) * Math.pow(2, e - 15) * (1 + f / Math.pow(2, 10))));
-                        }
-                        j = filter.createNumber(n);
-                        break;
-                    case 26:
-                        n = readNumber(v, false);
-                        n = Float.intBitsToFloat(n.intValue());
-                        j = filter.createNumber(n);
-                        break;
-                    case 27:
-                        n = readNumber(v, false);
-                        n = Double.longBitsToDouble(n.longValue());
-                        j = filter.createNumber(n);
-                        break;
-                    case 31:
-                        j = BREAK;
-                        break;
-                    case 24:
-                        v = in.read();
-                        if (v < 0) {
-                            throw new EOFException();
-                        }
-                        // fallthrough
-                    default:
-                        if (options.isCborFailOnUnknownTypes()) {
-                            throw new IOException("Undefined special type " + v + " at "+tell);
-                        } else {
-                            j = filter.createUndefined();
-                            j.setTag(v);
-                            break;
-                        }
-                }
-        }
-        j.setStrict(strict);
-        if (factory != null) {
-            j._setFactory(factory);
-        }
-        // if (DEBUG) System.out.println("# [CBOR] off=" + origtell + " v=" + origv + " v>>5=" + (origv>>5) + " type=" + j.type() + " out=" + j.toString(new JsonWriteOptions().setCborDiag("hex")));
-        return j;
+        return eq.removeFirst();
     }
 
-    private InputStream createBufferInputStream(final Number n, CodingErrorAction action) throws IOException {
-        if (n == INDEFINITE) {
-            return createIndefiniteBufferInputStream(action);
-        } else {
-            return createFixedInputStream(in, n.longValue(), options.getFastStringLength(), action);
-        }
-    }
-
-    private InputStream createIndefiniteBufferInputStream(final CodingErrorAction action) throws IOException {
-        return new FilterInputStream(in) {
-            boolean eof;
-            private InputStream current = new ByteArrayInputStream(new byte[0]);
-            private void next() throws IOException {
-                int c = in.read();
-                if (c < 0) {
-                    throw new EOFException();
-                }
-                if (c == 0xFF) {
-                    eof = true;
-                } else {
-                    Number n = readNumber(c, true);
-                    while (n.longValue() == 0) {
-                        // Because a zero-length here is mistaken for eof
-                        c = in.read();
-                        if (c == 0xFF) {
-                            eof = true;
-                            return;
-                        } else {
-                            n = readNumber(c, true);
-                        }
-                    }
-                    current = createFixedInputStream(in, n.longValue(), options.getFastStringLength(), action);
-                }
-            }
-            @Override public int available() throws IOException {
-                int v = current.available();
-                if (v == 0 && !eof) {
-                    next();
-                    v = current.available();
-                }
-                return v;
-            }
-            @Override public int read() throws IOException {
-                int v = current.read();
-                if (v < 0 && !eof) {
-                    next();
-                    v = current.read();
-                }
-                return v;
-            }
-            @Override public int read(byte[] buf, int off, int len) throws IOException {
-                int v = current.read(buf, off, len);
-                if (v < 0 && !eof) {
-                    next();
-                    v = current.read(buf, off, len);
-                }
-                return v;
-            }
-            @Override public long skip(long v) throws IOException {
-                long n = current.skip(v);
-                if (n <= 0 && !eof) {
-                    next();
-                    n = current.skip(v);
-                }
-                return n;
-            }
-            @Override public boolean markSupported() {
+    @Override public boolean hasNext() throws IOException {
+        if (mode == MODE_INIT) {
+            requestByteSource();
+            if (in == null) {
                 return false;
             }
-            @Override public void close() {
-            }
-            @Override public String toString() {
-                return action == null ? super.toString() : null;
-            }
-        };
-    }
-
-    /**
-     * Return an InputStream of a fixed length from the specified InputStream.
-     * If "action" is not null, the stream will be used as a UTF8 String using the
-     * specified CodingErrorAction. To make that as fast as possible and use as
-     * little memory as possible, this is done by ensuring that toString() on the
-     * returned stream is the string value of the content, or that it returns null
-     * if it has to be read normally. Horrible, needs must.
-     * @param in the InputStream
-     * @param len the length from the stream
-     * @param fastlen if len is less than this value, read it in as a buffer
-     * @param action if not null the stream will be turned into a String
-     */
-    static InputStream createFixedInputStream(InputStream in, final long len, int fastlen, final CodingErrorAction action) throws IOException {
-        if (len < fastlen) {
-            byte[] buf = new byte[(int)len];
-            int i = 0;
-            int v;
-            while (i < buf.length && (v=in.read(buf, i, buf.length - i)) >= 0) {
-                i += v;
-            }
-            if (i != buf.length) {
-                throw new EOFException();
-            } else if (action == null) {
-                return new ByteArrayInputStream(buf, 0, buf.length);
-            } else {
-                String s;
-                if (action == CodingErrorAction.REPLACE) {
-                    s = new String(buf, 0, buf.length, StandardCharsets.UTF_8);
-                } else {
-                    CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
-                    decoder.onMalformedInput(action);
-                    s = decoder.decode(ByteBuffer.wrap(buf, 0, buf.length)).toString();
-                }
-                final String fs = s;
-                return new ByteArrayInputStream(buf, 0, buf.length) {
-                    public String toString() {
-                        return fs;
-                    }
-                };
-            }
-        } else {
-            return new FilterInputStream(in) {
-                long remaining = len;
-                @Override public int available() throws IOException {
-                    int v = in.available();
-                    if (remaining < v) {
-                        v = (int)remaining;
-                    }
-                    return v;
-                }
-                @Override public int read() throws IOException {
-                    if (remaining == 0) {
-                        return -1;
-                    }
-                    int c = in.read();
-                    if (c >= 0) {
-                        remaining--;
-                    }
-                    return c;
-                }
-                @Override public int read(byte[] buf, int off, int len) throws IOException {
-                    if (remaining == 0) {
-                        return -1;
-                    }
-                    if (remaining < len) {
-                        len = (int)remaining;
-                    }
-                    int v = in.read(buf, off, len);
-                    if (v >= 0) {
-                        remaining -= v;
-                    }
-                    return v;
-                }
-                @Override public long skip(long v) throws IOException {
-                    if (remaining < v) {
-                        v = remaining;
-                    }
-                    return super.skip(v);
-                }
-                @Override public void close() throws IOException {
-                }
-                @Override public boolean markSupported() {
-                    return false;
-                }
-                @Override public String toString() {
-                    return action == null ? super.toString() : null;
-                }
-            };
+            mode = MODE_ROOT;
+        } else if (mode == MODE_DONE) {
+            return !eq.isEmpty();
         }
+        while (eq.isEmpty()) {
+            boolean decrement = false;
+            if (mode == MODE_DBUFFER) {
+                if (len > 0) {
+                    if (in.available() == 0) {
+                        in.mark(1);
+                        if (in.get() < 0) {
+                            break;  // outer loop
+                        }
+                        in.reset();
+                    }
+                    int l = (int)Math.min(len, in.available());
+                    ByteBuffer bbuf = in.get(l);
+                    event(JsonStream.Event.bufferData(bbuf));
+                    len -= l;
+                }
+                if (len == 0) {
+                    mode = stack[--stackLength];
+                    len = stack[--stackLength];
+                    if (mode != MODE_IBUFFER) {
+                        event(JsonStream.Event.endBuffer());
+                    }
+                    decrement = true;
+                }
+            } else if (mode == MODE_DSTRING) {
+                if (len > 0) {
+                    if (in.available() == 0) {
+                        in.mark(1);
+                        if (in.get() < 0) {
+                            break;  // outer loop
+                        }
+                        in.reset();
+                    }
+                    int l = (int)Math.min(len, in.available());
+                    in.mark(l);
+                    ByteBuffer bbuf = in.get(l);
+                    if (cbuf == null || cbuf.capacity() < l) {
+                        cbuf = CharBuffer.allocate(l);
+                    }
+                    cbuf.clear();
+                    int pos = bbuf.position();
+                    CoderResult result = decoder.decode(bbuf, cbuf, l == len);
+                    l = bbuf.position() - pos;
+                    if (result.isError()) {
+                        in.reset();
+                        in.get(result.length());
+                        throw new IOException("Invalid UTF-8 sequence");
+                    } else if (bbuf.hasRemaining()) {
+                        in.reset();
+                        if (l == 0) {
+                            break; // outer
+                        } else {
+                            in.get(l);
+                        }
+                    }
+                    cbuf.flip();
+                    event(JsonStream.Event.stringData((CharSequence)cbuf));
+                    len -= l;
+                }
+                if (len == 0) {
+                    mode = stack[--stackLength];
+                    len = stack[--stackLength];
+                    if (mode != MODE_ISTRING) {
+                        event(JsonStream.Event.endString());
+                    }
+                    decrement = true;
+                }
+            } else {
+                int v;
+                Number n = null;
+                if (worknumt > 0) {
+                    v = in.get();
+                    if (v < 0) {
+                        break;  // outer loop
+                    }
+                    worknum = (worknum<<8) | v;
+                    if (++worknuml == worknumt) {
+                        v = worknumv;
+                        if (worknumt <= 4 && (int)worknum >= 0) {
+                            n = Integer.valueOf((int)worknum);
+                        } else if (worknum >= 0) {
+                            n = Long.valueOf(worknum);
+                        } else {
+                            n = BigInteger.valueOf(Integer.toUnsignedLong((int)(worknum>>32))).shiftLeft(32).add(BigInteger.valueOf(Integer.toUnsignedLong((int)worknum)));
+                        }
+                        worknumv = worknumt = 0;
+                        worknum = 0;
+                    } else {
+                        continue;
+                    }
+                } else {
+                    v = in.get();
+                    if (v < 0) {
+                        break;  // outer loop
+                    }
+                }
+                boolean ok = true;
+                switch (v>>5) {
+                    case 0:
+                        if (n == null) {
+                            n = readNumber(v, false);
+                            if (n == null) {
+                                ok = false;
+                                break; // switch
+                            }
+                        }
+                        event(JsonStream.Event.numberValue(n));
+                        decrement = true;
+                        break;
+                    case 1:
+                        if (n == null) {
+                            n = readNumber(v, false);
+                            if (n == null) {
+                                ok = false;
+                                break; // switch
+                            }
+                        }
+                        if (n instanceof Integer) {
+                            n = Integer.valueOf(-1 - n.intValue());
+                        } else if (n instanceof Long) {
+                            n = Long.valueOf(-1l - n.longValue());
+                        } else if (n instanceof BigInteger) {
+                            n = BigInteger.valueOf(-1).subtract((BigInteger)n);
+                        }
+                        event(JsonStream.Event.numberValue(n));
+                        decrement = true;
+                        break;
+                    case 2:
+                        if (n == null) {
+                            n = readNumber(v, true);
+                            if (n == null) {
+                                ok = false;
+                                break; // switch
+                            }
+                        }
+                        if (stack.length == stackLength) {
+                            stack = Arrays.copyOf(stack, stack.length + (stack.length >> 1));
+                        }
+                        stack[stackLength++] = len;
+                        stack[stackLength++] = mode;
+                        if (n == INDEFINITE) {
+                            if (mode == MODE_ISTRING || mode == MODE_IBUFFER) {
+                                throw new IOException("Can't nest indefinite buffer");
+                            } else {
+                                event(JsonStream.Event.startBuffer(-1));
+                                len = -1;
+                            }
+                            mode = MODE_IBUFFER;
+                        } else if (mode == MODE_ISTRING) {
+                            throw new IOException("Buffer not valid inside indefinite string");
+                        } else {
+                            len = n.longValue();
+                            if (mode != MODE_IBUFFER) {
+                                event(JsonStream.Event.startBuffer(len));
+                            }
+                            mode = MODE_DBUFFER;
+                        }
+                        break;
+                    case 3:
+                        if (n == null) {
+                            n = readNumber(v, true);
+                            if (n == null) {
+                                ok = false;
+                                break; // switch
+                            }
+                        }
+                        if (stack.length == stackLength) {
+                            stack = Arrays.copyOf(stack, stack.length + (stack.length >> 1));
+                        }
+                        stack[stackLength++] = len;
+                        stack[stackLength++] = mode;
+                        if (n == INDEFINITE) {
+                            if (mode == MODE_ISTRING || mode == MODE_IBUFFER) {
+                                throw new IOException("Can't nest indefinite string");
+                            } else {
+                                event(JsonStream.Event.startString(len = -1));
+                            }
+                            mode = MODE_ISTRING;
+                        } else if (mode == MODE_IBUFFER) {
+                            throw new IOException("String not valid inside indefinite buffer");
+                        } else {
+                            len = n.longValue();
+                            if (mode != MODE_ISTRING) {
+                                event(JsonStream.Event.startString(len));
+                            }
+                            mode = MODE_DSTRING;
+                            if (decoder == null) {
+                                decoder = StandardCharsets.UTF_8.newDecoder();
+                                decoder.onMalformedInput(getCodingErrorAction());
+                                decoder.onUnmappableCharacter(getCodingErrorAction());
+                            } else {
+                                decoder.reset();
+                            }
+                        }
+                        break;
+                    case 4:
+                        if (n == null) {
+                            n = readNumber(v, true);
+                            if (n == null) {
+                                ok = false;
+                                break; // switch
+                            }
+                        }
+                        if (n != INDEFINITE && n.intValue() == 0) {
+                            event(JsonStream.Event.startList(0));
+                            event(JsonStream.Event.endList());
+                            decrement = true;
+                        } else {
+                            if (stack.length == stackLength) {
+                                stack = Arrays.copyOf(stack, stack.length + (stack.length >> 1));
+                            }
+                            stack[stackLength++] = len;
+                            stack[stackLength++] = mode;
+                            len = n == INDEFINITE ? -1 : n.intValue();
+                            event(JsonStream.Event.startList((int)len));
+                            mode = MODE_LIST;
+                        }
+                        break;
+                    case 5:
+                        if (n == null) {
+                            n = readNumber(v, true);
+                            if (n == null) {
+                                ok = false;
+                                break; // switch
+                            }
+                        }
+                        if (n != INDEFINITE && n.intValue() == 0) {
+                            event(JsonStream.Event.startMap(0));
+                            event(JsonStream.Event.endMap());
+                            decrement = true;
+                        } else {
+                            if (stack.length == stackLength) {
+                                stack = Arrays.copyOf(stack, stack.length + (stack.length >> 1));
+                            }
+                            stack[stackLength++] = len;
+                            stack[stackLength++] = mode;
+                            len = n == INDEFINITE ? -1 : n.intValue();
+                            event(JsonStream.Event.startMap((int)len));
+                            if (len > 0) {
+                                len *= 2;
+                            }
+                            mode = MODE_MAP;
+                        }
+                        break;
+                    case 6:
+                        if (n == null) {
+                            n = readNumber(v, false);
+                            if (n == null) {
+                                ok = false;
+                                break; // switch
+                            }
+                        }
+                        if (n instanceof BigInteger && ((BigInteger)n).bitLength() > 63) {
+                            throw new IOException("Tag " + n + " with " + ((BigInteger)n).bitLength() + " bits is unsupported");
+                        }
+                        divert = new SpecialTagHandler(divert);
+                        event(JsonStream.Event.tagNext(n.longValue()));
+                        break;
+                    default:
+                        decrement = true;
+                        switch (v & 0x1F) {
+                            case 20:
+                                event(JsonStream.Event.booleanValue(false));
+                                decrement = true;
+                                break;
+                            case 21:
+                                event(JsonStream.Event.booleanValue(true));
+                                decrement = true;
+                                break;
+                            case 22:
+                                event(JsonStream.Event.nullValue());
+                                decrement = true;
+                                break;
+                            case 23:
+                                event(JsonStream.Event.undefinedValue());
+                                decrement = true;
+                                break;
+                            case 25:
+                                if (n == null) {
+                                    n = readNumber(v, false);
+                                    if (n == null) {
+                                        ok = false;
+                                        break; // inner switch
+                                    }
+                                }
+                                v = n.intValue();
+                                int s = (v & 0x8000) >> 15;
+                                int e = (v & 0x7c00) >> 10;
+                                int f = v & 0x3ff;
+                                if (e == 0) {
+                                    n = Float.valueOf((float)((s != 0 ? -1f : 1f) * Math.pow(2, -14) * (f / Math.pow(2, 10))));
+                                } else if (e == 0x1f) {
+                                    n = f != 0 ? Float.NaN : s == 0 ? Float.POSITIVE_INFINITY : Float.NEGATIVE_INFINITY;
+                                } else {
+                                    n = Float.valueOf((float)((s != 0 ? -1f : 1f) * Math.pow(2, e - 15) * (1 + f / Math.pow(2, 10))));
+                                }
+                                event(JsonStream.Event.numberValue(n));
+                                decrement = true;
+                                break;
+                            case 26:
+                                if (n == null) {
+                                    n = readNumber(v, false);
+                                    if (n == null) {
+                                        ok = false;
+                                        break; // inner switch
+                                    }
+                                }
+                                event(JsonStream.Event.numberValue(Float.intBitsToFloat(n.intValue())));
+                                decrement = true;
+                                break;
+                            case 27:
+                                if (n == null) {
+                                    n = readNumber(v, false);
+                                    if (n == null) {
+                                        ok = false;
+                                        break; // inner switch
+                                    }
+                                }
+                                event(JsonStream.Event.numberValue(Double.longBitsToDouble(n.longValue())));
+                                decrement = true;
+                                break;
+                            case 31:
+                                if (len == -1) {
+                                    if (mode == MODE_IBUFFER) {
+                                        event(JsonStream.Event.endBuffer());
+                                    } else if (mode == MODE_ISTRING) {
+                                        event(JsonStream.Event.endString());
+                                    } else if (mode == MODE_LIST) {
+                                        event(JsonStream.Event.endList());
+                                    } else if (mode == MODE_MAP) {
+                                        event(JsonStream.Event.endMap());
+                                    }
+                                    mode = stack[--stackLength];
+                                    len = stack[--stackLength];
+                                    decrement = true;
+                                } else {
+                                    throw new IOException("Unexpected break");
+                                }
+                                break;
+                            case 24:
+                                if (n == null) {
+                                    n = readNumber(v, false);
+                                    if (n == null) {
+                                        ok = false;
+                                        break; // inner switch
+                                    }
+                                }
+                                // fallthrough
+                            default:
+                                if (n == null) {
+                                    n = Integer.valueOf(v & 0x1F);
+                                }
+                                event(JsonStream.Event.simple(n.intValue()));
+                                decrement = true;
+                        }
+                }
+                if (!ok) {
+                    break; // outer loop
+                }
+            }
+            if (decrement) {
+                while (len > 0 && --len == 0) {
+                    if (mode == MODE_LIST) {
+                        event(JsonStream.Event.endList());
+                    } else if (mode == MODE_MAP) {
+                        event(JsonStream.Event.endMap());
+                    }
+                    mode = stack[--stackLength];
+                    len = stack[--stackLength];
+                }
+            }
+        }
+        if (eq.isEmpty()) {
+            if (requestByteSource()) {
+                return hasNext();
+            }
+        }
+        return !eq.isEmpty();
     }
 
-    private Number readNumber(int v, boolean allowIndefinite) throws IOException {
+    private Number readNumber(final int fv, boolean allowIndefinite) throws IOException {
         // Major type 0:  an unsigned integer.  The 5-bit additional information
         // the integer itself (for additional information values 0
         // through 23) or the length of additional data.  Additional
@@ -505,56 +485,210 @@ class CborReader {
         // integer 500 would be 0b000_11001 (major type 0, additional
         // information 25) followed by the two bytes 0x01f4, which is 500 in
         // decimal.
-        v &= 0x1F;
+        int v = fv & 0x1F;
         if (v == 31) {
             if (allowIndefinite) {
                 return INDEFINITE;
             } else {
-                throw new IOException("Unexpected break at " + in.tell());
+                throw new IOException("Unexpected break");
             }
         } else if (v < 24) {
             return Integer.valueOf(v);
         } else if (v == 24) {
-            v = in.read();
-            if (v >= 0) {
+            v = in.get();
+            if (v < 0) {
+                worknum = 0; worknuml = 0; worknumt = 1; worknumv = fv;
+            } else {
                 return Integer.valueOf(v);
             }
         } else if (v == 25) {
-            v = in.read();
-            int v2 = in.read();
-            if (v2 >= 0) {
-                return Integer.valueOf((v<<8) + v2);
+            v = in.get();
+            if (v < 0) {
+                worknum = 0; worknuml = 0; worknumt = 2; worknumv = fv;
+            } else {
+                int v2 = in.get();
+                if (v2 < 0) {
+                    worknum = v; worknuml = 1; worknumt = 2; worknumv = fv;
+                } else {
+                    return Integer.valueOf((v<<8) + v2);
+                }
             }
         } else if (v == 26) {
-            v = in.read();
-            int v2 = in.read();
-            int v3 = in.read();
-            int v4 = in.read();
-            if (v4 >= 0) {
-                Number n;
-                if (v < 128) {
-                    return Integer.valueOf((v<<24) | (v2<<16) | (v3<<8) | v4);
+            v = in.get();
+            if (v < 0) {
+                worknum = 0; worknuml = 0; worknumt = 4; worknumv = fv;
+            } else {
+                int v2 = in.get();
+                if (v2 < 0) {
+                    worknum = v; worknuml = 1; worknumt = 4; worknumv = fv;
                 } else {
-                    return Long.valueOf((((long)v)<<24) | (v2<<16) | (v3<<8) | v4);
+                    int v3 = in.get();
+                    if (v3 < 0) {
+                        worknum = (v<<8) | v2; worknuml = 2; worknumt = 4; worknumv = fv;
+                    } else {
+                        int v4 = in.get();
+                        if (v4 < 0) {
+                            worknum = (v<<16) | (v2<<8) | v; worknuml = 2; worknumt = 4; worknumv = fv;
+                        } else if (v < 128) {
+                            return Integer.valueOf((v<<24) | (v2<<16) | (v3<<8) | v4);
+                        } else {
+                            return Long.valueOf((((long)v)<<24) | (v2<<16) | (v3<<8) | v4);
+                        }
+                    }
                 }
             }
         } else if (v == 27) {
-            byte[] b = new byte[8];
-            int l = 0;
-            while (l < 8 && (v=in.read(b, l, 8 - l)) >= 0) {
-                l += v;
-            }
-            if (l == 8) {
-                if (b[0] >= 0) {
-                    return Long.valueOf(((b[0]&0xFFl)<<56) | ((b[1]&0xFFl)<<48) | ((b[2]&0xFFl)<<40) | ((b[3]&0xFFl)<<32) | ((b[4]&0xFFl)<<24) | ((b[5]&0xFFl)<<16) | ((b[6]&0xFF)<<8) | (b[7]&0xFF));
+            long lv = 0;
+            for (int i=0;i<8;i++) {
+                v = in.get();
+                if (v < 0) {
+                    worknum = lv; worknuml = i; worknumt = 8; worknumv = fv;
+                    return null;
                 } else {
-                    return new BigInteger(1, b);
+                    lv = (lv<<8) | v;
                 }
             }
+            if (lv < 0) {
+                return BigInteger.valueOf(Integer.toUnsignedLong((int)(lv>>32))).shiftLeft(32).add(BigInteger.valueOf(Integer.toUnsignedLong((int)lv)));
+            } else {
+                return Long.valueOf(lv);
+            }
         } else {
-            throw new IOException("Unknown unsigned integer type 0x" + v +" at " + in.tell());
+            throw new IOException("Unknown unsigned integer type 0x" + Integer.toHexString(v));
         }
-        throw new EOFException();
+        return null;
+    }
+
+    private void event(JsonStream.Event event) throws IOException {
+        if (divert != null) {
+            divert.event(event);
+        } else {
+            eq.add(event);
+        }
+    }
+
+    private class SpecialTagHandler {
+        static final int TAG_UNSIGNEDBIGNUM = 2;
+        static final int TAG_SIGNEDBIGNUM   = 3;
+        static final int TAG_BIGDECIMAL10   = 4;
+        static final int TAG_BIGDECIMAL2    = 5;
+
+        private SpecialTagHandler parent;
+        private int tag, depth;
+        private List<JsonStream.Event> q;
+        private ExtendingByteBuffer buf;
+        private Integer n0;
+        private BigInteger n1;
+
+        SpecialTagHandler(SpecialTagHandler parent) {
+            this.parent = parent;
+            this.q = new ArrayList<JsonStream.Event>();
+            this.tag = -1;
+        }
+
+        public void event(JsonStream.Event event) throws IOException {
+            q.add(event.copy());
+            final int type = event.type();
+            if (type == JsonStream.Event.TYPE_TAG) {
+                long ltag = event.tagValue();
+                if (ltag > Integer.MAX_VALUE) {
+                    close();
+                    return;
+                }
+                tag = (int)ltag;
+                switch (tag) {
+                    case TAG_UNSIGNEDBIGNUM:
+                    case TAG_SIGNEDBIGNUM:
+                        buf = new ExtendingByteBuffer();
+                        break;
+                    case TAG_BIGDECIMAL10:
+                    case TAG_BIGDECIMAL2:
+                        break;
+                    default:
+                        close();
+                }
+                return;
+            } else if (tag == TAG_UNSIGNEDBIGNUM || tag == TAG_SIGNEDBIGNUM) {
+                if (type == JsonStream.Event.TYPE_BUFFERDATA) {
+                    // Will never be a stream
+                    buf.write(event.bufferValue());
+                } else if (type != JsonStream.Event.TYPE_STARTBUFFER && type != JsonStream.Event.TYPE_ENDBUFFER) {
+                    close();
+                    return;
+                }
+            } else if (tag == TAG_BIGDECIMAL10 || tag == TAG_BIGDECIMAL2) {
+                Number n = event.numberValue();
+                if (depth == 1 && n0 == null && type == JsonStream.Event.TYPE_PRIMITIVE && n0 == null && n instanceof Integer) {
+                    n0 = (Integer)n;
+                } else if (depth == 1 && n0 != null && n1 == null && type == JsonStream.Event.TYPE_PRIMITIVE && (n instanceof Integer || n instanceof Long || n instanceof BigInteger)) {
+                    n1 = n instanceof BigInteger ? (BigInteger)n : BigInteger.valueOf(n.longValue());
+                } else if ((depth == 0 && type == JsonStream.Event.TYPE_STARTLIST) || (depth == 1 && type == JsonStream.Event.TYPE_ENDLIST)) {
+                    // OK
+                } else {
+                    close();
+                    return;
+                }
+            }
+
+            switch (type) {
+                case JsonStream.Event.TYPE_STARTMAP:
+                case JsonStream.Event.TYPE_STARTBUFFER:
+                case JsonStream.Event.TYPE_STARTSTRING:
+                case JsonStream.Event.TYPE_STARTLIST:
+                    depth++;
+                    break;
+                case JsonStream.Event.TYPE_ENDMAP:
+                case JsonStream.Event.TYPE_ENDBUFFER:
+                case JsonStream.Event.TYPE_ENDSTRING:
+                case JsonStream.Event.TYPE_ENDLIST:
+                    depth--;
+            }
+
+            if (depth == 0) {       // process
+                switch (tag) {
+                    case TAG_UNSIGNEDBIGNUM:
+                    case TAG_SIGNEDBIGNUM:
+                        ByteBuffer b = buf.toByteBuffer();
+                        BigInteger n = new BigInteger(1, b.array());
+                        if (tag == TAG_SIGNEDBIGNUM) {
+                            n = BigInteger.valueOf(-1).subtract(n);
+                        }
+                        q.clear();
+                        q.add(JsonStream.Event.numberValue(n));
+                        break;
+                    case TAG_BIGDECIMAL10:
+                        q.clear();
+                        q.add(JsonStream.Event.numberValue(new BigDecimal(n1, -n0.intValue())));
+                        break;
+                    case TAG_BIGDECIMAL2:
+                        BigDecimal d = new BigDecimal(n1);
+                        if (n0.intValue() > 0) {
+                            d = d.multiply(BigDecimal.valueOf(2).pow(n0.intValue()));
+                        } else {
+                            d = d.divide(BigDecimal.valueOf(2).pow(-n0.intValue()));
+                        }
+                        q.clear();
+                        q.add(JsonStream.Event.numberValue(d));
+                        break;
+                }
+                close();
+                return;
+            }
+        }
+
+        void close() throws IOException {
+            CborReader reader = CborReader.this;
+            reader.divert = parent;
+            if (parent != null) {
+                for (JsonStream.Event e : q) {
+                    parent.event(e);
+                }
+            } else {
+                for (JsonStream.Event e : q) {
+                    reader.event(e);
+                }
+            }
+        }
     }
 
 }

@@ -11,16 +11,15 @@ import java.nio.charset.*;
 class JSRFactory implements JsonParserFactory, JsonReaderFactory, JsonBuilderFactory, JsonWriterFactory, JsonGeneratorFactory {
 
     private final Map<String,?> config;
-    private final JsonWriteOptions writeOptions;
+    private boolean pretty;
 
     JSRFactory(Map<String,?> config) {
         Map<String,Object> c = new LinkedHashMap<String,Object>();
-        writeOptions = new JsonWriteOptions();
         if (config != null) {
             // Only copy valid keys
             for (Map.Entry<String,?> e : config.entrySet()) {
                 if (e.getKey().equals(JsonGenerator.PRETTY_PRINTING) && e.getValue() instanceof Boolean) {
-                    writeOptions.setPretty(Boolean.TRUE.equals(e.getValue()));
+                    pretty = Boolean.TRUE.equals(e.getValue());
                     c.put(e.getKey(), e.getValue());
                 }
             }
@@ -29,62 +28,41 @@ class JSRFactory implements JsonParserFactory, JsonReaderFactory, JsonBuilderFac
     }
 
     @Override public JsonParser createParser(InputStream in) {
-        try {
-            return createParser(JsonReader.createReader(in));
-        } catch (IOException e) {
-            return new JSRJsonParser(e);
-
-        }
+        return new JSRJsonParser(new JsonReader(), in);
     }
 
     @Override public JsonParser createParser(InputStream in, Charset charset) {
         return createParser(new InputStreamReader(in, charset));
     }
 
-    @Override public javax.json.JsonReader createReader(InputStream in) {
-        try {
-            return createReader(JsonReader.createReader(in));
-        } catch (IOException e) {
-            return new JSRJsonParser(e);
+    @Override public JsonParser createParser(Reader in) {
+        return new JSRJsonParser(new JsonReader(), in);
+    }
 
-        }
+    @Override public javax.json.JsonReader createReader(InputStream in) {
+        return new JSRJsonReader(createParser(in));
     }
 
     @Override public javax.json.JsonReader createReader(InputStream in, Charset charset) {
-        return createReader(new InputStreamReader(in, charset));
+        return new JSRJsonReader(createParser(in, charset));
+    }
+
+    @Override public javax.json.JsonReader createReader(Reader reader) {
+        return new JSRJsonReader(createParser(reader));
     }
 
     @Override public JsonParser createParser(JsonArray array) {
-        return createParser(new StringReader(array.toString()));
+        return null; // return new ReaderImpl(createParser(in, charset));
     }
 
     @Override public JsonParser createParser(JsonObject obj) {
-        return createParser(new StringReader(obj.toString()));
-    }
-
-    @Override public JsonParser createParser(Reader in) {
-        if (!in.markSupported()) {
-            in = new BufferedReader(in);
-        }
-        if (!(in instanceof CharSequenceReader)) {
-            in = new ContextReader(in);
-        }
-        return new JSRJsonParser(new JsonReader(in, new JsonReadOptions()));
-    }
-
-    @Override public javax.json.JsonReader createReader(Reader in) {
-        if (!in.markSupported()) {
-            in = new BufferedReader(in);
-        }
-        if (!(in instanceof CharSequenceReader)) {
-            in = new ContextReader(in);
-        }
-        return new JSRJsonParser(new JsonReader(in, new JsonReadOptions()));
+        return null; // return createParser(new StringReader(obj.toString()));
     }
 
     @Override public JsonArrayBuilder createArrayBuilder() {
         return new JSRJsonArrayBuilder();
     }
+
     @Override public JsonArrayBuilder createArrayBuilder(Collection<?> collection) {
         JsonArrayBuilder builder = new JSRJsonArrayBuilder();
         Set<Object> seen = new HashSet<Object>();
@@ -132,20 +110,31 @@ class JSRFactory implements JsonParserFactory, JsonReaderFactory, JsonBuilderFac
     @Override public javax.json.JsonWriter createWriter(OutputStream out) {
         return createWriter(out, StandardCharsets.UTF_8);
     }
+
     @Override public javax.json.JsonWriter createWriter(OutputStream out, Charset charset) {
-        return createWriter(StandardCharsets.UTF_8.equals(charset) ? new UTF8Writer(out, false) : new OutputStreamWriter(out, charset));
+        return createWriter(new OutputStreamWriter(out, charset));
     }
+
     @Override public javax.json.JsonWriter createWriter(Writer writer) {
-        return new JSRJsonWriter(new JsonWriter(WriterToAppendable.getInstance(writer), writeOptions, null)).asWriter();
+        JsonWriter w = new JsonWriter();
+        w.setOutput(WriterToAppendable.getInstance(writer));
+        w.setIndent(pretty ? 2 : 0);
+        return new JSRJsonGenerator(w).asWriter();
     }
+
     @Override public JsonGenerator createGenerator(OutputStream out) {
         return createGenerator(out, StandardCharsets.UTF_8);
     }
+
     @Override public JsonGenerator createGenerator(OutputStream out, Charset charset) {
-        return createGenerator(StandardCharsets.UTF_8.equals(charset) ? new UTF8Writer(out, false) : new OutputStreamWriter(out, charset));
+        return createGenerator(new OutputStreamWriter(out, charset));
     }
+
     @Override public JsonGenerator createGenerator(Writer writer) {
-        return new JSRJsonWriter(new JsonWriter(WriterToAppendable.getInstance(writer), writeOptions, null));
+        JsonWriter w = new JsonWriter();
+        w.setOutput(WriterToAppendable.getInstance(writer));
+        w.setIndent(pretty ? 2 : 0);
+        return new JSRJsonGenerator(w);
     }
 
     @Override public Map<String,?> getConfigInUse() {
