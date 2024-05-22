@@ -7,6 +7,9 @@ import java.nio.*;
 import java.nio.charset.*;
 import java.nio.channels.*;
 
+/**
+ * A Msgpack reader
+ */
 public class MsgpackReader extends AbstractReader {
 
     private static final int MODE_INIT    = 0;

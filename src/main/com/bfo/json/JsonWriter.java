@@ -5,6 +5,9 @@ import java.nio.channels.ReadableByteChannel;
 import java.io.*;
 import java.util.*;
 
+/**
+ * A JSON writer
+ */
 public class JsonWriter implements JsonStream {
     
     private static final char[] B64STD_C, B64URL_C;
@@ -174,6 +177,11 @@ public class JsonWriter implements JsonStream {
     public JsonWriter() {
     }
 
+    /**
+     * Request that map keys are sorted before writing.
+     * @param sorted true if keys should be sorted
+     * @return this
+     */
     public JsonWriter setSorted(boolean sorted) {
         this.sorted = sorted;
         return this;
@@ -184,12 +192,17 @@ public class JsonWriter implements JsonStream {
     }
 
     /**
-     * Configure this JsonWriter to write CBOR-diag format
-     * @param option either "hex", "base64", "base64-standard"  or "none"
+     * Configure this JsonWriter to write CBOR-diag format.
+     * The specified value controls how buffer values will be serialised,
+     * either has hex or one of two variations of base64.
+     * @param option either "hex", "base64", "base64-standard", or null for normal Json
      * @return this
      */
     public JsonWriter setCborDiag(String option) {
-        if ("hex".equalsIgnoreCase(option)) {
+        if (option == null) {
+            this.optionCborDiag = NONE;
+            this.b64 = B64URL_C;
+        } else if ("hex".equalsIgnoreCase(option)) {
             this.optionCborDiag = HEX;
             this.b64 = B64URL_C;
         } else if ("base64".equalsIgnoreCase(option)) {
@@ -205,38 +218,75 @@ public class JsonWriter implements JsonStream {
             this.optionCborDiag = B64STDPAD;
             this.b64 = B64STD_C;
         } else {
-            this.optionCborDiag = NONE;
-            this.b64 = B64URL_C;
+            throw new IllegalArgumentException("Unrecognised option \"" + option + "\"");
         }
         return this;
     }
 
+    /**
+     * The String format to use when formatting a float. The default is "%.8g"
+     * Note that superfluous trailing zeros will trimmed from any formatted value.
+     * @param format the format, which will be passed to {@link DecimalFormat}
+     * @return this
+     */
     public JsonWriter setFloatFormat(String format) {
         floatFormat = format;
         return this;
     }
 
+    /**
+     * The String format to use when formatting a double. The default is "%.16g".
+     * Note that superfluous trailing zeros will trimmed from any formatted value.
+     * @param format the format, which will be passed to {@link DecimalFormat}
+     * @return this
+     */
     public JsonWriter setDoubleFormat(String format) {
         doubleFormat = format;
         return this;
     }
 
+    /**
+     * Whether to allow NaN and Infinite values in the output.
+     * Both NaN and infinite values are disallowed in RFC8259.
+     * With this flag set, Infinite or NaN values are serialized
+     * as null, which matches web-browser behaviour. With this flag not set,
+     * an IOException is thrown during serialization
+     * @param nan the flag
+     * @return this
+     */
     public JsonWriter setAllowNaN(boolean allow) {
         optionAllowNaN = allow;
         return this;
     }
 
+    /**
+     * Set whether the output is pretty-printed with newlines and indenting.
+     * A value of zero (the default) means no pretty-printing
+     * @param size the number of spaces to indent, or 0 for no pretty-printing
+     * @return this
+     */
     public JsonWriter setIndent(int size) {
         indent = size;
         pretty = indent > 0;
         return this;
     }
 
+    /**
+     * Set whether to add a space after colons when printing
+     * @param space the flag
+     * @return this
+     */
     public JsonWriter setSpaceAfterColon(boolean space) {
         colon = space ? ": " : ":";
         return this;
     }
 
+    /**
+     * Set whether to add a space after commas when printing. Ignored for pretty-printing,
+     * as commas are followed by newlines.
+     * @param space the flag
+     * @return this
+     */
     public JsonWriter setSpaceAfterComma(boolean space) {
         comma = space ? ", " : ",";
         return this;
@@ -255,8 +305,7 @@ public class JsonWriter implements JsonStream {
     }
 
     /**
-     * Set the maximum length of a string. Additional characters will be replaced with
-     * an ellipsis
+     * Set the maximum length of a string. Additional characters will be replaced with an ellipsis
      * @param size the maximum length of a string to print, or 0 for no limit (the default)
      * @return this
      */
@@ -265,11 +314,38 @@ public class JsonWriter implements JsonStream {
         return this;
     }
 
+    /**
+     * Set the Appendable to write to
+     * @param out the output
+     * @return this
+     */
     public JsonWriter setOutput(Appendable out) {
         this.out = out;
         return this;
     }
 
+    /**
+     * Set the CharBuffer to write to
+     * @param out the output
+     * @return this
+     */
+    public JsonWriter setOutput(final CharBuffer buf) {
+        this.out = new Writer() {
+            public void write(int v) {
+                buf.put((char)v);
+            }
+            public void write(char[] v, int off, int len) {
+                buf.put(v, off, len);
+            }
+            public void flush() {
+            }
+            public void close() {
+            }
+        };
+        return this;
+    }
+
+    /*
     public void flush() throws IOException {
         if (out instanceof Flushable) {
             ((Flushable)out).flush();
@@ -281,7 +357,7 @@ public class JsonWriter implements JsonStream {
             ((Closeable)out).close();
         }
     }
-
+    */
 
     private String dump() {
         StringBuilder sb = new StringBuilder();
@@ -350,7 +426,12 @@ public class JsonWriter implements JsonStream {
                 } else if (value instanceof CharSequence) {   // If we've made it so in state.isKey above
                     out.append('"');
                     CharSequence s = (CharSequence)value;
-                    writeString((CharSequence)value, out, s.length());
+                    if (maxStringLength == 0 || s.length() < maxStringLength) {
+                        writeString((CharSequence)value, out, s.length());
+                    } else {
+                        writeString((CharSequence)value, out, maxStringLength);
+                        out.append("...");
+                    }
                     out.append('"');
                 } else {
                     throw new IllegalStateException("Unknown data " + (value == null ? null : value.getClass().getName()));
@@ -515,7 +596,7 @@ public class JsonWriter implements JsonStream {
         }
     }
 
-    private void writeByteBuffer(ByteBuffer buf, Appendable out, int l) throws IOException {
+    private void writeByteBuffer(ByteBuffer buf, Appendable out, int length) throws IOException {
         if (optionCborDiag != HEX) {
             int i = 0;
             if (b64_0 >= 0 && b64_1 >= 0) {
@@ -528,21 +609,21 @@ public class JsonWriter implements JsonStream {
                 i+=2;
                 writeb64(b64_0, b1, b2, 4);
             }
-            for (i=0;i+2<l;i+=3) {
+            for (i=0;i+2<length;i+=3) {
                 int b0 = buf.get() & 0xff;
                 int b1 = buf.get() & 0xff;
                 int b2 = buf.get() & 0xff;
                 writeb64(b0, b1, b2, 4);
             }
             b64_0 = b64_1 = -1;
-            if (i++ < l) {
+            if (i++ < length) {
                 b64_0 = buf.get() & 0xff;
-                if (i++ < l) {
+                if (i++ < length) {
                     b64_1 = buf.get() & 0xff;
                 }
             }
         } else {
-            for (int i=0;i<l;i++) {
+            for (int i=0;i<length;i++) {
                 int b = buf.get() & 0xff;
                 int v0 = b>>4;
                 int v1 = b&0xf;

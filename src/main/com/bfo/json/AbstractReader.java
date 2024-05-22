@@ -7,7 +7,47 @@ import java.nio.channels.*;
 import java.nio.charset.*;
 
 /**
- * The base reader class for any Json file formats
+ * <p>
+ * The base reader class for file formats that generate a stream of {@link JsonStream.Event} objects.
+ * For many common cases the {@link Json#read} and {@link Json#readCbor} methods can be called
+ * as a simpler alternative to referencing this class.
+ * </p><p>
+ * Formats are text-based (eg Json) or binary-based (eg Cbor or Msgpack).
+ * Typically an AbstractReader will read a file in one go from a single input,
+ * <pre class="brush:java">
+ *  AbstractReader reader = new JsonReader();
+ *  JsonBuilder builder = new JsonBuilder();
+ *  reader.setFinal();
+ *  reader.setInput(inputstream);
+ *  reader.write(builder);
+ *  Json json = builder.build();
+ * </pre>
+ * However it is also possible to use multiple inputs, which is useful when data arrives
+ * in chunks - for example, when reading from a {@link java.nio.channels.Selector}.
+ * <pre class="brush:java">
+ *  AbstractReader reader = new JsonReader();
+ *  JsonBuilder builder = new JsonBuilder();
+ *  reader.setPartial();
+ *  while (data = nextChunk()) {        // wait for next chunk
+ *    reader.setInput(bytebuffer);
+ *    reader.write(builder);
+ *    if (builder.build()) {
+ *      Json json = builder.build();
+ *      return json;
+ *    }
+ *  }
+ *  // Next block is required only for Json, see below.
+ *  if (data == null) { // no more data coming
+ *    reader.setFinal();
+ *    json = builder.build();
+ *    return json;
+ *  }
+ * </pre>
+ * <p>
+ * This approach works for Cbor, Msgpack, and Json where the top level object is a map, list or string.
+ * If the top level object is a number, boolean or null, the {@link #setFinal} method must be used to
+ * inform the reader that no more data is coming (eg the number 12345 may arrive in two blocks, "123" and "45").
+ * </p>
  */
 public abstract class AbstractReader {
     
@@ -42,10 +82,11 @@ public abstract class AbstractReader {
 
     /**
      * Indicate that the current input is the final input.
-     * This can be set after the read is started. For situations
-     * where the end of a file format is ambiguous this is required.
-     * Currently that is just Json, where the top-level item is a
-     * number, true, false or null.
+     * This can be set after the read has started, and is required for situations
+     * where the end of a file format is ambiguous. Currently that's only
+     * when reading Json where the top-level item is a number, true, false or null.
+     * AbstractReaders are final by default.
+     * @return this
      */
     public AbstractReader setFinal() {
         partial = false;
@@ -56,6 +97,7 @@ public abstract class AbstractReader {
     /**
      * Indicate that the input may be followed by more input when it runs out.
      * Reading cannot be changed from final to partial after the read has started.
+     * @return this
      */
     public AbstractReader setPartial() {
         if (source != null && !partial) {
@@ -68,7 +110,9 @@ public abstract class AbstractReader {
 
     /**
      * Indicate that after the read completes, the reader should verify there is no
-     * more content following the input. 
+     * more content following the input.
+     * When reading from a stream, this also allows the stream to be read in blocks.
+     * @return this
      */
     public AbstractReader setDraining() {
         draining = true;
@@ -76,12 +120,22 @@ public abstract class AbstractReader {
         return this;
     }
 
+    /**
+     * Indicate that the Reader should try not read any more content after object,
+     * because more content may follow. For block-based inputs (eg {@link Readable}
+     * and {@link ReadableByteChannel} or inputs where there is no concept of a
+     * current position (eg a {@link CharSequence}), this is ignored.
+     */
     public AbstractReader setNonDraining() {
         draining = false;
         notifyUpdated();
         return this;
     }
 
+    /**
+     * Set the action to perform when converting an invalid byte sequence to UTF-8.
+     * The default is {@link CodingErrorAction#REPLACE}
+     */
     public AbstractReader setCodingErrorAction(CodingErrorAction action) {
         codingErrorAction = action;
         notifyUpdated();
@@ -92,21 +146,35 @@ public abstract class AbstractReader {
         return codingErrorAction;
     }
 
+    /**
+     * Require text-based formats (eg Json) to keep track of line and column
+     * numbers when reading.
+     */
     public AbstractReader setLineCounting() {
         lineNumberTracking = true;
         notifyUpdated();
         return this;
     }
 
+    /**
+     * Permit text-based formats (eg Json) to not keep track of line and column
+     * numbers when reading.
+     */
     public AbstractReader setNoLineCounting() {
         lineNumberTracking = false;
         notifyUpdated();
         return this;
     }
+
     boolean isLineCounting() {
         return lineNumberTracking;
     }
 
+    /**
+     * When reading text-based formats (eg Json) from an InputStream, set
+     * the Charset to use for decoding. The default is to sniff the
+     * charset.
+     */
     public AbstractReader setCharset(Charset charset) {
         if (charset == null) {
             this.charset = charset;
@@ -146,37 +214,65 @@ public abstract class AbstractReader {
         return charset;
     }
 
+    /**
+     * Return the byte number of the input, or 0 if the input is not tracking bytes.
+     * Text-based formats (eg Json) will typically track characters not bytes
+     */
     public long getByteNumber() {
         return source instanceof ByteSource ? ((ByteSource)source).getByteNumber() : ((CharSource)source).getByteNumber();
     }
 
+    /**
+     * Return the character number of the input, or 0 if the input is not text-based
+     */
     public long getCharNumber() {
         return source instanceof CharSource ? ((CharSource)source).getCharNumber() : 0;
     }
 
+    /**
+     * Return the line number of the input, or 0 if the input is not text-based or is not tracking line numbers
+     */
     public long getLineNumber() {
         return source instanceof CharSource ? ((CharSource)source).getLineNumber() : 0;
     }
 
+    /**
+     * Return the column number of the input, or 0 if the input is not text-based or is not tracking line numbers
+     */
     public long getColumnNumber() {
         return source instanceof CharSource ? ((CharSource)source).getColumnNumber() : 0;
     }
 
+    /**
+     * Close the current input
+     */
     public void close() throws IOException {
         if (input instanceof Closeable) {
             ((Closeable)input).close();
         }
     }
 
+    /**
+     * Set an InputStream to use as the next source for this reader.
+     * The input cannot be changed while {@link #hasNext} returns true.
+     * @return this
+     */
     public AbstractReader setInput(InputStream in) {
         if (in == null) {
             throw new IllegalArgumentException("Input is null");
+        } else if (this.input != null) {
+//            throw new IllegalArgumentException("Input already set");
         }
         input = in;
         notifyUpdated();
         return this;
     }
 
+    /**
+     * Set an ReadableByteChannel to use as the next source for this reader.
+     * The input cannot be changed while {@link #hasNext} returns true.
+     * @return this
+     */
     public AbstractReader setInput(ReadableByteChannel in) {
         if (in == null) {
             throw new IllegalArgumentException("Input is null");
@@ -186,6 +282,11 @@ public abstract class AbstractReader {
         return this;
     }
 
+    /**
+     * Set an ByteBuffer to use as the next source for this reader.
+     * The input cannot be changed while {@link #hasNext} returns true.
+     * @return this
+     */
     public AbstractReader setInput(ByteBuffer in) {
         if (in == null) {
             throw new IllegalArgumentException("Input is null");
@@ -195,6 +296,11 @@ public abstract class AbstractReader {
         return this;
     }
 
+    /**
+     * Set an Readable to use as the next source for this reader, which must be a text-based format
+     * The input cannot be changed while {@link #hasNext} returns true.
+     * @return this
+     */
     public AbstractReader setInput(Readable in) {
         if (in == null) {
             throw new IllegalArgumentException("Input is null");
@@ -204,6 +310,11 @@ public abstract class AbstractReader {
         return this;
     }
 
+    /**
+     * Set an Readable to use as the next source for this reader, which must be a text-based format
+     * The input cannot be changed while {@link #hasNext} returns true.
+     * @return this
+     */
     public AbstractReader setInput(CharSequence in) {
         if (in == null) {
             throw new IllegalArgumentException("Input is null");

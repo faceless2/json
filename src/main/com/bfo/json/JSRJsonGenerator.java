@@ -43,10 +43,12 @@ class JSRJsonGenerator implements JsonGenerator {
 
     private State state;
     private final JsonWriter out;
+    private final Closeable closeable;
     boolean wrote;
 
-    JSRJsonGenerator(JsonWriter out) {
+    JSRJsonGenerator(JsonWriter out, Closeable closeable) {
         this.out = out;
+        this.closeable = closeable;
         state = new State(null, ROOT);
     }
 
@@ -83,14 +85,16 @@ class JSRJsonGenerator implements JsonGenerator {
             if (state.parent != null) {
                 throw new JsonGenerationException("Needs a writeEnd");
             }
-            out.close();
+            closeable.close();
         } catch (IOException e) {
             throw new JsonGenerationException(e.getMessage(), e);
         }
     }
     @Override public void flush() {
         try {
-            out.flush();
+            if (closeable instanceof Flushable) {
+                ((Flushable)out).flush();
+            }
         } catch (IOException e) {
             throw new JsonGenerationException(e.getMessage(), e);
         }

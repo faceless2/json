@@ -39,13 +39,16 @@ import java.nio.charset.*;
  *
  * <h2>Serialization</h2>
  * <p>
- * Object are read from the {@link #read} methods and written with the {@link #write} method. The process
- * can be controlled by specifying {@link JsonReadOptions} or {@link JsonWriteOptions} as appropriate, although
- * the default will read/write as defined in <a href="https://tools.ietf.org/html/rfc8259">RFC8259</a> or
- * <a href="https://tools.ietf.org/html/rfc7049">RFC7049</a> as appropriate.
- * In all cases the Stream is not closed at the end of the read or write.
+ * Object are read from the {@link #read} methods and written with the {@link #write} method.
+ * Convenient {@link #read} and {@link readCbor} methods are available for the most common options,
+ * or an {@link AbstractReader} can be configured and passed to {@link #read(AbstractReader} for
+ * particular serializations.
  * </p><p>
- * Since version 2, objects can also be serialized as CBOR (and since version 3, Msgpack), as defined in
+ * For writing the {@link #toString} and {@link #toCbor} methods convert in memory, or a {@link JsonWriter}
+ * can be configured and passed to {@link #write}.
+ * </p>
+ * <p>
+ * Since version 1.2, objects can also be serialized as CBOR (and since version 1.3, Msgpack), as defined in
  * <a href="https://tools.ietf.org/html/rfc7049">RFC7049</a> and
  * <a href="https://github.com/msgpack/msgpack/blob/master/spec.md">the Msgpack spec</a>.
  * There are some differences between the JSON and CBOR/Msgpack
@@ -54,40 +57,32 @@ import java.nio.charset.*;
  * </p>
  * <ol>
  *  <li>
- *   Unlike JSON, CBOR/Msgpack supports binary data, which we read as a {@link ByteBuffer} - these can be identified
- *   with the {@link #isBuffer isBuffer()} method. When serializing a ByteBuffer to JSON, it will be Base-64 encoded
- *   with no padding, as recommended in RFC7049. By default the "URL- and filename-safe" variation of BAse64 will
- *   be used when writing (see {@link JsonWriteOptions#setBase64Standard}). When reading, all Base64 variations
- *   can be parsed. <b>The ByteBuffer position is ignored</b>; it will be reset to zero before every read, write,
+ *   CBOR/Msgpack supports binary data, which we read as a {@link ByteBuffer} - these can be identified
+ *   with the {@link #isBuffer isBuffer()} method. When serializing a ByteBuffer to JSON, it will be Base64 encoded
+ *   with no padding, as recommended in RFC7049 (the "URL- and filename-safe" variation of Base64 will
+ *   be used when writing).
+ *   <b>The ByteBuffer position is ignored</b>; it will be reset to zero before every read, write,
  *   or when it is returned from {@link #bufferValue}.
+ *  </li>
+ *  <li>
+ *   CBOR/Msgpack support non-string keys in maps. This API supports numbers, boolean, buffers as keys,
+ *   but complex types (Lists and Maps) or duplicate keys will throw an {@link IOException} if found.
  *  </li>
  *  <li>
  *   JSON does not support NaN or infinite floating point values. When serializing these values to JSON,
  *   they will be serialized as null - this matches the behavior of all web-browsrs.
  *  </li>
  *  <li>
- *   CBOR supports tags on JSON value, which can be accessed with the {@link #setTag setTag()} and
+ *   CBOR supports tags on JSON value (and Msgpack supports an "ext" buffer type, which is effectively a
+ *   tag on a buffer value). The tag can be accessed with the {@link #setTag setTag()} and
  *   {@link #getTag getTag()} methods. Tags can be set on any object, but will be ignored when serializing to
- *   JSON. CBOR supports positive value tags of any value, but these are limited to 63 bits by this API.
- *   If values higher than that are encountered when reading, {@link #readCbor readCbor()} method will throw
- *   an IOException.
- *  </li>
- *  <li>
- *   Msgpack supports "ext" types, which are treated as ByteBuffer objects with the extension type set
- *   retrievable by calling {@link #getTag getTag()} - the tag is a number from 0..255. Msgpack does not
- *   support integer values greater than 64-bit; attempting to write these will throw an IOException.
- *  </li>
- *  <li>
- *   CBOR/Msgpack support complex key types in maps, such as lists or other maps. If these are encountered
- *   with this API when reading, they will be converted to strings by default, or
- *   (if {@link JsonReadOptions#setFailOnComplexKeys} is set) throw an {@link IOException}.
- *   CBOR/Msgpack also supports duplicate keys in maps - this abomination is not allowed in this
- *   API, and the {@link #readCbor readCbor()} and {@link #readMsgpack readMsgpack()} methods will throw an
- *   {@link IOException} if found.
+ *   JSON. CBOR supports positive value tags of any value, and Msgpack supports tags from -128 to 127 on buffers.
+ *   This API uses a positive-value long to represent both.
+ *   Values outside this range when reading or writing will throw an {@link IOException}
  *  </li>
  *  <li>
  *   CBOR supports the "undefined" value which is distinct from null. This can be created using the
- *   {@link UNDEFINED} constant, and tested for with {@link #isUndefined} (since version 5)
+ *   {@link UNDEFINED} constant, and tested for with {@link #isUndefined} (since version 1.5)
  *  </li>
  *  <li>
  *   CBOR allows for a number of undefined special types to be used without error. These will be loaded as
@@ -118,7 +113,8 @@ import java.nio.charset.*;
  * assert json.toString().equals("{\"a\":{\"b\":[0,null,2]}}");
  * json.putPath("a.b", true);
  * assert json.toString().equals("{\"a\":{\"b\":true}}");
- * json.write(System.out, null);
+ * json.write(new JsonWriter().setOutput(System.out));
+ * System.out.print(json.toString()); // Same as above line
  * Json json2 = Json.read("[]");
  * json2.put(0, 0);
  * json2.put(2, 2);
@@ -1856,7 +1852,7 @@ public class Json {
 
     private static final int BASE64[] = new int[256];
     static {
-        String s = new String(Base64OutputStream.BASE64_NORMAL);
+        String s = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         for (int i=0;i<256;i++) {
             BASE64[i] = s.indexOf(Character.toString((char)i));
         }
@@ -1879,7 +1875,6 @@ public class Json {
      * returned as a ByteBuffer. If invalid, a ClassCastException will be thrown</li>
      * <li>null will return null</li>
      * </ul>
-     * @see JsonReadOptions
      * @throws ClassCastException if none of these conditions are met
      * @return the buffer value of this object, which will always have position=0
      * @since 1.2
@@ -2446,10 +2441,7 @@ public class Json {
     }
 
     /**
-     * Return a String representation of this Json object with the specified
-     * serialization options. Equivalent
-     * to calling <code>return {@link #write write}(new StringBuilder(), options).toString()</code>
-     * @param options the {@link JsonWriteOptions} to use for serializing, or null to use the default
+     * Return a String representation of this Json object, written using the specifed {@link JsonWriter}.
      * @return the serialized object
      * @since 1.5
      */

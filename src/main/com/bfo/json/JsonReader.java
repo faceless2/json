@@ -8,7 +8,7 @@ import java.nio.*;
 import java.nio.channels.*;
 
 /**
- * Class to read/write objects as JSON.
+ * A JSON reader
  */
 public class JsonReader extends AbstractReader {
 
@@ -27,16 +27,32 @@ public class JsonReader extends AbstractReader {
         this.eq = new ArrayDeque<JsonStream.Event>();
     }
 
+    /**
+     * Set true if trailing commas are allowed on input
+     * @param option the option
+     * @return this
+     */
     public JsonReader setTrailingComma(boolean option) {
         this.optionTrailingComma = option;
         return this;
     }
 
+    /**
+     * Set true if doubles will be stored as BigDecimal if they contain
+     * more digits than can be accurately represented as doubles
+     * @param option the option
+     * @return this
+     */
     public JsonReader setBigDecimal(boolean option) {
         this.optionBigDecimal = option;
         return this;
     }
 
+    /**
+     * Set true if the input is in "CBOR-diag" format
+     * @param option the option
+     * @return this
+     */
     public JsonReader setCborDiag(boolean option) {
         this.optionCborDiag = option;
         return this;

@@ -8,6 +8,9 @@ import java.nio.charset.*;
 import java.math.*;
 import java.text.*;
 
+/**
+ * A Msgpack writer
+ */
 public class MsgpackWriter implements JsonStream {
     
     private static final int STATE_DONE = 0;
@@ -33,11 +36,38 @@ public class MsgpackWriter implements JsonStream {
         tag = NO_TAG;
     }
 
+    /**
+     * Set the OutputStream to write to
+     * @param out the OutputStream
+     * @return this
+     */
     public MsgpackWriter setOutput(OutputStream out) {
         this.out = out;
         return this;
     }
 
+    /**
+     * Set the ByteBuffer to write to
+     * @param out the ByteBuffer
+     * @return this
+     */
+    public MsgpackWriter setOutput(final ByteBuffer buf) {
+        this.out = new OutputStream() {
+            public void write(int v) {
+                buf.put((byte)v);
+            }
+            public void write(byte[] v, int off, int len) {
+                buf.put(v, off, len);
+            }
+        };
+        return this;
+    }
+
+    /**
+     * Request that map keys are sorted before writing.
+     * @param sorted true if keys should be sorted
+     * @return this
+     */
     public MsgpackWriter setSorted(boolean sorted) {
         this.sorted = sorted;
         return this;

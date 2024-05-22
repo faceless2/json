@@ -31,11 +31,38 @@ public class CborWriter implements JsonStream {
         state = STATE_DONE;
     }
 
+    /**
+     * Set the OutputStream to write to
+     * @param out the OutputStream
+     * @return this
+     */
     public CborWriter setOutput(OutputStream out) {
         this.out = out;
         return this;
     }
 
+    /**
+     * Set the ByteBuffer to write to
+     * @param out the ByteBuffer
+     * @return this
+     */
+    public CborWriter setOutput(final ByteBuffer buf) {
+        this.out = new OutputStream() {
+            public void write(int v) {
+                buf.put((byte)v);
+            }
+            public void write(byte[] v, int off, int len) {
+                buf.put(v, off, len);
+            }
+        };
+        return this;
+    }
+
+    /**
+     * Request that map keys are sorted before writing.
+     * @param sorted true if keys should be sorted
+     * @return this
+     */
     public CborWriter setSorted(boolean sorted) {
         this.sorted = sorted;
         return this;
@@ -44,7 +71,6 @@ public class CborWriter implements JsonStream {
     public boolean isSorted() {
         return sorted;
     }
-
 
     private static String stateString(long state) {
         switch ((int)state) {

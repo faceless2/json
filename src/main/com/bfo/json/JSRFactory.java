@@ -119,7 +119,7 @@ class JSRFactory implements JsonParserFactory, JsonReaderFactory, JsonBuilderFac
         JsonWriter w = new JsonWriter();
         w.setOutput(WriterToAppendable.getInstance(writer));
         w.setIndent(pretty ? 2 : 0);
-        return new JSRJsonGenerator(w).asWriter();
+        return new JSRJsonGenerator(w, writer).asWriter();
     }
 
     @Override public JsonGenerator createGenerator(OutputStream out) {
@@ -134,7 +134,7 @@ class JSRFactory implements JsonParserFactory, JsonReaderFactory, JsonBuilderFac
         JsonWriter w = new JsonWriter();
         w.setOutput(WriterToAppendable.getInstance(writer));
         w.setIndent(pretty ? 2 : 0);
-        return new JSRJsonGenerator(w);
+        return new JSRJsonGenerator(w, writer);
     }
 
     @Override public Map<String,?> getConfigInUse() {
