@@ -1473,9 +1473,9 @@ public class YamlReader extends AbstractReader {
                                 try {
                                     long l = Long.parseLong(v);
                                     if (l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE) {
-                                        enqueue(JsonStream.Event.numberValue(l));
-                                    } else {
                                         enqueue(JsonStream.Event.numberValue((int)l));
+                                    } else {
+                                        enqueue(JsonStream.Event.numberValue(l));
                                     }
                                 } catch (Exception e) {
                                     enqueue(JsonStream.Event.stringValue(v, -1));
