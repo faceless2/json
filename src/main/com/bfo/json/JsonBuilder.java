@@ -159,14 +159,14 @@ public class JsonBuilder implements JsonStream {
     /**
      * Return true if any objects being created will be added to a list
      */
-    protected boolean isList() {
+    public boolean isList() {
         return list != null;
     }
 
     /**
      * Return true if any objects being created are being added to a map
      */
-    protected boolean isMap() {
+    public boolean isMap() {
         return map != null;
     }
 
@@ -175,7 +175,7 @@ public class JsonBuilder implements JsonStream {
      * or null if the next object to be created is a map key. If {@link #isList}, the
      * key is an integer which is the index into the list
      */
-    protected Object key() {
+    public Object key() {
         return list != null ? Integer.valueOf(list.size()) : key;
     }
 

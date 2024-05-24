@@ -80,20 +80,20 @@ public class JsonWriter implements JsonStream {
             if (mode == STATE_MAP_KEY) {
                 if (size++ > 0) {
                     out.append(comma);
-                    if (pretty) {
-                        out.append('\n');
-                        if (indent == 0) {
-                            for (State s=this;s!=null;s=s.parent) {
-                                indent++;
-                            }
-                            indent *= JsonWriter.this.indent;
-                        }
-                        for (int i=0;i<indent;i++) {
-                            out.append(' ');
-                        }
-                    }
                     if (size < 0) {
                         size = 1; // Catch wrap;
+                    }
+                }
+                if (pretty) {
+                    out.append('\n');
+                    if (indent == 0) {
+                        for (State s=parent;s!=null;s=s.parent) {
+                            indent++;
+                        }
+                        indent *= JsonWriter.this.indent;
+                    }
+                    for (int i=0;i<indent;i++) {
+                        out.append(' ');
                     }
                 }
                 mode = STATE_MAP_VALUE;
@@ -106,25 +106,25 @@ public class JsonWriter implements JsonStream {
             if (mode == STATE_LIST) {
                 if (size++ > 0) {
                     out.append(comma);
-                    if (pretty) {
-                        out.append('\n');
-                        if (indent == 0) {
-                            for (State s=this;s!=null;s=s.parent) {
-                                indent++;
-                            }
-                            indent *= JsonWriter.this.indent;
+                }
+                if (pretty && parent != null) {
+                    out.append('\n');
+                    if (indent == 0) {
+                        for (State s=parent;s!=null;s=s.parent) {
+                            indent++;
                         }
-                        for (int i=0;i<indent;i++) {
-                            out.append(' ');
-                        }
+                        indent *= JsonWriter.this.indent;
                     }
-                    if (size < 0) {
-                        size = 1; // Catch wrap;
-                    } else if (maxArraySize > 0 && size > maxArraySize) {
-                        size = maxArraySize;
-                        out.append(comma + "...");
-                        out = new ZeroAppendable();
+                    for (int i=0;i<indent;i++) {
+                        out.append(' ');
                     }
+                }
+                if (size < 0) {
+                    size = 1; // Catch wrap;
+                } else if (maxArraySize > 0 && size > maxArraySize) {
+                    size = maxArraySize;
+                    out.append(comma + "...");
+                    out = new ZeroAppendable();
                 }
             } else if (mode == STATE_MAP_VALUE) {
                 out.append(colon);
