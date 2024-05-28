@@ -122,18 +122,18 @@ public class MsgpackReader extends AbstractReader {
                     int l = (int)Math.min(len, in.available());
                     in.mark(l);
                     ByteBuffer bbuf = in.get(l);
-                    if (cbuf == null || cbuf.capacity() < l) {
+                    if (cbuf == null || ((Buffer)cbuf).capacity() < l) {
                         cbuf = CharBuffer.allocate(l);
                     }
                     cbuf.clear();
-                    int pos = bbuf.position();
+                    int pos = ((Buffer)bbuf).position();
                     CoderResult result = decoder.decode(bbuf, cbuf, l == len);
-                    l = bbuf.position() - pos;
+                    l = ((Buffer)bbuf).position() - pos;
                     if (result.isError()) {
                         in.reset();
                         in.get(result.length());
                         throw new IOException("Invalid UTF-8 sequence");
-                    } else if (bbuf.hasRemaining()) {
+                    } else if (((Buffer)bbuf).hasRemaining()) {
                         in.reset();
                         if (l == 0) {
                             break; // outer
@@ -141,7 +141,7 @@ public class MsgpackReader extends AbstractReader {
                             in.get(l);
                         }
                     }
-                    cbuf.flip();
+                    ((Buffer)cbuf).flip();
                     event(JsonStream.Event.stringData((CharSequence)cbuf));
                     len -= l;
                 }
@@ -535,7 +535,7 @@ public class MsgpackReader extends AbstractReader {
     }
 
     private static String hex(ByteBuffer buf) {
-        return hex(buf.array(), buf.arrayOffset() + buf.position(), buf.remaining());
+        return hex(buf.array(), ((Buffer)buf).arrayOffset() + ((Buffer)buf).position(), ((Buffer)buf).remaining());
     }
 
     private static String hex(byte[] b, int off, int len) {

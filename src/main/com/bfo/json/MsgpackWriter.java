@@ -217,7 +217,7 @@ public class MsgpackWriter implements JsonStream {
                     final Readable r = event.readableValue();
                     CharBuffer buf = CharBuffer.allocate(8192);
                     while (r.read(buf) > 0) {
-                        buf.flip();
+                        ((Buffer)buf).flip();
                         if (indeterminateStringBuilder != null) {
                             indeterminateStringBuilder.append(buf);
                         } else {
@@ -239,17 +239,17 @@ public class MsgpackWriter implements JsonStream {
                     if (indeterminateBuffer != null) {
                         indeterminateBuffer.write(buffer);
                     } else {
-                        l = buffer.remaining();
+                        l = ((Buffer)buffer).remaining();
                         if (buffer.isDirect()) {
                             if (out instanceof WritableByteChannel) {
                                 ((WritableByteChannel)out).write(buffer);
                             } else {
                                 ByteBuffer copy = ByteBuffer.allocate(l);
                                 copy.put(buffer);
-                                out.write(copy.array(), 0, copy.limit());
+                                out.write(copy.array(), 0, ((Buffer)copy).limit());
                             }
                         } else {
-                            out.write(buffer.array(), buffer.arrayOffset() + buffer.position(), l);
+                            out.write(buffer.array(), ((Buffer)buffer).arrayOffset() + ((Buffer)buffer).position(), l);
                         }
                         decrement = l;
                     }
@@ -257,12 +257,12 @@ public class MsgpackWriter implements JsonStream {
                     final ReadableByteChannel r = event.readableByteChannelValue();
                     ByteBuffer buf = ByteBuffer.allocate(8192);
                     while (r.read(buf) > 0) {
-                        buf.flip();
+                        ((Buffer)buf).flip();
                         if (indeterminateBuffer != null) {
                             indeterminateBuffer.write(buf);
                         } else {
-                            out.write(buf.array(), 0, buf.remaining());
-                            decrement += buf.remaining();
+                            out.write(buf.array(), 0, ((Buffer)buf).remaining());
+                            decrement += ((Buffer)buf).remaining();
                         }
                         buf.clear();
                     }

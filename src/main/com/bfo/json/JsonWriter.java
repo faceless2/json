@@ -459,8 +459,8 @@ public class JsonWriter implements JsonStream {
                         Readable r = event.readableValue();
                         CharBuffer buf = CharBuffer.allocate(8192);
                         while (r.read(buf) > 0 && (maxStringLength == 0 || stringLength < maxStringLength)) {
-                            buf.flip();
-                            int l = maxStringLength == 0 ? buf.remaining() : Math.min(buf.remaining(), maxStringLength - stringLength);
+                            ((Buffer)buf).flip();
+                            int l = maxStringLength == 0 ? ((Buffer)buf).remaining() : Math.min(((Buffer)buf).remaining(), maxStringLength - stringLength);
                             writeString(buf, out, l);
                             stringLength += l;
                         }
@@ -505,15 +505,15 @@ public class JsonWriter implements JsonStream {
                 if ((state.mode & STATE_BUFFER) != 0) {
                     ByteBuffer buf = event.bufferValue();
                     if (buf != null) {
-                        int l = maxStringLength == 0 ? buf.remaining() : Math.min(buf.remaining(), maxStringLength - stringLength);
+                        int l = maxStringLength == 0 ? ((Buffer)buf).remaining() : Math.min(((Buffer)buf).remaining(), maxStringLength - stringLength);
                         writeByteBuffer(buf, out, l);
                         stringLength += l;
                     } else {
                         ReadableByteChannel r = event.readableByteChannelValue();
                         buf = ByteBuffer.allocate(8192);
                         while (r.read(buf) > 0 && (maxStringLength == 0 || stringLength < maxStringLength)) {
-                            buf.flip();
-                            int l = maxStringLength == 0 ? buf.remaining() : Math.min(buf.remaining(), maxStringLength - stringLength);
+                            ((Buffer)buf).flip();
+                            int l = maxStringLength == 0 ? ((Buffer)buf).remaining() : Math.min(((Buffer)buf).remaining(), maxStringLength - stringLength);
                             writeByteBuffer(buf, out, l);
                             stringLength += l;
                         }

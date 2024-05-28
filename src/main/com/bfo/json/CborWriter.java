@@ -166,7 +166,7 @@ public class CborWriter implements JsonStream {
                     Readable r = event.readableValue();
                     CharBuffer buf = CharBuffer.allocate(8192);
                     while (r.read(buf) > 0) {
-                        buf.flip();
+                        ((Buffer)buf).flip();
                         if (length < 0) {
                             int len = lengthUTF8(buf);
                             writeNum(3, len);
@@ -174,7 +174,7 @@ public class CborWriter implements JsonStream {
                         } else {
                             decrement += writeUTF8(buf, 0, out);
                         }
-                        buf.clear();
+                        ((Buffer)buf).clear();
                     }
                     if (r instanceof Closeable) {
                         ((Closeable)r).close();
@@ -188,7 +188,7 @@ public class CborWriter implements JsonStream {
                 if (event.bufferValue() != null) {
                     ByteBuffer v = event.bufferValue();
                     if (length < 0) {
-                        writeNum(2, v.remaining());
+                        writeNum(2, ((Buffer)v).remaining());
                         writeBuffer(v);
                     } else {
                         decrement = writeBuffer(v);
@@ -198,14 +198,14 @@ public class CborWriter implements JsonStream {
                     // TODO use more efficient transfer to/from FileChannel if possible
                     ByteBuffer buf = ByteBuffer.allocate(8192);
                     while (r.read(buf) > 0) {
-                        buf.flip();
+                        ((Buffer)buf).flip();
                         if (length < 0) {
-                            writeNum(2, buf.remaining());
+                            writeNum(2, ((Buffer)buf).remaining());
                             writeBuffer(buf);
                         } else {
                             decrement += writeBuffer(buf);
                         }
-                        buf.clear();
+                        ((Buffer)buf).clear();
                     }
                     r.close();
                 }
@@ -276,17 +276,17 @@ public class CborWriter implements JsonStream {
     }
 
     private int writeBuffer(ByteBuffer buffer) throws IOException {
-        int l = buffer.remaining();
+        int l = ((Buffer)buffer).remaining();
         if (buffer.isDirect()) {
             if (out instanceof WritableByteChannel) {
                 ((WritableByteChannel)out).write(buffer);
             } else {
-                ByteBuffer copy = ByteBuffer.allocate(buffer.remaining());
+                ByteBuffer copy = ByteBuffer.allocate(((Buffer)buffer).remaining());
                 copy.put(buffer);
-                out.write(copy.array(), 0, copy.limit());
+                out.write(copy.array(), 0, ((Buffer)copy).limit());
             }
         } else {
-            out.write(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
+            out.write(buffer.array(), ((Buffer)buffer).arrayOffset() + ((Buffer)buffer).position(), ((Buffer)buffer).remaining());
         }
         return l;
     }

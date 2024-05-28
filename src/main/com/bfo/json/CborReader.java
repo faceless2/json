@@ -133,15 +133,15 @@ public class CborReader extends AbstractReader {
                     if (cbuf == null || cbuf.capacity() < l) {
                         cbuf = CharBuffer.allocate(l);
                     }
-                    cbuf.clear();
-                    int pos = bbuf.position();
+                    ((Buffer)cbuf).clear();
+                    int pos = ((Buffer)bbuf).position();
                     CoderResult result = decoder.decode(bbuf, cbuf, l == len);
-                    l = bbuf.position() - pos;
+                    l = ((Buffer)bbuf).position() - pos;
                     if (result.isError()) {
                         in.reset();
                         in.get(result.length());
                         throw new IOException("Invalid UTF-8 sequence");
-                    } else if (bbuf.hasRemaining()) {
+                    } else if (((Buffer)bbuf).hasRemaining()) {
                         in.reset();
                         if (l == 0) {
                             break; // outer
@@ -149,7 +149,7 @@ public class CborReader extends AbstractReader {
                             in.get(l);
                         }
                     }
-                    cbuf.flip();
+                    ((Buffer)cbuf).flip();
                     event(JsonStream.Event.stringData((CharSequence)cbuf));
                     len -= l;
                 }
