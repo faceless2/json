@@ -137,19 +137,19 @@ public class CborWriter implements JsonStream {
                 length = stack[--stackLength];
                 decrement = 1;
                 break;
-            case JsonStream.Event.TYPE_STARTBUFFER:
+            case JsonStream.Event.TYPE_BUFFER_START:
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_BUFFER;
                 length = event.size();
                 writeNum(2, length);
                 break;
-            case JsonStream.Event.TYPE_STARTSTRING:
+            case JsonStream.Event.TYPE_STRING_START:
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_STRING;
                 length = event.size();
                 writeNum(3, length);
                 break;
-            case JsonStream.Event.TYPE_STRINGDATA:
+            case JsonStream.Event.TYPE_STRING_DATA:
                 if (state != STATE_STRING) {
                     throw new IllegalStateException("Unexpected string-data");
                 }
@@ -181,7 +181,7 @@ public class CborWriter implements JsonStream {
                     }
                 }
                 break;
-            case JsonStream.Event.TYPE_BUFFERDATA:
+            case JsonStream.Event.TYPE_BUFFER_DATA:
                 if (state != STATE_BUFFER) {
                     throw new IllegalStateException("Unexpected buffer-data");
                 }
@@ -210,7 +210,7 @@ public class CborWriter implements JsonStream {
                     r.close();
                 }
                 break;
-            case JsonStream.Event.TYPE_ENDSTRING:
+            case JsonStream.Event.TYPE_STRING_END:
                 if (length > 0 || (state = stack[--stackLength]) != STATE_STRING) {
                     throw new IllegalStateException("Unexpected end-string");
                 } else if (length < 0) {
@@ -219,7 +219,7 @@ public class CborWriter implements JsonStream {
                 length = stack[--stackLength];
                 decrement = 1;
                 break;
-            case JsonStream.Event.TYPE_ENDBUFFER:
+            case JsonStream.Event.TYPE_BUFFER_END:
                 if (length > 0 || (state = stack[--stackLength]) != STATE_BUFFER) {
                     throw new IllegalStateException("Unexpected end-buffer");
                 } else if (length < 0) {

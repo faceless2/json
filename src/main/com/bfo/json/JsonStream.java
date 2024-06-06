@@ -49,24 +49,24 @@ public interface JsonStream {
         public static final int  TYPE_STARTLIST = 2;
         public static final int  TYPE_ENDMAP = 3;
         public static final int  TYPE_ENDLIST = 4;
-        public static final int  TYPE_STARTBUFFER = 5;
-        public static final int  TYPE_ENDBUFFER = 6;
-        public static final int  TYPE_STARTSTRING = 7;
-        public static final int  TYPE_ENDSTRING = 8;
+        public static final int  TYPE_BUFFER_START = 5;
+        public static final int  TYPE_BUFFER_END = 6;
+        public static final int  TYPE_STRING_START = 7;
+        public static final int  TYPE_STRING_END = 8;
         public static final int  TYPE_PRIMITIVE = 9;
-        public static final int  TYPE_STRINGDATA = 10;
-        public static final int  TYPE_BUFFERDATA = 11;
+        public static final int  TYPE_STRING_DATA = 10;
+        public static final int  TYPE_BUFFER_DATA = 11;
         public static final int  TYPE_TAG = 12;
         public static final int  TYPE_SIMPLE = 13;
 
         private static final Event STARTMAP = new Event(TYPE_STARTMAP, null, -1);
         private static final Event STARTLIST = new Event(TYPE_STARTLIST, null, -1);
-        private static final Event STARTSTRING = new Event(TYPE_STARTSTRING, null, -1);
-        private static final Event STARTBUFFER = new Event(TYPE_STARTBUFFER, null, -1);
+        private static final Event STARTSTRING = new Event(TYPE_STRING_START, null, -1);
+        private static final Event STARTBUFFER = new Event(TYPE_BUFFER_START, null, -1);
         private static final Event ENDMAP = new Event(TYPE_ENDMAP, null, 0);
         private static final Event ENDLIST = new Event(TYPE_ENDLIST, null, 0);
-        private static final Event ENDSTRING = new Event(TYPE_ENDSTRING, null, 0);
-        private static final Event ENDBUFFER = new Event(TYPE_ENDBUFFER, null, 0);
+        private static final Event ENDSTRING = new Event(TYPE_STRING_END, null, 0);
+        private static final Event ENDBUFFER = new Event(TYPE_BUFFER_END, null, 0);
         private static final Event TRUE = new Event(TYPE_PRIMITIVE, Boolean.TRUE, 0);
         private static final Event FALSE = new Event(TYPE_PRIMITIVE, Boolean.FALSE, 0);
         private static final Event NULL = new Event(TYPE_PRIMITIVE, Json.NULL, 0);
@@ -89,19 +89,19 @@ public interface JsonStream {
         }
 
         /**
-         * Create a new {@link TYPE_STARTSTRING} event
+         * Create a new {@link TYPE_STRING_START} event
          * @param sizeInBytes the size of the String in bytes, or a value of -1 for indefinite
          */
         public static Event startString(long sizeInBytes) {
-            return sizeInBytes < 0 ? STARTSTRING : new Event(TYPE_STARTSTRING, null, sizeInBytes);
+            return sizeInBytes < 0 ? STARTSTRING : new Event(TYPE_STRING_START, null, sizeInBytes);
         }
 
         /**
-         * Create a new {@link TYPE_STARTBUFFER} event
+         * Create a new {@link TYPE_BUFFER_START} event
          * @param size the size of the Buffer in bytes, or a value of -1 for indefinite
          */
         public static Event startBuffer(long size) {
-            return size < 0 ? STARTBUFFER : new Event(TYPE_STARTBUFFER, null, size);
+            return size < 0 ? STARTBUFFER : new Event(TYPE_BUFFER_START, null, size);
         }
 
         /**
@@ -119,14 +119,14 @@ public interface JsonStream {
         }
 
         /**
-         * Get an {@link TYPE_ENDSTRING} event
+         * Get an {@link TYPE_STRING_END} event
          */
         public static Event endString() {
             return ENDSTRING;
         }
 
         /**
-         * Get an {@link TYPE_ENDBUFFER} event
+         * Get an {@link TYPE_BUFFER_END} event
          */
         public static Event endBuffer() {
             return ENDBUFFER;
@@ -174,7 +174,7 @@ public interface JsonStream {
         }
 
         /**
-         * Get an {@link TYPE_STRINGDATA} event with the specified {@link CharSequence}.
+         * Get an {@link TYPE_STRING_DATA} event with the specified {@link CharSequence}.
          * Zero or more events of this type are issued between {@link #startString}
          * and {@link #endString} events
          * Note the parameter is <b>not copied</b> and the underlying array may be reused,
@@ -182,11 +182,11 @@ public interface JsonStream {
          * @param data the character data
          */
         public static Event stringData(CharSequence data) {
-            return new Event(TYPE_STRINGDATA, data, 0);
+            return new Event(TYPE_STRING_DATA, data, 0);
         }
 
         /**
-         * Get an {@link TYPE_STRINGDATA} event with the specified {@link Readable}
+         * Get an {@link TYPE_STRING_DATA} event with the specified {@link Readable}
          * Zero or more events of this type are issued between {@link #startString}
          * and {@link #endString} events
          * Note the parameter is <b>not copied</b> and the underlying array may be reused,
@@ -194,11 +194,11 @@ public interface JsonStream {
          * @param data the character data stream
          */
         public static Event stringData(Readable data) {
-            return new Event(TYPE_STRINGDATA, data, 0);
+            return new Event(TYPE_STRING_DATA, data, 0);
         }
 
         /**
-         * Get an {@link TYPE_BUFFERDATA} event with the specified {@Link ByteBuffer}.
+         * Get an {@link TYPE_BUFFER_DATA} event with the specified {@Link ByteBuffer}.
          * Zero or more events of this type are issued between {@link #startBuffer}
          * and {@link #endBuffer} events
          * Note the parameter is <b>not copied</b> and the underlying array may be reused,
@@ -206,11 +206,11 @@ public interface JsonStream {
          * @param data the byte data
          */
         public static Event bufferData(ByteBuffer data) {
-            return new Event(TYPE_BUFFERDATA, data, 0);
+            return new Event(TYPE_BUFFER_DATA, data, 0);
         }
 
         /**
-         * Get an {@link TYPE_BUFFERDATA} event with the specified {@link ReadableByteChannel}.
+         * Get an {@link TYPE_BUFFER_DATA} event with the specified {@link ReadableByteChannel}.
          * Zero or more events of this type are issued between {@link #startBuffer}
          * and {@link #endBuffer} events
          * Note the parameter is <b>not copied</b> and the underlying array may be reused,
@@ -218,7 +218,7 @@ public interface JsonStream {
          * @param data the byte data stream
          */
         public static Event bufferData(ReadableByteChannel data) {
-            return new Event(TYPE_BUFFERDATA, data, 0);
+            return new Event(TYPE_BUFFER_DATA, data, 0);
         }
 
         /**
@@ -307,28 +307,28 @@ public interface JsonStream {
         }
 
         /**
-         * Return the value for {@link #TYPE_PRIMITIVE} or {@link #TYPE_STRINGDATA} events created with a CharSequence, otherwise null
+         * Return the value for {@link #TYPE_PRIMITIVE} or {@link #TYPE_STRING_DATA} events created with a CharSequence, otherwise null
          */
         public CharSequence stringValue() {
             return data instanceof CharSequence ? (CharSequence)data : null;
         }
 
         /**
-         * Return the value for {@link #TYPE_PRIMITIVE} or {@link #TYPE_STRINGDATA} events created with a CharSequence, otherwise null
+         * Return the value for {@link #TYPE_PRIMITIVE} or {@link #TYPE_STRING_DATA} events created with a CharSequence, otherwise null
          */
         public Readable readableValue() {
             return data instanceof Readable ? (Readable)data : null;
         }
 
         /**
-         * Return the value for {@link #TYPE_BUFFERDATA} events created with a ByteBuffer, otherwise null
+         * Return the value for {@link #TYPE_BUFFER_DATA} events created with a ByteBuffer, otherwise null
          */
         public ByteBuffer bufferValue() {
             return data instanceof ByteBuffer ? (ByteBuffer)data : null;
         }
 
         /**
-         * Return the value for {@link #TYPE_BUFFERDATA} events created with a ReadableByteChannel, otherwise null
+         * Return the value for {@link #TYPE_BUFFER_DATA} events created with a ReadableByteChannel, otherwise null
          */
         public ReadableByteChannel readableByteChannelValue() {
             return data instanceof ReadableByteChannel ? (ReadableByteChannel)data : null;
@@ -355,15 +355,15 @@ public interface JsonStream {
             switch(type) {
                 case TYPE_STARTMAP:         return "{startMap" + (size < 0 ? "" : " size="+size) + "}";
                 case TYPE_STARTLIST:        return "{startList" + (size < 0 ? "" : " size="+size) + "}";
-                case TYPE_STARTSTRING:      return "{startString" + (size < 0 ? "" : " size="+size) + "}";
-                case TYPE_STARTBUFFER:      return "{startBuffer" + (size < 0 ? "" : " size="+size) + "}";
+                case TYPE_STRING_START:      return "{startString" + (size < 0 ? "" : " size="+size) + "}";
+                case TYPE_BUFFER_START:      return "{startBuffer" + (size < 0 ? "" : " size="+size) + "}";
                 case TYPE_ENDMAP:           return "{endMap}";
                 case TYPE_ENDLIST:          return "{endList}";
-                case TYPE_ENDSTRING:        return "{endString}";
-                case TYPE_ENDBUFFER:        return "{endBuffer}";
+                case TYPE_STRING_END:        return "{endString}";
+                case TYPE_BUFFER_END:        return "{endBuffer}";
                 case TYPE_PRIMITIVE:        return this == TRUE ? "{true}" : this == FALSE ? "{false}" : this == NULL ? "{null}" : this == UNDEFINED ? "{undefined}" : data instanceof Number ? "{number " + data + "}" : "{string " + Json.esc((CharSequence)data, null) + "}";
-                case TYPE_STRINGDATA:       return "{string-data" + (data instanceof Readable ? " readable" : " string") + "}";
-                case TYPE_BUFFERDATA:       return "{buffer-data" + (data instanceof ReadableByteChannel ? " readable" : " bytebuffer") + "}";
+                case TYPE_STRING_DATA:       return "{string-data" + (data instanceof Readable ? " readable" : " string") + "}";
+                case TYPE_BUFFER_DATA:       return "{buffer-data" + (data instanceof ReadableByteChannel ? " readable" : " bytebuffer") + "}";
                 case TYPE_TAG:              return "{tag " + data + "}";
                 case TYPE_SIMPLE:           return "{simple " + data + "}";
                 default:                    return "{UNKNOWN " + type + "}";        // Can't happen

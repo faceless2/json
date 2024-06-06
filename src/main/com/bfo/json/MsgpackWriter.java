@@ -174,7 +174,7 @@ public class MsgpackWriter implements JsonStream {
                 length = stack[--stackLength];
                 decrement = 1;
                 break;
-            case JsonStream.Event.TYPE_STARTBUFFER:
+            case JsonStream.Event.TYPE_BUFFER_START:
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_BUFFER;
                 length = event.size();
@@ -188,7 +188,7 @@ public class MsgpackWriter implements JsonStream {
                 writeStartBuffer(l, tag);
                 tag = NO_TAG;
                 break;
-            case JsonStream.Event.TYPE_STARTSTRING:
+            case JsonStream.Event.TYPE_STRING_START:
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_STRING;
                 length = event.size();
@@ -202,7 +202,7 @@ public class MsgpackWriter implements JsonStream {
                 writeStartString(l);
                 tag = NO_TAG;
                 break;
-            case JsonStream.Event.TYPE_STRINGDATA:
+            case JsonStream.Event.TYPE_STRING_DATA:
                 if (state != STATE_STRING) {
                     throw new IllegalStateException("Unexpected string-data");
                 }
@@ -230,7 +230,7 @@ public class MsgpackWriter implements JsonStream {
                     }
                 }
                 break;
-            case JsonStream.Event.TYPE_BUFFERDATA:
+            case JsonStream.Event.TYPE_BUFFER_DATA:
                 if (state != STATE_BUFFER) {
                     throw new IllegalStateException("Unexpected buffer-data");
                 }
@@ -269,7 +269,7 @@ public class MsgpackWriter implements JsonStream {
                     r.close();
                 }
                 break;
-            case JsonStream.Event.TYPE_ENDSTRING:
+            case JsonStream.Event.TYPE_STRING_END:
                 if ((state = stack[--stackLength]) != STATE_STRING) {
                     throw new IllegalStateException("Unexpected end-string");
                 } else if (indeterminateStringBuilder != null) {
@@ -284,7 +284,7 @@ public class MsgpackWriter implements JsonStream {
                 decrement = 1;
                 tag = NO_TAG;
                 break;
-            case JsonStream.Event.TYPE_ENDBUFFER:
+            case JsonStream.Event.TYPE_BUFFER_END:
                 if ((state = stack[--stackLength]) != STATE_BUFFER) {
                     throw new IllegalStateException("Unexpected end-buffer");
                 } else if (indeterminateBuffer != null) {

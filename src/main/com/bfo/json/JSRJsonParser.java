@@ -163,9 +163,9 @@ class JSRJsonParser implements JsonParser, JsonLocation {
                     } else if (state.mode == MODE_MAPVAL) {
                         state.mode = MODE_MAPKEY;
                     }
-                } else if (type == JsonStream.Event.TYPE_STARTSTRING) {
+                } else if (type == JsonStream.Event.TYPE_STRING_START) {
                     CharSequence seq = null;
-                    while (in.hasNext() && (e=in.next()).type() == JsonStream.Event.TYPE_STRINGDATA) {
+                    while (in.hasNext() && (e=in.next()).type() == JsonStream.Event.TYPE_STRING_DATA) {
                         if (e.stringValue() != null) {
                             if (seq == null) {
                                 seq = e.stringValue().toString();
@@ -183,7 +183,7 @@ class JSRJsonParser implements JsonParser, JsonLocation {
                     }
                     if (e == null) {
                         value = new EOFException();
-                    } else if (e.type() == JsonStream.Event.TYPE_ENDSTRING) {
+                    } else if (e.type() == JsonStream.Event.TYPE_STRING_END) {
                         value = seq.toString();
                         if (state.mode == MODE_MAPKEY) {
                             event = JsonParser.Event.KEY_NAME;

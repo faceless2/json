@@ -609,10 +609,10 @@ public class CborReader extends AbstractReader {
                 }
                 return;
             } else if (tag == TAG_UNSIGNEDBIGNUM || tag == TAG_SIGNEDBIGNUM) {
-                if (type == JsonStream.Event.TYPE_BUFFERDATA) {
+                if (type == JsonStream.Event.TYPE_BUFFER_DATA) {
                     // Will never be a stream
                     buf.write(event.bufferValue());
-                } else if (type != JsonStream.Event.TYPE_STARTBUFFER && type != JsonStream.Event.TYPE_ENDBUFFER) {
+                } else if (type != JsonStream.Event.TYPE_BUFFER_START && type != JsonStream.Event.TYPE_BUFFER_END) {
                     close();
                     return;
                 }
@@ -632,14 +632,14 @@ public class CborReader extends AbstractReader {
 
             switch (type) {
                 case JsonStream.Event.TYPE_STARTMAP:
-                case JsonStream.Event.TYPE_STARTBUFFER:
-                case JsonStream.Event.TYPE_STARTSTRING:
+                case JsonStream.Event.TYPE_BUFFER_START:
+                case JsonStream.Event.TYPE_STRING_START:
                 case JsonStream.Event.TYPE_STARTLIST:
                     depth++;
                     break;
                 case JsonStream.Event.TYPE_ENDMAP:
-                case JsonStream.Event.TYPE_ENDBUFFER:
-                case JsonStream.Event.TYPE_ENDSTRING:
+                case JsonStream.Event.TYPE_BUFFER_END:
+                case JsonStream.Event.TYPE_STRING_END:
                 case JsonStream.Event.TYPE_ENDLIST:
                     depth--;
             }

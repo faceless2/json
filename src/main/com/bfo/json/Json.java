@@ -2460,7 +2460,8 @@ public class Json {
     }
 
     /**
-     * Return a Cbor representation of this Json object.
+     * Return a Cbor representation of this Json object as a ByteBuffer which is guaranteed
+     * to be backed by an array of the exact size (so calling <code>.array()</code> to retrieve the bytes is safe) 
      * @return the Cbor representation as an array-backed ByteBuffer
      * @since 1.5
      */

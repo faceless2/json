@@ -436,7 +436,7 @@ public class JsonBuilder implements JsonStream {
                 }
                 break;
             }
-            case JsonStream.Event.TYPE_STARTSTRING: {
+            case JsonStream.Event.TYPE_STRING_START: {
                 if (peof) {
                     throw new IllegalStateException(eoferror());
                 } else {
@@ -470,7 +470,7 @@ public class JsonBuilder implements JsonStream {
                 ret = false;
                 break;
             }
-            case JsonStream.Event.TYPE_STARTBUFFER: {
+            case JsonStream.Event.TYPE_BUFFER_START: {
                 if (peof) {
                     throw new IllegalStateException(eoferror());
                 } else {
@@ -504,7 +504,7 @@ public class JsonBuilder implements JsonStream {
                 ret = false;
                 break;
             }
-            case JsonStream.Event.TYPE_STRINGDATA: {
+            case JsonStream.Event.TYPE_STRING_DATA: {
                 CharSequence seq = event.stringValue();
                 if (building == BUILDING_KEYSTRING) {
                     if (seq != null) {
@@ -538,7 +538,7 @@ public class JsonBuilder implements JsonStream {
                 ret = false;
                 break;
             }
-            case JsonStream.Event.TYPE_BUFFERDATA: {
+            case JsonStream.Event.TYPE_BUFFER_DATA: {
                 ByteBuffer buf = event.bufferValue();
                 if (building == BUILDING_KEYBUFFER) {
                     if (buf != null) {
@@ -562,7 +562,7 @@ public class JsonBuilder implements JsonStream {
                 ret = false;
                 break;
             }
-            case JsonStream.Event.TYPE_ENDSTRING: {
+            case JsonStream.Event.TYPE_STRING_END: {
                 if (building == BUILDING_KEYSTRING) {
                     key = key == EMPTY ? "" : key.toString();
                     ret = false;
@@ -585,7 +585,7 @@ public class JsonBuilder implements JsonStream {
                 }
                 break;
             }
-            case JsonStream.Event.TYPE_ENDBUFFER: {
+            case JsonStream.Event.TYPE_BUFFER_END: {
                 if (building == BUILDING_KEYBUFFER) {
                     key = key == EMPTY ? ByteBuffer.wrap(new byte[0]) : ((ExtendingByteBuffer)key).toByteBuffer();
                     ret = false;

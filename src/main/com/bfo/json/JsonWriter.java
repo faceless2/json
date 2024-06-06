@@ -29,6 +29,7 @@ public class JsonWriter implements JsonStream {
 
     private State state;
     private Appendable out;
+    private Object prevKey;     // Only for returning from key(), not used internally
     private int optionCborDiag;
     private char[] b64 = B64URL_C;
     private boolean sorted, pretty;
@@ -72,7 +73,13 @@ public class JsonWriter implements JsonStream {
         void setTag(long tag) {
             this.tag = tag + 1;
         }
-        boolean isKey() {
+        boolean isList() {
+            return (mode & STATE_LIST) != 0;
+        }
+        boolean isMapValue() {
+            return (mode & STATE_MAP_VALUE) != 0;
+        }
+        boolean isMapKey() {
             return mode == STATE_MAP_KEY;
         }
 
@@ -372,6 +379,55 @@ public class JsonWriter implements JsonStream {
         return sb.toString();
     }
 
+    /**
+     * Return true if the writer is currently writing to a list
+     */
+    protected boolean isList() {
+        return state.isList();
+    }
+
+    /**
+     * Return true if the writer is currently writing to a map
+     */
+    protected boolean isMap() {
+        return state.isMapKey() || state.isMapValue();
+    }
+
+    /**
+     * <p>
+     * If the writer is currently writing to a map and the next item to be written is a
+     * map value, return the key for that value.
+     * If the writer is currently writing to a list, return the index of the next item
+     * to be written as a {@link Number}.
+     * Otherwise return null.
+     * </p><p>
+     * This method is mostly useful when filtering output - for example, to remove any
+     * "password" values from the output:
+     * </p>
+     * <pre class="brush:java">
+     * JsonWriter writer = new JsonWriter() {
+     *   boolean instring;
+     *   @Override public boolean event(JsonStream.Event e) throws IOException {
+     *     if (instring) {
+     *       instring = e.type() != e.TYPE_STRING_END;
+     *       return false;
+     *     } else if (e.type() == e.TYPE_PRIMITIVE &amp;&amp; "password".equals(key())) {
+     *       return super.event(JsonStream.Event.stringValue("***", 3));
+     *     } else if (e.type() == e.TYPE_STRING_START &amp;&amp; "password".equals(key())) {
+     *       instring = true;
+     *       return super.event(JsonStream.Event.stringValue("***", 3));
+     *     } else {
+     *       return super.event(e);
+     *     }
+     *   }
+     * };
+     * </pre>
+     * </p>
+     */
+    protected Object key() {
+        return state.isMapValue() ? prevKey : state.isList() ? Integer.valueOf(state.size) : null;
+    }
+
     @Override public boolean event(JsonStream.Event event) throws IOException {
         if (state == null) {
             state = new State(null, STATE_ROOT);
@@ -405,11 +461,12 @@ public class JsonWriter implements JsonStream {
                 break;
             case JsonStream.Event.TYPE_PRIMITIVE:
                 Object value = event.value();
-                if (state.isKey()) {
+                if (state.isMapKey()) {
                     state.preKey();
                     if (optionCborDiag == NONE) {
                         value = value.toString();
                     }
+                    prevKey = value;
                 } else {
                     out = state.preValue();
                 }
@@ -438,9 +495,10 @@ public class JsonWriter implements JsonStream {
                 }
                 state.postValue();
                 break;
-            case JsonStream.Event.TYPE_STARTSTRING:
-                if (state.isKey()) {
+            case JsonStream.Event.TYPE_STRING_START:
+                if (state.isMapKey()) {
                     state.preKey();
+                    prevKey = null;
                 } else {
                     out = state.preValue();
                 }
@@ -448,7 +506,7 @@ public class JsonWriter implements JsonStream {
                 state.mode |= STATE_STRING;
                 stringLength = 0;
                 break;
-            case JsonStream.Event.TYPE_STRINGDATA:
+            case JsonStream.Event.TYPE_STRING_DATA:
                 if ((state.mode & STATE_STRING) != 0) {
                     CharSequence seq = event.stringValue();
                     if (seq != null) {
@@ -472,21 +530,24 @@ public class JsonWriter implements JsonStream {
                     throw new IllegalStateException("String not started");
                 }
                 break;
-            case JsonStream.Event.TYPE_ENDSTRING:
+            case JsonStream.Event.TYPE_STRING_END:
                 if ((state.mode & STATE_STRING) != 0) {
                     if (maxStringLength != 0 && stringLength == maxStringLength) {
                         out.append("...");
                     }
                     out.append('"');
                     state.mode &= ~STATE_STRING;
-                    state.postValue();
+                    if (!state.isMapKey()) {
+                        state.postValue();
+                    }
                 } else {
                     throw new IllegalStateException("String not started");
                 }
                 break;
-            case JsonStream.Event.TYPE_STARTBUFFER:
-                if (state.isKey()) {
+            case JsonStream.Event.TYPE_BUFFER_START:
+                if (state.isMapKey()) {
                     state.preKey();
+                    prevKey = null;
                 } else {
                     out = state.preValue();
                 }
@@ -501,7 +562,7 @@ public class JsonWriter implements JsonStream {
                 stringLength = 0;
                 b64_0 = b64_1 = -1;
                 break;
-            case JsonStream.Event.TYPE_BUFFERDATA:
+            case JsonStream.Event.TYPE_BUFFER_DATA:
                 if ((state.mode & STATE_BUFFER) != 0) {
                     ByteBuffer buf = event.bufferValue();
                     if (buf != null) {
@@ -523,7 +584,7 @@ public class JsonWriter implements JsonStream {
                     throw new IllegalStateException("Buffer not started");
                 }
                 break;
-            case JsonStream.Event.TYPE_ENDBUFFER:
+            case JsonStream.Event.TYPE_BUFFER_END:
                 if ((state.mode & STATE_BUFFER) != 0) {
                     if (maxStringLength != 0 && stringLength == maxStringLength) {
                         out.append("...");
@@ -534,7 +595,9 @@ public class JsonWriter implements JsonStream {
                     }
                     out.append(optionCborDiag == NONE ? '"' : '\'');
                     state.mode &= ~STATE_BUFFER;
-                    state.postValue();
+                    if (!state.isMapKey()) {
+                        state.postValue();
+                    }
                 } else {
                     throw new IllegalStateException("Buffer not started");
                 }
