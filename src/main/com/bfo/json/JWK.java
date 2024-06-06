@@ -567,6 +567,10 @@ public class JWK extends Json {
      * @param ops the key operations, or null to remove any existing ops. Duplicates are discarded
      */
     public void setOps(Collection<String> ops) {
+        // Note: as a reminder to myself, there is no useful correlation between keyusage bits in
+        // X.509 and key_ops in JWK - the purposes for the latter are derived from
+        // https://www.w3.org/TR/WebCryptoAPI/#subtlecrypto-interface-methods, and don't include things
+        // like certificate signing. So don't bother going down that rabbit-hole
         if (ops == null) {
             remove("key_ops");
         } else {
@@ -681,10 +685,11 @@ public class JWK extends Json {
      * Set the list of X.509 certificates specified in the JWK,
      * either as a url or inline.
      * <ul>
-     * <li>If both the url and certs are specified, it's presumed the URL would
-     * retrieve the supplied list. A checksum is calculated and stored.</li>
-     * <li>If only the certs are specified, they are stored in the JWK</li>
+     * <li>If only the certificates are specified, they are stored in the JWK</li>
      * <li>If only the URL is specified, it's stored in the JWK</li>
+     * <li>If both the url and certificates are specified, it's presumed the URL would
+     * retrieve the supplied list. The URL is stored in the JWK, and a checksum is calculated from
+     * the certificates and that is stored as well, but the certificates themselves are not stored.</li>
      * <li>If neither are specified, any existing certificates are removed</li>
      * </ul>
      * @param certs the list of certificates, or null
