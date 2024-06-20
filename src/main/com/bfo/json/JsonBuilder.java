@@ -190,7 +190,7 @@ public class JsonBuilder implements JsonStream {
         List<Object> l = new ArrayList<Object>(keystack.size() + 1);
         l.addAll(keystack);
         if (list != null || map != null) {
-            l.add(key();
+            l.add(key());
         }
         return l;
     }
@@ -289,7 +289,8 @@ public class JsonBuilder implements JsonStream {
 
     /**
      * Close a list Json created earlier with {@link #createList(int)}.
-     * When called, the current {@link #context} is the list being closed.
+     * When called, the current {@link #context} is the list being closed,
+     * and the {@link #key} is the index that it was stored as in its parent.
      * The default implementation does nothing.
      */
     protected void closeList() throws IOException {
@@ -297,7 +298,8 @@ public class JsonBuilder implements JsonStream {
 
     /**
      * Close a map Json created earlier with {@link #createMap(int)}.
-     * When called, the current {@link #context} is the list being closed.
+     * When called, the current {@link #context} is the list being closed,
+     * and the {@link #key} is the key that it was stored as in its parent.
      * The default implementation does nothing.
      */
     protected void closeMap() throws IOException {
@@ -390,13 +392,13 @@ public class JsonBuilder implements JsonStream {
             case JsonStream.Event.TYPE_MAP_END: {
                 if (map != null && key == null && tag == null) {
                     closeMap();
-                    keystack.remove(keystack.size() - 1);
                     Json j = ctx.parent();
                     if (j == null) {
                         map = null;
                         peof = true;
                         ret = true;
                     } else {
+                        keystack.remove(keystack.size() - 1);
                         ctx = j;
                         if (ctx.isList()) {
                             list = ctx._listValue();
@@ -414,13 +416,13 @@ public class JsonBuilder implements JsonStream {
             case JsonStream.Event.TYPE_LIST_END: {
                 if (list != null && tag == null) {
                     closeList();
-                    keystack.remove(keystack.size() - 1);
                     Json j = ctx.parent();
                     if (j == null) {
                         list = null;
                         peof = true;
                         ret = true;
                     } else {
+                        keystack.remove(keystack.size() - 1);
                         ctx = j;
                         if (ctx.isList()) {
                             list = ctx._listValue();
