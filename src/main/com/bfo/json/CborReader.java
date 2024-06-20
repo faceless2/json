@@ -622,7 +622,7 @@ public class CborReader extends AbstractReader {
                     n0 = (Integer)n;
                 } else if (depth == 1 && n0 != null && n1 == null && type == JsonStream.Event.TYPE_PRIMITIVE && (n instanceof Integer || n instanceof Long || n instanceof BigInteger)) {
                     n1 = n instanceof BigInteger ? (BigInteger)n : BigInteger.valueOf(n.longValue());
-                } else if ((depth == 0 && type == JsonStream.Event.TYPE_STARTLIST) || (depth == 1 && type == JsonStream.Event.TYPE_ENDLIST)) {
+                } else if ((depth == 0 && type == JsonStream.Event.TYPE_LIST_START) || (depth == 1 && type == JsonStream.Event.TYPE_LIST_END)) {
                     // OK
                 } else {
                     close();
@@ -631,16 +631,16 @@ public class CborReader extends AbstractReader {
             }
 
             switch (type) {
-                case JsonStream.Event.TYPE_STARTMAP:
+                case JsonStream.Event.TYPE_MAP_START:
                 case JsonStream.Event.TYPE_BUFFER_START:
                 case JsonStream.Event.TYPE_STRING_START:
-                case JsonStream.Event.TYPE_STARTLIST:
+                case JsonStream.Event.TYPE_LIST_START:
                     depth++;
                     break;
-                case JsonStream.Event.TYPE_ENDMAP:
+                case JsonStream.Event.TYPE_MAP_END:
                 case JsonStream.Event.TYPE_BUFFER_END:
                 case JsonStream.Event.TYPE_STRING_END:
-                case JsonStream.Event.TYPE_ENDLIST:
+                case JsonStream.Event.TYPE_LIST_END:
                     depth--;
             }
 

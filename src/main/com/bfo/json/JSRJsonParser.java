@@ -197,19 +197,19 @@ class JSRJsonParser implements JsonParser, JsonLocation {
                     } else {
                         value = new IllegalStateException("Unexpected event " + e);
                     }
-                } else if (type == JsonStream.Event.TYPE_STARTMAP) {
+                } else if (type == JsonStream.Event.TYPE_MAP_START) {
                     value = null;
                     state = new State(state, MODE_MAPKEY);
                     event = JsonParser.Event.START_OBJECT;
-                } else if (type == JsonStream.Event.TYPE_ENDMAP) {
+                } else if (type == JsonStream.Event.TYPE_MAP_END) {
                     value = null;
                     state = state.parent;
                     event = JsonParser.Event.END_OBJECT;
-                } else if (type == JsonStream.Event.TYPE_STARTLIST) {
+                } else if (type == JsonStream.Event.TYPE_LIST_START) {
                     value = null;
                     state = new State(state, MODE_LIST);
                     event = JsonParser.Event.START_ARRAY;
-                } else if (type == JsonStream.Event.TYPE_ENDLIST) {
+                } else if (type == JsonStream.Event.TYPE_LIST_END) {
                     value = null;
                     state = state.parent;
                     event = JsonParser.Event.END_ARRAY;

@@ -2485,7 +2485,7 @@ public class Json {
      * @see #getBufferStreamLength
      * @since 2.0
      */
-    protected ReadableByteChannel getBufferStream() throws IOException {
+    public ReadableByteChannel getBufferStream() throws IOException {
         final ByteBuffer buf = (ByteBuffer)((Buffer)bufferValue()).duplicate().position(0); // cast for old Java compilation
         return new ReadableByteChannel() {
             private boolean closed;
@@ -2517,7 +2517,7 @@ public class Json {
      * @see #getBufferStream
      * @since 2.0
      */
-    protected long getBufferStreamLength() throws IOException {
+    public long getBufferStreamLength() throws IOException {
         ByteBuffer buf = (ByteBuffer)((Buffer)bufferValue()).duplicate().position(0); // cast for old Java compilation
         return buf.remaining();
     }
@@ -2529,7 +2529,7 @@ public class Json {
      * perhaps because it's very large and of indeterminate length.
      * @since 1.4
      */
-    protected Readable getStringStream() throws IOException {
+    public Readable getStringStream() throws IOException {
         final CharBuffer buf = CharBuffer.wrap((CharSequence)core);
         return new Readable() {
             @Override public int read(CharBuffer out) throws IOException {
@@ -2551,7 +2551,7 @@ public class Json {
      * perhaps because it's very large and of indeterminate length.
      * @since 1.4
      */
-    protected long getStringStreamByteLength() throws IOException {
+    public long getStringStreamByteLength() throws IOException {
         return -1; // stringByteLength;
     }
 

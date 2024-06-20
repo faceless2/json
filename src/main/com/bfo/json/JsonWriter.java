@@ -441,21 +441,21 @@ public class JsonWriter implements JsonStream {
         final int type = event.type();
         Appendable out = state.out;
         switch(type) {
-            case JsonStream.Event.TYPE_STARTMAP:
+            case JsonStream.Event.TYPE_MAP_START:
                 out = state.preValue();
                 state = new State(state, STATE_MAP_KEY);
                 out.append('{');
                 break;
-            case JsonStream.Event.TYPE_STARTLIST:
+            case JsonStream.Event.TYPE_LIST_START:
                 out = state.preValue();
                 state = new State(state, STATE_LIST);
                 out.append('[');
                 break;
-            case JsonStream.Event.TYPE_ENDMAP:
+            case JsonStream.Event.TYPE_MAP_END:
                 state = state.close();
                 state.postValue();
                 break;
-            case JsonStream.Event.TYPE_ENDLIST:
+            case JsonStream.Event.TYPE_LIST_END:
                 state = state.close();
                 state.postValue();
                 break;

@@ -54,6 +54,7 @@ public class JsonBuilder implements JsonStream {
     private boolean peof;
     private Json ctx;
     private Long tag;
+    private List<Object> keystack = new ArrayList<Object>();
     private List<Json> list;
     private Map<Object,Json> map;
     private Object key;
@@ -74,7 +75,7 @@ public class JsonBuilder implements JsonStream {
      * Create a new Json map
      * @param size the number of entries in the map, or -1 or unknown
      */
-    protected Json createMap(int size) {
+    protected Json createMap(int size) throws IOException {
         return Json.read("{}");
     }
 
@@ -82,7 +83,7 @@ public class JsonBuilder implements JsonStream {
      * Create a new Json list
      * @param size the number of items in the list, or -1 or unknown
      */
-    protected Json createList(int size) {
+    protected Json createList(int size) throws IOException {
         return Json.read("[]");
     }
 
@@ -90,7 +91,7 @@ public class JsonBuilder implements JsonStream {
      * Create a new Json String
      * @param value the value
      */
-    protected Json createString(CharSequence value) {
+    protected Json createString(CharSequence value) throws IOException {
         return new Json(value);
     }
 
@@ -98,7 +99,7 @@ public class JsonBuilder implements JsonStream {
      * Create a new Json String, which will be appended to by calls to {@link #appendString} and {@link #closeString}
      * @param size the length of the UTF-8 value of the string in bytes, or -1 if unknown
      */
-    protected Json createString(long size) {
+    protected Json createString(long size) throws IOException {
         Json json = new Json(Json.NULL);
         json.setStringByteLength(size < Integer.MAX_VALUE ? (int)size : -1);
         return json;
@@ -108,7 +109,7 @@ public class JsonBuilder implements JsonStream {
      * Create a new Json Buffer, which will be appended to by calls to {@link #appendBuffer} and {@link #closeBuffer}
      * @param size the length of the buffer in bytes, or -1 if unknown
      */
-    protected Json createBuffer(long size) {
+    protected Json createBuffer(long size) throws IOException {
         if (size < 0) {
             return new Json(new ExtendingByteBuffer());
         } else {
@@ -120,7 +121,7 @@ public class JsonBuilder implements JsonStream {
      * Create a new Json number
      * @param n the number
      */
-    protected Json createNumber(Number n) {
+    protected Json createNumber(Number n) throws IOException {
         return new Json(n);
     }
 
@@ -128,21 +129,21 @@ public class JsonBuilder implements JsonStream {
      * Create a new Json boolean
      * @param b the value
      */
-    protected Json createBoolean(boolean b) {
+    protected Json createBoolean(boolean b) throws IOException {
         return new Json(b);
     }
 
     /**
      * Create a new Json null
      */
-    protected Json createNull() {
+    protected Json createNull() throws IOException {
         return new Json(Json.NULL);
     }
 
     /**
      * Create a new Json undefined value
      */
-    protected Json createUndefined() {
+    protected Json createUndefined() throws IOException {
         return new Json(Json.UNDEFINED);
     }
 
@@ -150,7 +151,7 @@ public class JsonBuilder implements JsonStream {
      * Create a new Json representing the specified CBOR "simple" type.
      * @param simple the simple type
      */
-    protected Json createSimple(int simple) {
+    protected Json createSimple(int simple) throws IOException {
         Json j = new Json(Json.UNDEFINED);
         j.setTag(simple);
         return j;
@@ -180,11 +181,26 @@ public class JsonBuilder implements JsonStream {
     }
 
     /**
+     * Return the list of currently open keys as a stack,
+     * with the value returned by {@link #key} (if not null) at the end of the list
+     * The list is a copy and may be modified.
+     * @return the list of keys
+     */
+    public List<Object> keys() {
+        List<Object> l = new ArrayList<Object>(keystack.size() + 1);
+        l.addAll(keystack);
+        if (list != null || map != null) {
+            l.add(key();
+        }
+        return l;
+    }
+
+    /**
      * Append the supplied CharSequence to a string Json created earlier with {@link #createString(long)}
      * @param json the string Json
      * @param seq the sequence
      */
-    protected void appendString(Json json, CharSequence seq) {
+    protected void appendString(Json json, CharSequence seq) throws IOException {
         Object v = json.value();
         if (v == Json.NULL) {
             json._setValue(seq.toString());
@@ -219,7 +235,7 @@ public class JsonBuilder implements JsonStream {
     /**
      * Close a string Json created earlier with {@link #createString(long)}
      */
-    protected void closeString(Json json) {
+    protected void closeString(Json json) throws IOException {
         Object v = json.value();
         if (v == Json.NULL) {
             json._setValue("");
@@ -233,7 +249,7 @@ public class JsonBuilder implements JsonStream {
      * @param json the buffer Json
      * @param seq the data
      */
-    protected void appendBuffer(Json json, ByteBuffer seq) {
+    protected void appendBuffer(Json json, ByteBuffer seq) throws IOException {
         Object v = json.value();
         if (v instanceof ByteBuffer) {
             ((ByteBuffer)v).put(seq);
@@ -262,7 +278,7 @@ public class JsonBuilder implements JsonStream {
     /**
      * Close a buffer Json created earlier with {@link #createString(long)}
      */
-    protected void closeBuffer(Json json) {
+    protected void closeBuffer(Json json) throws IOException {
         Object v = json.value();
         if (v instanceof ExtendingByteBuffer) {
             ExtendingByteBuffer eb = (ExtendingByteBuffer)v;
@@ -270,6 +286,30 @@ public class JsonBuilder implements JsonStream {
             json._setValue(buf);
         }
     }
+
+    /**
+     * Close a list Json created earlier with {@link #createList(int)}.
+     * When called, the current {@link #context} is the list being closed.
+     * The default implementation does nothing.
+     */
+    protected void closeList() throws IOException {
+    }
+
+    /**
+     * Close a map Json created earlier with {@link #createMap(int)}.
+     * When called, the current {@link #context} is the list being closed.
+     * The default implementation does nothing.
+     */
+    protected void closeMap() throws IOException {
+    }
+
+    /**
+     * Return the current Json context which keys/values are being added to, for use by subclasses
+     */
+    protected Json context() {
+        return ctx;
+    }
+
 
     final String eoferror() {
         if (ctx == null) {
@@ -291,17 +331,19 @@ public class JsonBuilder implements JsonStream {
         final int type = event.type();
         boolean ret;
         switch(type) {
-            case JsonStream.Event.TYPE_STARTMAP: {
+            case JsonStream.Event.TYPE_MAP_START: {
                 if (peof) {
                     throw new IllegalStateException(eoferror());
                 }
                 Json j = createMap((int)event.size());
                 if (list != null) {
                     Integer size = Integer.valueOf(list.size());
+                    keystack.add(size);
                     list.add(j);
                     Json.notifyDuringLoad(ctx, size, j);
                     list = null;
                 } else if (key != null) {
+                    keystack.add(key);
                     map.put(key, j);
                     Json.notifyDuringLoad(ctx, key, j);
                     key = null;
@@ -317,16 +359,18 @@ public class JsonBuilder implements JsonStream {
                 ret = false;
                 break;
             }
-            case JsonStream.Event.TYPE_STARTLIST: {
+            case JsonStream.Event.TYPE_LIST_START: {
                 if (peof) {
                     throw new IllegalStateException(eoferror());
                 }
                 Json j = createList((int)event.size());
                 if (list != null) {
                     Integer size = Integer.valueOf(list.size());
+                    keystack.add(size);
                     list.add(j);
                     Json.notifyDuringLoad(ctx, size, j);
                 } else if (key != null) {
+                    keystack.add(key);
                     map.put(key, j);
                     Json.notifyDuringLoad(ctx, key, j);
                     key = null;
@@ -343,8 +387,10 @@ public class JsonBuilder implements JsonStream {
                 ret = false;
                 break;
             }
-            case JsonStream.Event.TYPE_ENDMAP: {
+            case JsonStream.Event.TYPE_MAP_END: {
                 if (map != null && key == null && tag == null) {
+                    closeMap();
+                    keystack.remove(keystack.size() - 1);
                     Json j = ctx.parent();
                     if (j == null) {
                         map = null;
@@ -365,8 +411,10 @@ public class JsonBuilder implements JsonStream {
                 }
                 break;
             }
-            case JsonStream.Event.TYPE_ENDLIST: {
+            case JsonStream.Event.TYPE_LIST_END: {
                 if (list != null && tag == null) {
+                    closeList();
+                    keystack.remove(keystack.size() - 1);
                     Json j = ctx.parent();
                     if (j == null) {
                         list = null;

@@ -113,7 +113,7 @@ public class MsgpackWriter implements JsonStream {
         int l;
 //        System.out.println("WRITER: e="+event+" " + dump());
         switch(type) {
-            case JsonStream.Event.TYPE_STARTMAP:
+            case JsonStream.Event.TYPE_MAP_START:
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_MAP;
                 length = event.size();
@@ -137,7 +137,7 @@ public class MsgpackWriter implements JsonStream {
                 length *= 2;
                 tag = NO_TAG;
                 break;
-            case JsonStream.Event.TYPE_STARTLIST:
+            case JsonStream.Event.TYPE_LIST_START:
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_LIST;
                 length = event.size();
@@ -160,14 +160,14 @@ public class MsgpackWriter implements JsonStream {
                 }
                 tag = NO_TAG;
                 break;
-            case JsonStream.Event.TYPE_ENDLIST:
+            case JsonStream.Event.TYPE_LIST_END:
                 if (length > 0 || (state = stack[--stackLength]) != STATE_LIST) {
                     throw new IllegalStateException("Unexpected end-list");
                 }
                 length = stack[--stackLength];
                 decrement = 1;
                 break;
-            case JsonStream.Event.TYPE_ENDMAP:
+            case JsonStream.Event.TYPE_MAP_END:
                 if (length > 0 || (state = stack[--stackLength]) != STATE_MAP) {
                     throw new IllegalStateException("Unexpected end-map");
                 }

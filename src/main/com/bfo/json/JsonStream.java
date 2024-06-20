@@ -45,10 +45,10 @@ public interface JsonStream {
      */
     public static final class Event {
 
-        public static final int  TYPE_STARTMAP = 1;
-        public static final int  TYPE_STARTLIST = 2;
-        public static final int  TYPE_ENDMAP = 3;
-        public static final int  TYPE_ENDLIST = 4;
+        public static final int  TYPE_MAP_START = 1;
+        public static final int  TYPE_LIST_START = 2;
+        public static final int  TYPE_MAP_END = 3;
+        public static final int  TYPE_LIST_END = 4;
         public static final int  TYPE_BUFFER_START = 5;
         public static final int  TYPE_BUFFER_END = 6;
         public static final int  TYPE_STRING_START = 7;
@@ -59,12 +59,12 @@ public interface JsonStream {
         public static final int  TYPE_TAG = 12;
         public static final int  TYPE_SIMPLE = 13;
 
-        private static final Event STARTMAP = new Event(TYPE_STARTMAP, null, -1);
-        private static final Event STARTLIST = new Event(TYPE_STARTLIST, null, -1);
+        private static final Event STARTMAP = new Event(TYPE_MAP_START, null, -1);
+        private static final Event STARTLIST = new Event(TYPE_LIST_START, null, -1);
         private static final Event STARTSTRING = new Event(TYPE_STRING_START, null, -1);
         private static final Event STARTBUFFER = new Event(TYPE_BUFFER_START, null, -1);
-        private static final Event ENDMAP = new Event(TYPE_ENDMAP, null, 0);
-        private static final Event ENDLIST = new Event(TYPE_ENDLIST, null, 0);
+        private static final Event ENDMAP = new Event(TYPE_MAP_END, null, 0);
+        private static final Event ENDLIST = new Event(TYPE_LIST_END, null, 0);
         private static final Event ENDSTRING = new Event(TYPE_STRING_END, null, 0);
         private static final Event ENDBUFFER = new Event(TYPE_BUFFER_END, null, 0);
         private static final Event TRUE = new Event(TYPE_PRIMITIVE, Boolean.TRUE, 0);
@@ -73,19 +73,19 @@ public interface JsonStream {
         private static final Event UNDEFINED = new Event(TYPE_PRIMITIVE, Json.UNDEFINED, 0);
 
         /**
-         * Create a new {@link TYPE_STARTMAP} event
+         * Create a new {@link TYPE_MAP_START} event
          * @param size the number of [key,value] pairs in the map, or -1 if unknown
          */
         public static Event startMap(int size) {
-            return size < 0 ? STARTMAP : new Event(TYPE_STARTMAP, null, size);
+            return size < 0 ? STARTMAP : new Event(TYPE_MAP_START, null, size);
         }
 
         /**
-         * Create a new {@link TYPE_STARTMAP} event
+         * Create a new {@link TYPE_MAP_START} event
          * @param size the number of objects in the list, or -1 if unknown
          */
         public static Event startList(int size) {
-            return size < 0 ? STARTLIST : new Event(TYPE_STARTLIST, null, size);
+            return size < 0 ? STARTLIST : new Event(TYPE_LIST_START, null, size);
         }
 
         /**
@@ -105,14 +105,14 @@ public interface JsonStream {
         }
 
         /**
-         * Get an {@link TYPE_ENDMAP} event
+         * Get an {@link TYPE_MAP_END} event
          */
         public static Event endMap() {
             return ENDMAP;
         }
 
         /**
-         * Get an {@link TYPE_ENDLIST} event
+         * Get an {@link TYPE_LIST_END} event
          */
         public static Event endList() {
             return ENDLIST;
@@ -258,7 +258,7 @@ public interface JsonStream {
         }
 
         /**
-         * Return the type, eg {@link #TYPE_ENDMAP}
+         * Return the type, eg {@link #TYPE_MAP_END}
          */
         public int type() {
             return type;
@@ -353,12 +353,12 @@ public interface JsonStream {
 
         public String toString() {
             switch(type) {
-                case TYPE_STARTMAP:         return "{startMap" + (size < 0 ? "" : " size="+size) + "}";
-                case TYPE_STARTLIST:        return "{startList" + (size < 0 ? "" : " size="+size) + "}";
+                case TYPE_MAP_START:         return "{startMap" + (size < 0 ? "" : " size="+size) + "}";
+                case TYPE_LIST_START:        return "{startList" + (size < 0 ? "" : " size="+size) + "}";
                 case TYPE_STRING_START:      return "{startString" + (size < 0 ? "" : " size="+size) + "}";
                 case TYPE_BUFFER_START:      return "{startBuffer" + (size < 0 ? "" : " size="+size) + "}";
-                case TYPE_ENDMAP:           return "{endMap}";
-                case TYPE_ENDLIST:          return "{endList}";
+                case TYPE_MAP_END:           return "{endMap}";
+                case TYPE_LIST_END:          return "{endList}";
                 case TYPE_STRING_END:        return "{endString}";
                 case TYPE_BUFFER_END:        return "{endBuffer}";
                 case TYPE_PRIMITIVE:        return this == TRUE ? "{true}" : this == FALSE ? "{false}" : this == NULL ? "{null}" : this == UNDEFINED ? "{undefined}" : data instanceof Number ? "{number " + data + "}" : "{string " + Json.esc((CharSequence)data, null) + "}";
