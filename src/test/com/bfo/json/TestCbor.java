@@ -183,18 +183,18 @@ public class TestCbor {
             }
             final String targetstring = new String(targetbytes, "ISO-8859-1");
             final Json magicBuffer = new Json(ByteBuffer.wrap("bad".getBytes("UTF-8"))) {
-                @Override protected ReadableByteChannel getBufferStream() throws IOException {
+                @Override public ReadableByteChannel getBufferStream() throws IOException {
                     return Channels.newChannel(new ByteArrayInputStream(targetbytes));
                 }
-                @Override protected long getBufferStreamLength() throws IOException {
+                @Override public long getBufferStreamLength() throws IOException {
                     return targetbytes.length;
                 }
             };
             final Json magicString = new Json("bad") {
-                @Override protected Readable getStringStream() throws IOException {
+                @Override public Readable getStringStream() throws IOException {
                     return new StringReader(targetstring);
                 }
-                @Override protected long getStringStreamByteLength() throws IOException {
+                @Override public long getStringStreamByteLength() throws IOException {
                     return -1;
                 }
             };
