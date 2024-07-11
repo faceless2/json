@@ -453,7 +453,7 @@ public class JsonWriter implements JsonStream {
      * </p>
      * @param next the next event to be processed
      */
-    protected Object keys(JsonStream.Event next) {
+    protected List<Object> keys(JsonStream.Event next) {
         List<Object> l = new ArrayList<Object>();
         int type = next == null ? -1 : next.type();
         for (State s = state;s!=null;s=s.parent) {
