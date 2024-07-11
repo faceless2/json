@@ -12,11 +12,12 @@ public class JsonWriter implements JsonStream {
     
     private static final char[] B64STD_C, B64URL_C;
     private static final int STATE_ROOT         = 0x0001;
-    private static final int STATE_LIST         = 0x0001;
-    private static final int STATE_MAP_KEY      = 0x0002;
-    private static final int STATE_MAP_VALUE    = 0x0003;
+    private static final int STATE_LIST         = 0x0002;
+    private static final int STATE_MAP_KEY      = 0x0004;
+    private static final int STATE_MAP_VALUE    = 0x0008;
     private static final int STATE_STRING       = 0x0040;
     private static final int STATE_BUFFER       = 0x0080;
+    private static final int STATE_JUSTCLOSED   = 0x0100;
     private static final int STATE_DONE         = 0x0200;
 
     private static final int NONE = 0;
@@ -29,7 +30,6 @@ public class JsonWriter implements JsonStream {
 
     private State state;
     private Appendable out;
-    private Object prevKey;     // Only for returning from key(), not used internally
     private int optionCborDiag;
     private char[] b64 = B64URL_C;
     private boolean sorted, pretty;
@@ -43,6 +43,7 @@ public class JsonWriter implements JsonStream {
         int mode, size, indent;
         Appendable out;
         long tag;
+        Object prevKey; // Only for returning from keys(), not used internally
 
         State(State parent, int mode) {
             this.parent = parent;
@@ -60,6 +61,7 @@ public class JsonWriter implements JsonStream {
             if ((mode & STATE_STRING) != 0) sb.append("string+");
             if ((mode & STATE_BUFFER) != 0) sb.append("buffer+");
             if ((mode & STATE_DONE) != 0) sb.append("done+");
+            if ((mode & STATE_JUSTCLOSED) != 0) sb.append("just-closed+");
             if (sb.length() > 0) {
                 sb.setLength(sb.length() - 1);
             }
@@ -73,6 +75,21 @@ public class JsonWriter implements JsonStream {
         void setTag(long tag) {
             this.tag = tag + 1;
         }
+        boolean isMidString() {
+            return (mode & STATE_STRING) != 0;
+        }
+        boolean isMidBuffer() {
+            return (mode & STATE_BUFFER) != 0;
+        }
+        boolean isJustClosed() {
+            return (mode & STATE_JUSTCLOSED) != 0;
+        }
+        boolean isDone() {
+            return (mode & STATE_DONE) != 0;
+        }
+        boolean isRoot() {
+            return (mode & STATE_ROOT) != 0;
+        }
         boolean isList() {
             return (mode & STATE_LIST) != 0;
         }
@@ -80,11 +97,15 @@ public class JsonWriter implements JsonStream {
             return (mode & STATE_MAP_VALUE) != 0;
         }
         boolean isMapKey() {
-            return mode == STATE_MAP_KEY;
+            return (mode & STATE_MAP_KEY) != 0;
         }
 
         void preKey() throws IOException {
-            if (mode == STATE_MAP_KEY) {
+            if (isMidString()) {
+                throw new IllegalStateException("Invalid state (mid-string)");
+            } else if (isMidBuffer()) {
+                throw new IllegalStateException("Invalid state (mid-buffer)");
+            } else if (isMapKey()) {
                 if (size++ > 0) {
                     out.append(comma);
                     if (size < 0) {
@@ -110,7 +131,11 @@ public class JsonWriter implements JsonStream {
         }
 
         Appendable preValue() throws IOException {
-            if (mode == STATE_LIST) {
+            if (isMidString()) {
+                throw new IllegalStateException("Invalid state (mid-string)");
+            } else if (isMidBuffer()) {
+                throw new IllegalStateException("Invalid state (mid-buffer)");
+            } else if (isList()) {
                 if (size++ > 0) {
                     out.append(comma);
                 }
@@ -133,10 +158,10 @@ public class JsonWriter implements JsonStream {
                     out.append(comma + "...");
                     out = new ZeroAppendable();
                 }
-            } else if (mode == STATE_MAP_VALUE) {
+            } else if (isMapValue()) {
                 out.append(colon);
                 mode = STATE_MAP_KEY;
-            } else if (mode == STATE_ROOT) {
+            } else if (isRoot()) {
                 mode = STATE_DONE;
             } else {
                 throw new IllegalStateException("Invalid state");
@@ -155,7 +180,7 @@ public class JsonWriter implements JsonStream {
         }
 
         State close() throws IOException {
-            if (mode == STATE_LIST) {
+            if (isList()) {
                 if (pretty) {
                     indent -= JsonWriter.this.indent;
                     out.append('\n');
@@ -165,7 +190,7 @@ public class JsonWriter implements JsonStream {
                 }
                 out.append(']');
                 return parent;
-            } else if (mode == STATE_MAP_KEY) {
+            } else if (isMapKey()) {
                 if (pretty) {
                     indent -= JsonWriter.this.indent;
                     out.append('\n');
@@ -395,11 +420,12 @@ public class JsonWriter implements JsonStream {
 
     /**
      * <p>
-     * If the writer is currently writing to a map and the next item to be written is a
-     * map value, return the key for that value.
-     * If the writer is currently writing to a list, return the index of the next item
-     * to be written as a {@link Number}.
-     * Otherwise return null.
+     * Return the currently open keys as a stack, with the most recent at the end.
+     * For example, when processing <code>{"a":[{"b":true}]}</code> the stack would
+     * be <code>["a", 0, "b"]</code> when processing the event for the boolean value.
+     * The <code>next</code> parameter is the next event to be processed - this method
+     * is intended to be called from the {@link #event} method <i>before</i> the call
+     * to <code>super.event()</code>.
      * </p><p>
      * This method is mostly useful when filtering output - for example, to remove any
      * "password" values from the output:
@@ -408,12 +434,14 @@ public class JsonWriter implements JsonStream {
      * JsonWriter writer = new JsonWriter() {
      *   boolean instring;
      *   @Override public boolean event(JsonStream.Event e) throws IOException {
+     *     List&lt;Object&gt; keys = keys(e);
+     *     Object mostRecentKey = keys.isEmpty() ? null : keys.get(keys.size() - 1);
      *     if (instring) {
      *       instring = e.type() != e.TYPE_STRING_END;
      *       return false;
-     *     } else if (e.type() == e.TYPE_PRIMITIVE &amp;&amp; "password".equals(key())) {
+     *     } else if (e.type() == e.TYPE_PRIMITIVE &amp;&amp; "password".equals(mostRecentKey)) {
      *       return super.event(JsonStream.Event.stringValue("***", 3));
-     *     } else if (e.type() == e.TYPE_STRING_START &amp;&amp; "password".equals(key())) {
+     *     } else if (e.type() == e.TYPE_STRING_START &amp;&amp; "password".equals(mostRecentKey)) {
      *       instring = true;
      *       return super.event(JsonStream.Event.stringValue("***", 3));
      *     } else {
@@ -423,9 +451,30 @@ public class JsonWriter implements JsonStream {
      * };
      * </pre>
      * </p>
+     * @param next the next event to be processed
      */
-    protected Object key() {
-        return state.isMapValue() ? prevKey : state.isList() ? Integer.valueOf(state.size) : null;
+    protected Object keys(JsonStream.Event next) {
+        List<Object> l = new ArrayList<Object>();
+        int type = next == null ? -1 : next.type();
+        for (State s = state;s!=null;s=s.parent) {
+            if (type == JsonStream.Event.TYPE_LIST_END || type == JsonStream.Event.TYPE_MAP_END) {
+                // skip first before a close
+            } else if (s.isJustClosed() && s.isList()) {
+                l.add(Integer.valueOf(s.size - 1));
+            } else if (s.isMapKey() && s != state) {
+                l.add(s.prevKey);
+            } else if (s.isJustClosed() && s.isMapKey() && (type == JsonStream.Event.TYPE_MAP_END || type == JsonStream.Event.TYPE_LIST_END)) {
+                l.add(s.prevKey);
+            } else if (s.isMapValue()) {
+                l.add(s.prevKey);
+            } else if (s.isList()) {
+                l.add(Integer.valueOf(s.size - (s == state ? 0 : 1)));
+            }
+            type = -1;
+        }
+        Collections.reverse(l);
+//        l.add("<dump="+dump()+">");
+        return l;
     }
 
     @Override public boolean event(JsonStream.Event event) throws IOException {
@@ -435,9 +484,10 @@ public class JsonWriter implements JsonStream {
             if (pretty) {
                 comma = ",";
             }
-        } else if (state.mode == STATE_DONE) {
+        } else if (state.isDone()) {
             throw new IllegalStateException("Completed");
         }
+        state.mode &= ~STATE_JUSTCLOSED;
         final int type = event.type();
         Appendable out = state.out;
         switch(type) {
@@ -454,10 +504,12 @@ public class JsonWriter implements JsonStream {
             case JsonStream.Event.TYPE_MAP_END:
                 state = state.close();
                 state.postValue();
+                state.mode |= STATE_JUSTCLOSED;
                 break;
             case JsonStream.Event.TYPE_LIST_END:
                 state = state.close();
                 state.postValue();
+                state.mode |= STATE_JUSTCLOSED;
                 break;
             case JsonStream.Event.TYPE_PRIMITIVE:
                 Object value = event.value();
@@ -466,7 +518,7 @@ public class JsonWriter implements JsonStream {
                     if (optionCborDiag == NONE) {
                         value = value.toString();
                     }
-                    prevKey = value;
+                    state.prevKey = value;
                 } else {
                     out = state.preValue();
                 }
@@ -498,7 +550,7 @@ public class JsonWriter implements JsonStream {
             case JsonStream.Event.TYPE_STRING_START:
                 if (state.isMapKey()) {
                     state.preKey();
-                    prevKey = null;
+                    state.prevKey = null;
                 } else {
                     out = state.preValue();
                 }
@@ -507,7 +559,7 @@ public class JsonWriter implements JsonStream {
                 stringLength = 0;
                 break;
             case JsonStream.Event.TYPE_STRING_DATA:
-                if ((state.mode & STATE_STRING) != 0) {
+                if (state.isMidString()) {
                     CharSequence seq = event.stringValue();
                     if (seq != null) {
                         int l = maxStringLength == 0 ? seq.length() : Math.min(seq.length(), maxStringLength - stringLength);
@@ -531,7 +583,7 @@ public class JsonWriter implements JsonStream {
                 }
                 break;
             case JsonStream.Event.TYPE_STRING_END:
-                if ((state.mode & STATE_STRING) != 0) {
+                if (state.isMidString()) {
                     if (maxStringLength != 0 && stringLength == maxStringLength) {
                         out.append("...");
                     }
@@ -547,7 +599,7 @@ public class JsonWriter implements JsonStream {
             case JsonStream.Event.TYPE_BUFFER_START:
                 if (state.isMapKey()) {
                     state.preKey();
-                    prevKey = null;
+                    state.prevKey = null;
                 } else {
                     out = state.preValue();
                 }
@@ -563,7 +615,7 @@ public class JsonWriter implements JsonStream {
                 b64_0 = b64_1 = -1;
                 break;
             case JsonStream.Event.TYPE_BUFFER_DATA:
-                if ((state.mode & STATE_BUFFER) != 0) {
+                if (state.isMidBuffer()) {
                     ByteBuffer buf = event.bufferValue();
                     if (buf != null) {
                         int l = maxStringLength == 0 ? ((Buffer)buf).remaining() : Math.min(((Buffer)buf).remaining(), maxStringLength - stringLength);
@@ -585,7 +637,7 @@ public class JsonWriter implements JsonStream {
                 }
                 break;
             case JsonStream.Event.TYPE_BUFFER_END:
-                if ((state.mode & STATE_BUFFER) != 0) {
+                if (state.isMidBuffer()) {
                     if (maxStringLength != 0 && stringLength == maxStringLength) {
                         out.append("...");
                     } else if (b64_1 >= 0) {
@@ -610,7 +662,7 @@ public class JsonWriter implements JsonStream {
             default:
                 throw new IllegalStateException("Unknown event 0x" + type);
         }
-        return state.mode == STATE_DONE;
+        return state.isDone();
     }
 
     private static final char hex(int v) {

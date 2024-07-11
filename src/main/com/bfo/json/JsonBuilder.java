@@ -48,7 +48,7 @@ import java.util.*;
  */
 public class JsonBuilder implements JsonStream {
     
-    private static final int BUILDING_KEYSTRING = 1, BUILDING_KEYBUFFER = 2, BUILDING_VALSTRING = 3, BUILDING_VALBUFFER = 4;
+    private static final int BUILDING_KEYSTRING = 1, BUILDING_KEYBUFFER = 2, BUILDING_VALSTRING = 3, BUILDING_VALBUFFER = 4, BUILDING_CLOSING = 5;
     private static final Object EMPTY = new Object();
 
     private boolean peof;
@@ -172,25 +172,15 @@ public class JsonBuilder implements JsonStream {
     }
 
     /**
-     * Return the key which the next object being created will be stored in its parent,
-     * or null if the next object to be created is a map key. If {@link #isList}, the
-     * key is an integer which is the index into the list
-     */
-    public Object key() {
-        return list != null ? Integer.valueOf(list.size()) : key;
-    }
-
-    /**
-     * Return the list of currently open keys as a stack,
-     * with the value returned by {@link #key} (if not null) at the end of the list
-     * The list is a copy and may be modified.
+     * Return the list of currently open keys as a stack, with the current
+     * one at the end of the list. The list is a copy and may be modified.
      * @return the list of keys
      */
     public List<Object> keys() {
         List<Object> l = new ArrayList<Object>(keystack.size() + 1);
         l.addAll(keystack);
-        if (list != null || map != null) {
-            l.add(key());
+        if (building != BUILDING_CLOSING && (list != null || map != null)) {
+            l.add(list != null ? Integer.valueOf(list.size()) - (building == BUILDING_VALSTRING || building == BUILDING_VALBUFFER ? 1 : 0): key);
         }
         return l;
     }
@@ -391,14 +381,17 @@ public class JsonBuilder implements JsonStream {
             }
             case JsonStream.Event.TYPE_MAP_END: {
                 if (map != null && key == null && tag == null) {
-                    closeMap();
                     Json j = ctx.parent();
+                    final int tmpbuilding = building;
+                    building = BUILDING_CLOSING;
                     if (j == null) {
+                        closeMap();
                         map = null;
                         peof = true;
                         ret = true;
                     } else {
                         keystack.remove(keystack.size() - 1);
+                        closeMap();
                         ctx = j;
                         if (ctx.isList()) {
                             list = ctx._listValue();
@@ -408,6 +401,7 @@ public class JsonBuilder implements JsonStream {
                         }
                         ret = false;
                     }
+                    building = tmpbuilding;
                 } else {
                     throw new IllegalStateException("Unexpected object close");
                 }
@@ -415,13 +409,16 @@ public class JsonBuilder implements JsonStream {
             }
             case JsonStream.Event.TYPE_LIST_END: {
                 if (list != null && tag == null) {
-                    closeList();
                     Json j = ctx.parent();
+                    final int tmpbuilding = building;
+                    building = BUILDING_CLOSING;
                     if (j == null) {
+                        closeList();
                         list = null;
                         peof = true;
                         ret = true;
                     } else {
+                        closeList();
                         keystack.remove(keystack.size() - 1);
                         ctx = j;
                         if (ctx.isList()) {
@@ -432,6 +429,7 @@ public class JsonBuilder implements JsonStream {
                         }
                         ret = false;
                     }
+                    building = tmpbuilding;
                 } else {
                     throw new IllegalStateException("Unexpected list close");
                 }
@@ -506,7 +504,6 @@ public class JsonBuilder implements JsonStream {
                         } else if (key != null) {
                             map.put(key, j);
                             Json.notifyDuringLoad(ctx, key, j);
-                            key = null;
                         }
                         ctx = j;
                         if (tag != null) {
@@ -540,7 +537,6 @@ public class JsonBuilder implements JsonStream {
                         } else if (key != null) {
                             map.put(key, j);
                             Json.notifyDuringLoad(ctx, key, j);
-                            key = null;
                         }
                         ctx = j;
                         if (tag != null) {
@@ -618,6 +614,7 @@ public class JsonBuilder implements JsonStream {
                     ret = false;
                 } else if (building == BUILDING_VALSTRING) {
                     closeString(ctx);
+                    key = null;
                     Json j = ctx.parent();
                     if (j == null) {
                         peof = true;
@@ -641,6 +638,7 @@ public class JsonBuilder implements JsonStream {
                     ret = false;
                 } else if (building == BUILDING_VALBUFFER) {
                     closeBuffer(ctx);
+                    key = null;
                     Json j = ctx.parent();
                     if (j == null) {
                         peof = true;
