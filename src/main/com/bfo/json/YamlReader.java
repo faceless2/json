@@ -417,8 +417,8 @@ public class YamlReader extends AbstractReader {
         }
     }
 
-    private boolean addIndent(int col) {
-        if (indent < col) {
+    private boolean addIndent(int col, boolean force) {
+        if (indent < col || (force && indent == col)) {
             indents.addFirst(indent);
             indent = col;
             return true;
@@ -511,7 +511,7 @@ public class YamlReader extends AbstractReader {
             if (!allowSimpleKey) {
                 throw new IOException("Found a sequence entry where it is not allowed.");
             }
-            if (addIndent(in.column())) {
+            if (addIndent(in.column(), true)) {
                 tokens.add(Token.BLOCK_SEQUENCE_START);
             }
         }
@@ -526,7 +526,7 @@ public class YamlReader extends AbstractReader {
             if (!allowSimpleKey) {
                 throw new IOException("Found a mapping key where it is not allowed.");
             }
-            if (addIndent(in.column())) {
+            if (addIndent(in.column(), false)) {
                 tokens.add(Token.BLOCK_MAPPING_START);
             }
         }
@@ -545,7 +545,7 @@ public class YamlReader extends AbstractReader {
         } else {
             possibleSimpleKeys.remove(flowLevel);
             tokens.add(key.tokenNumber - tokensTaken, Token.KEY);
-            if (flowLevel == 0 && addIndent(key.column)) {
+            if (flowLevel == 0 && addIndent(key.column, false)) {
                 tokens.add(key.tokenNumber - tokensTaken, Token.BLOCK_MAPPING_START);
             }
             allowSimpleKey = false;
