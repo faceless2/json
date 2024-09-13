@@ -44,7 +44,7 @@ import javax.crypto.spec.SecretKeySpec;
  * @see COSE
  * @see JWK
  */
-public class JWT {
+public class JWT implements Principal {
 
     private final Json header, payload;
     private byte[] signature;
@@ -259,6 +259,13 @@ public class JWT {
      */
     public String getSubject() {
         return payload.isString("sub") ? payload.stringValue("sub") : null;
+    }
+
+    /**
+     * Return the {@link Principal} name, which by default simply calls {@link #getSubject}
+     */
+    public String getName() {
+        return getSubject();
     }
 
     /**
