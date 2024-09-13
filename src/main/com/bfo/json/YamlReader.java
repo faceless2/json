@@ -1399,8 +1399,12 @@ public class YamlReader extends AbstractReader {
         }
         while (eq.isEmpty() && jstate != EOF && peekNextToken() != null) {
             Token t = getNextToken();
-            // System.out.println("T="+t+" "+dump());
+//            System.out.println("    T="+t+" "+dump());
             switch (t.type) {
+                case ANCHOR:
+                    throw new UnsupportedOperationException("Yaml anchors are not supported");
+                case TAG:
+                    throw new UnsupportedOperationException("Yaml tags are not supported");
                 case BLOCK_MAPPING_START:
                 case FLOW_MAPPING_START:
                     jstack[jstacklen++] = jstate == MAPVAL ? MAPKEY : jstate == PRESTART ? ROOT : jstate;
@@ -1441,6 +1445,12 @@ public class YamlReader extends AbstractReader {
                         jstate = MAPKEY;
                     }
                     break;
+                case KEY:
+                    if (jstate == LIST) {
+                        enqueue(JsonStream.Event.endList());
+                        jstate = jstack[--jstacklen];
+                    }
+                    break;
                 case SCALAR:
                     String v = t.getValue();
                     if (t.isPlain() && v.length() > 0) {
@@ -1461,7 +1471,7 @@ public class YamlReader extends AbstractReader {
                                 enqueue(JsonStream.Event.numberValue(Integer.parseInt(v.substring(2), 16)));
                             } else if (v.indexOf(".") >= 0 || v.indexOf("e") >= 0) {
                                 try {
-                                    Number n = Float.parseFloat(v);
+                                    Number n = Double.parseDouble(v);
                                     if (!v.equals(n.toString())) {      // Poor-mans precision check
                                         n = Double.parseDouble(v);
                                     }
