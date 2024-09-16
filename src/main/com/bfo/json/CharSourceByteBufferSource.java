@@ -14,16 +14,16 @@ class CharSourceByteBufferSource extends CharSourceCharBuffer {
     private CharsetDecoder decoder;
 
     CharSourceByteBufferSource(AbstractReader owner, InputStream in) {
-        super(owner, CharBuffer.allocate(BUFSIZE).position(BUFSIZE));
+        super(owner, (CharBuffer)CharBuffer.allocate(BUFSIZE).position(BUFSIZE));
         this.owner = owner;
-        this.bbuf = ByteBuffer.allocate(BUFSIZE).mark().limit(0);
+        this.bbuf = (ByteBuffer)ByteBuffer.allocate(BUFSIZE).mark().limit(0);
         this.source = in;
     }
 
     CharSourceByteBufferSource(AbstractReader owner, ReadableByteChannel in) {
-        super(owner, CharBuffer.allocate(BUFSIZE).position(BUFSIZE));
+        super(owner, (CharBuffer)CharBuffer.allocate(BUFSIZE).position(BUFSIZE));
         this.owner = owner;
-        this.bbuf = ByteBuffer.allocate(BUFSIZE).mark().limit(0);
+        this.bbuf = (ByteBuffer)ByteBuffer.allocate(BUFSIZE).mark().limit(0);
         this.source = in;
     }
 
@@ -31,12 +31,12 @@ class CharSourceByteBufferSource extends CharSourceCharBuffer {
      * Read from the supplied buffer directly, do not copy it
      */
     CharSourceByteBufferSource(AbstractReader owner, ByteBuffer in) {
-        super(owner, CharBuffer.allocate(owner.isFinal() ? in.remaining() : BUFSIZE).position(owner.isFinal() ? in.remaining() : BUFSIZE));
+        super(owner, (CharBuffer)CharBuffer.allocate(owner.isFinal() ? in.remaining() : BUFSIZE).position(owner.isFinal() ? in.remaining() : BUFSIZE));
         this.owner = owner;
         if (owner.isFinal()) {
             this.bbuf = in;
         } else {
-            this.bbuf = ByteBuffer.allocate(BUFSIZE).mark().limit(0);
+            this.bbuf = (ByteBuffer)ByteBuffer.allocate(BUFSIZE).mark().limit(0);
             this.source = in;
         }
     }

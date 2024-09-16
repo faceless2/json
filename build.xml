@@ -28,6 +28,18 @@
     <mkdir dir="${classes.main}"/>
     <mkdir dir="${classes.test}"/>
     <mkdir dir="${dist}"/>
+    <javac encoding="utf-8" debug="true" release="8" destdir="${classes.main}">
+      <src path="${src.main}"/>
+      <exclude name="com/bfo/json/JWT.java"/>
+      <exclude name="com/bfo/json/JWK.java"/>
+      <exclude name="com/bfo/json/COSE.java"/>
+      <compilerarg value="-Xlint:unchecked"/>
+      <compilerarg value="-Xlint:rawtypes"/>
+      <compilerarg value="-Xlint:deprecation"/>
+      <compilerarg value="-Xlint:finally"/>
+      <compilerarg value="-Xlint:overrides"/>
+      <classpath refid="path.build" />
+    </javac>
     <javac encoding="utf-8" debug="true" source="8" target="8" destdir="${classes.main}">
       <src path="${src.main}"/>
       <compilerarg value="-Xlint:unchecked"/>

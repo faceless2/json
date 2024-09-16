@@ -2486,7 +2486,7 @@ public class Json {
      * @since 2.0
      */
     public ReadableByteChannel getBufferStream() throws IOException {
-        final ByteBuffer buf = (ByteBuffer)((Buffer)bufferValue()).duplicate().position(0); // cast for old Java compilation
+        final ByteBuffer buf = (ByteBuffer)((ByteBuffer)bufferValue().duplicate()).position(0); // cast for old Java compilation
         return new ReadableByteChannel() {
             private boolean closed;
             @Override public int read(ByteBuffer out) throws IOException {
@@ -2518,7 +2518,7 @@ public class Json {
      * @since 2.0
      */
     public long getBufferStreamLength() throws IOException {
-        ByteBuffer buf = (ByteBuffer)((Buffer)bufferValue()).duplicate().position(0); // cast for old Java compilation
+        ByteBuffer buf = (ByteBuffer)((ByteBuffer)bufferValue().duplicate()).position(0); // cast for old Java compilation
         return buf.remaining();
     }
 

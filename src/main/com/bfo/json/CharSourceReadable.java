@@ -9,7 +9,7 @@ class CharSourceReadable extends CharSourceCharBuffer {
     private final Readable in;
 
     CharSourceReadable(AbstractReader owner, Readable in) {
-        super(owner, CharBuffer.allocate(BUFSIZE).position(BUFSIZE));
+        super(owner, (CharBuffer)CharBuffer.allocate(BUFSIZE).position(BUFSIZE));
         this.in = in;
     }
 

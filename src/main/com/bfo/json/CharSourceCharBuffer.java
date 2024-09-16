@@ -83,7 +83,7 @@ class CharSourceCharBuffer implements CharSource {
         if (len == 0) {
             return null;
         }
-        CharBuffer dup = cbuf.duplicate().limit(cbuf.position() + len);
+        CharBuffer dup = (CharBuffer)cbuf.duplicate().limit(cbuf.position() + len);
         cbuf.position(cbuf.position() + len);
         if (trackpos) {
             int p = cbuf.position();
@@ -139,7 +139,7 @@ class CharSourceCharBuffer implements CharSource {
             sb.append(" buf=");
             CharBuffer cb = cbuf;
             if (cb.remaining() > 20) {
-                cb = cb.duplicate().limit(cb.position() + 20);
+                cb = (CharBuffer)cb.duplicate().limit(cb.position() + 20);
             }
             Json.esc(cb, sb);
             if (cb != cbuf) {

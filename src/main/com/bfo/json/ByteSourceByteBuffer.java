@@ -19,13 +19,13 @@ class ByteSourceByteBuffer implements ByteSource {
             this.bufstart = bbuf.position();
             this.source = null;
         } else {
-            this.bbuf = ByteBuffer.allocate(BUFSIZE).limit(0);
+            this.bbuf = (ByteBuffer)ByteBuffer.allocate(BUFSIZE).limit(0);
             this.source = bbuf;
         }
     }
 
     ByteSourceByteBuffer(AbstractReader owner, ReadableByteChannel input) {
-        this.bbuf = ByteBuffer.allocate(BUFSIZE).limit(0);
+        this.bbuf = (ByteBuffer)ByteBuffer.allocate(BUFSIZE).limit(0);
         this.source = input;
     }
 
@@ -101,7 +101,7 @@ class ByteSourceByteBuffer implements ByteSource {
     }
 
     @Override public ByteBuffer get(int len) throws IOException {
-        ByteBuffer dup = bbuf.duplicate().limit(bbuf.position() + len);
+        ByteBuffer dup = (ByteBuffer)bbuf.duplicate().limit(bbuf.position() + len);
         bbuf.position(bbuf.position() + len);
         return dup;
     }
