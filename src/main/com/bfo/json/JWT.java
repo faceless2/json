@@ -298,7 +298,7 @@ public class JWT implements Principal {
      * @since 5
      */
     public String getUniqueID() {
-        return payload.isString("sub") ? payload.stringValue("sub") : null;
+        return payload.isString("jti") ? payload.stringValue("jti") : null;
     }
 
     /**
