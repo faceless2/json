@@ -102,10 +102,10 @@ public class YamlReader extends AbstractReader {
     private int flowLevel = 0;
     private int tokensTaken = 0;
     private int indent = -1;
-    private boolean allowSimpleKey = true;
+    private boolean allowSimpleKey = true, indentFromList = false;
     private final Input in;
     private final List<Token> tokens = new LinkedList<Token>();        // Usually a queue, but inserts randomly into middle too!
-    private final Deque<Integer> indents = new ArrayDeque<Integer>();
+    private final Deque<Indent> indents = new ArrayDeque<Indent>();
     private final Map<Integer, SimpleKey> possibleSimpleKeys = new HashMap<>();
     private boolean docStart = false;
 
@@ -116,6 +116,15 @@ public class YamlReader extends AbstractReader {
 
     boolean push(int c) {
         return in.push(c);
+    }
+
+    private static class Indent {
+        final int indent;
+        final boolean fromList;
+        Indent(int indent, boolean fromList) {
+            this.indent = indent;
+            this.fromList = fromList;
+        }
     }
 
     private class Input {
@@ -412,15 +421,18 @@ public class YamlReader extends AbstractReader {
             return;
         }
         while (indent > col) {
-            indent = indents.removeFirst();
+            Indent i = indents.removeFirst();
+            indent = i.indent;
+            indentFromList = i.fromList;
             tokens.add(Token.BLOCK_END);
         }
     }
 
-    private boolean addIndent(int col, boolean force) {
-        if (indent < col || (force && indent == col)) {
-            indents.addFirst(indent);
+    private boolean addIndent(int col, boolean fromList) {
+        if (indent < col || (fromList && indent == col && !indentFromList)) {
+            indents.addFirst(new Indent(indent, fromList));
             indent = col;
+            indentFromList = fromList;
             return true;
         }
         return false;
