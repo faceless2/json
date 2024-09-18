@@ -217,7 +217,7 @@ public class JWT implements Principal {
     }
 
     /**
-     * Return the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.
+     * Return the <i>issued at claim</i> ("iat") in <b>seconds</b> since the epoch.
      * @return the time or 0 if not set
      * @since 5
      */
@@ -226,7 +226,7 @@ public class JWT implements Principal {
     }
 
     /**
-     * Return the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.
+     * Return the <i>not before claim</i> ("nbf") in <b>seconds</b> since the epoch.
      * @return the time or 0 if not set
      * @since 5
      */
@@ -235,7 +235,7 @@ public class JWT implements Principal {
     }
 
     /**
-     * Return the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.
+     * Return the <i>expiry claim</i> ("exp"), in <b>seconds</b> since the epoch.
      * @return the time or 0 if not set
      * @since 5
      */
@@ -302,7 +302,7 @@ public class JWT implements Principal {
     }
 
     /**
-     * Set the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.
+     * Set the <i>issued at claim</i> ("iat") in <b>seconds</b> since the epoch.
      * @param ms the time, or 0 to unset it
      * @since 5
      */
@@ -310,12 +310,12 @@ public class JWT implements Principal {
         if (ms <= 0) {
             payload.remove("iat");
         } else {
-            payload.put("iat", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+            payload.put("iat", ms > 20000000000l ? ms / 1000 : ms); // we want seconds but we can sniff ms
         }
     }
 
     /**
-     * Set the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.
+     * Set the <i>not before claim</i> ("nbf") in <b>seconds</b> since the epoch.
      * @param ms the time, or 0 to unset it
      * @since 5
      */
@@ -323,12 +323,12 @@ public class JWT implements Principal {
         if (ms <= 0) {
             payload.remove("nbf");
         } else {
-            payload.put("nbf", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+            payload.put("nbf", ms > 20000000000l ? ms / 1000 : ms); // we want seconds but we can sniff ms
         }
     }
 
     /**
-     * Set the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.
+     * Set the <i>expiry claim</i> ("exp"), in <b>seconds</b> since the epoch.
      * @param ms the time, or 0 to unset it
      * @since 5
      */
@@ -336,7 +336,7 @@ public class JWT implements Principal {
         if (ms <= 0) {
             payload.remove("exp");
         } else {
-            payload.put("exp", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+            payload.put("exp", ms > 20000000000l ? ms / 1000 : ms); // we want seconds but we can sniff ms
         }
     }
 
