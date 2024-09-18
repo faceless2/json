@@ -408,13 +408,14 @@ public class JWT implements Principal {
      * If the token has an expiry time and/or not-before time, they
      * will be compared to the supplied time and false returned if
      * they are out of range. If they are not specified, true is returned.
-     * @param time the token issued-at time, or 0 to use the current time
+     * @param time the time in seconds, the token issued-at time, or 0 to use the current time
      * @return if the key can not be determined as invalid at the specified time
      */
     public boolean isValidAt(long time) {
         if (time == 0) {
-            time = System.currentTimeMillis();
+            time = System.currentTimeMillis() / 1000;
         }
+        time = time > 20000000000l ? time / 1000 : time; // we want seconds but we can sniff ms
         if (getExpiry() != 0 && getExpiry() < time) {
             return false;
         }
