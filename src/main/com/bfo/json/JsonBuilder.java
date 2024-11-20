@@ -3,6 +3,7 @@ package com.bfo.json;
 import java.nio.*;
 import java.io.*;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.*;
 
 /**
@@ -56,11 +57,13 @@ public class JsonBuilder implements JsonStream {
     private Long tag;
     private List<Object> keystack = new ArrayList<Object>();
     private List<Json> list;
+    private List<Json> stack;
     private Map<Object,Json> map;
     private Object key;
     private int building;
 
     public JsonBuilder() {
+        stack = new ArrayList<Json>();
     }
 
     /**
@@ -74,6 +77,7 @@ public class JsonBuilder implements JsonStream {
     /**
      * Create a new Json map
      * @param size the number of entries in the map, or -1 or unknown
+     * @return a Json object where the underlying value is a map
      */
     protected Json createMap(int size) throws IOException {
         return Json.read("{}");
@@ -82,31 +86,41 @@ public class JsonBuilder implements JsonStream {
     /**
      * Create a new Json list
      * @param size the number of items in the list, or -1 or unknown
+     * @return a Json object where the underlying value is a list
      */
     protected Json createList(int size) throws IOException {
         return Json.read("[]");
     }
 
     /**
-     * Create a new Json String
-     * @param value the value
+     * Create a new Json String.
+     * @return a Json object with the supplied value as the underlying object
      */
     protected Json createString(CharSequence value) throws IOException {
         return new Json(value);
     }
 
     /**
-     * Create a new Json String, which will be appended to by calls to {@link #appendString} and {@link #closeString}
+     * Create a new Json String, which will be appended to by calls to
+     * {@link #appendString} and {@link #closeString}.
+     * The underlying object of the returned Json must implements {@link Appendable}.
+     * When complete, if the object implements {@link Closeable} it will be closed,
+     * and if it is a {@link StringBuilder} or does not implement {@link CharSequence},
+     * it will be converted to a String by calling <code>toString()</code>.
+     * @param value the value
      * @param size the length of the UTF-8 value of the string in bytes, or -1 if unknown
      */
     protected Json createString(long size) throws IOException {
-        Json json = new Json(Json.NULL);
+        Json json = new Json(new OptimisingStringBuilder(size));
         json.setStringByteLength(size < Integer.MAX_VALUE ? (int)size : -1);
         return json;
     }
 
     /**
-     * Create a new Json Buffer, which will be appended to by calls to {@link #appendBuffer} and {@link #closeBuffer}
+     * Create a new Json Buffer, which will be appended to by calls to
+     * {@link #appendBuffer} and {@link #closeBuffer}.
+     * The underlying object of the returned Json must implements {@link WritebleByteChannel}.
+     * When complete, if the object implements {@link Closeable} it will be closed.
      * @param size the length of the buffer in bytes, or -1 if unknown
      */
     protected Json createBuffer(long size) throws IOException {
@@ -120,6 +134,7 @@ public class JsonBuilder implements JsonStream {
     /**
      * Create a new Json number
      * @param n the number
+     * @return a Json object with the supplied value as the underlying object
      */
     protected Json createNumber(Number n) throws IOException {
         return new Json(n);
@@ -128,6 +143,7 @@ public class JsonBuilder implements JsonStream {
     /**
      * Create a new Json boolean
      * @param b the value
+     * @return a Json object with the supplied value as the underlying object
      */
     protected Json createBoolean(boolean b) throws IOException {
         return new Json(b);
@@ -135,6 +151,7 @@ public class JsonBuilder implements JsonStream {
 
     /**
      * Create a new Json null
+     * @return a Json object with the supplied value is as described
      */
     protected Json createNull() throws IOException {
         return new Json(Json.NULL);
@@ -142,6 +159,7 @@ public class JsonBuilder implements JsonStream {
 
     /**
      * Create a new Json undefined value
+     * @return a Json object with the supplied value is as described
      */
     protected Json createUndefined() throws IOException {
         return new Json(Json.UNDEFINED);
@@ -150,6 +168,7 @@ public class JsonBuilder implements JsonStream {
     /**
      * Create a new Json representing the specified CBOR "simple" type.
      * @param simple the simple type
+     * @return a Json object with the supplied value is as described
      */
     protected Json createSimple(int simple) throws IOException {
         Json j = new Json(Json.UNDEFINED);
@@ -195,11 +214,11 @@ public class JsonBuilder implements JsonStream {
         if (v == Json.NULL) {
             json._setValue(seq.toString());
         } else {
-            if (!(v instanceof StringBuilder)) {
+            if (!(v instanceof Appendable)) {
                 v = new StringBuilder((CharSequence)v);
                 json._setValue(v);
             }
-            ((StringBuilder)v).append(seq);
+            ((Appendable)v).append(seq);
         }
     }
 
@@ -210,14 +229,15 @@ public class JsonBuilder implements JsonStream {
      */
     protected void appendString(Json json, Readable readable) throws IOException {
         Object v = json.value();
-        if (!(v instanceof StringBuilder)) {
+        if (!(v instanceof Appendable)) {
             v = new StringBuilder();
             json._setValue(v);
         }
+        Appendable appendable = (Appendable)v;
         CharBuffer buf = CharBuffer.allocate(8192);
         while (readable.read(buf) >= 0) {
             buf.flip();
-            ((StringBuilder)v).append(buf);
+            appendable.append(buf);
             buf.clear();
         }
     }
@@ -229,8 +249,13 @@ public class JsonBuilder implements JsonStream {
         Object v = json.value();
         if (v == Json.NULL) {
             json._setValue("");
-        } else if (v instanceof StringBuilder) {
-            json._setValue(((StringBuilder)v).toString());
+        } else {
+            if (v instanceof Closeable) {
+                ((Closeable)v).close();
+            }
+            if (v instanceof Appendable) {
+                json._setValue(((Appendable)v).toString());
+            }
         }
     }
 
@@ -243,13 +268,15 @@ public class JsonBuilder implements JsonStream {
         Object v = json.value();
         if (v instanceof ByteBuffer) {
             ((ByteBuffer)v).put(seq);
+        } else if (v instanceof WritableByteChannel) {
+            ((WritableByteChannel)v).write(seq);
         } else {
-            ((ExtendingByteBuffer)v).write(seq);
+            throw new IllegalStateException("Can't append a ByteBuffer to " + v.getClass().getName());
         }
     }
 
     /**
-     * Append the data from the supplied ReadableByteChannel to a string Json created earlier with {@link #createString(long)}
+     * Append the data from the supplied ReadableByteChannel to a buffer Json created earlier with {@link #createBuffer(long)}
      * @param json the string Json
      * @param readable the Readable
      */
@@ -262,14 +289,29 @@ public class JsonBuilder implements JsonStream {
             json._setValue(v);
             ((ExtendingByteBuffer)v).write(b);
         }
-        ((ExtendingByteBuffer)v).write(readable);
+        if (v instanceof ExtendingByteBuffer) {
+            ((ExtendingByteBuffer)v).write(readable);
+        } else if (v instanceof WritableByteChannel) {
+            WritableByteChannel appendable = (WritableByteChannel)v;
+            ByteBuffer buf = ByteBuffer.allocate(8192);
+            while (readable.read(buf) >= 0) {
+                buf.flip();
+                appendable.write(buf);
+                buf.clear();
+            }
+        } else {
+            throw new IllegalStateException("Can't append a ByteBuffer to " + v.getClass().getName());
+        }
     }
 
     /**
-     * Close a buffer Json created earlier with {@link #createString(long)}
+     * Close a buffer Json created earlier with {@link #createBuffer(long)}
      */
     protected void closeBuffer(Json json) throws IOException {
         Object v = json.value();
+        if (v instanceof Closeable) {
+            ((Closeable)v).close();
+        }
         if (v instanceof ExtendingByteBuffer) {
             ExtendingByteBuffer eb = (ExtendingByteBuffer)v;
             ByteBuffer buf = eb.toByteBuffer();
@@ -343,6 +385,7 @@ public class JsonBuilder implements JsonStream {
                     throw new IllegalStateException("Object as key not supported");
                 }
                 ctx = j;
+                stack.add(j);
                 if (tag != null) {
                     ctx.setTag(tag);
                     tag = null;
@@ -371,6 +414,7 @@ public class JsonBuilder implements JsonStream {
                     throw new IllegalStateException("List as key not supported");
                 }
                 ctx = j;
+                stack.add(j);
                 if (tag != null) {
                     ctx.setTag(tag);
                     tag = null;
@@ -381,7 +425,8 @@ public class JsonBuilder implements JsonStream {
             }
             case JsonStream.Event.TYPE_MAP_END: {
                 if (map != null && key == null && tag == null) {
-                    Json j = ctx.parent();
+                    stack.remove(stack.size() - 1);
+                    Json j = stack.isEmpty() ? null : stack.get(stack.size() - 1);
                     final int tmpbuilding = building;
                     building = BUILDING_CLOSING;
                     if (j == null) {
@@ -390,8 +435,8 @@ public class JsonBuilder implements JsonStream {
                         peof = true;
                         ret = true;
                     } else {
-                        keystack.remove(keystack.size() - 1);
                         closeMap();
+                        keystack.remove(keystack.size() - 1);
                         ctx = j;
                         if (ctx.isList()) {
                             list = ctx._listValue();
@@ -409,7 +454,8 @@ public class JsonBuilder implements JsonStream {
             }
             case JsonStream.Event.TYPE_LIST_END: {
                 if (list != null && tag == null) {
-                    Json j = ctx.parent();
+                    stack.remove(stack.size() - 1);
+                    Json j = stack.isEmpty() ? null : stack.get(stack.size() - 1);
                     final int tmpbuilding = building;
                     building = BUILDING_CLOSING;
                     if (j == null) {
@@ -506,6 +552,7 @@ public class JsonBuilder implements JsonStream {
                             Json.notifyDuringLoad(ctx, key, j);
                         }
                         ctx = j;
+                        stack.add(j);
                         if (tag != null) {
                             ctx.setTag(tag);
                             tag = null;
@@ -539,6 +586,7 @@ public class JsonBuilder implements JsonStream {
                             Json.notifyDuringLoad(ctx, key, j);
                         }
                         ctx = j;
+                        stack.add(j);
                         if (tag != null) {
                             ctx.setTag(tag);
                             tag = null;
@@ -615,7 +663,8 @@ public class JsonBuilder implements JsonStream {
                 } else if (building == BUILDING_VALSTRING) {
                     closeString(ctx);
                     key = null;
-                    Json j = ctx.parent();
+                    stack.remove(stack.size() - 1);
+                    Json j = stack.isEmpty() ? null : stack.get(stack.size() - 1);
                     if (j == null) {
                         peof = true;
                         ret = true;
@@ -639,7 +688,8 @@ public class JsonBuilder implements JsonStream {
                 } else if (building == BUILDING_VALBUFFER) {
                     closeBuffer(ctx);
                     key = null;
-                    Json j = ctx.parent();
+                    stack.remove(stack.size() - 1);
+                    Json j = stack.isEmpty() ? null : stack.get(stack.size() - 1);
                     if (j == null) {
                         peof = true;
                         ret = true;
@@ -693,6 +743,90 @@ public class JsonBuilder implements JsonStream {
         }
 //        System.out.println("BUILDER: " + event +" = " + ret);
         return ret;
+    }
+
+    /**
+     * Attempt to optimise for the case where we create a StringBuilder, append a single string,
+     * close it and immediately convert to a String. If the first and only thing appended
+     * is a string, we just store that, otherwise we continue as normal.
+     */
+    private static class OptimisingStringBuilder implements CharSequence, Appendable {
+        private static final int MINLEN = 1024;
+        private String string;
+        private StringBuilder sb;
+        private int projectedLength;
+        OptimisingStringBuilder(long length) {
+            this.projectedLength = length >= 0 && length < Integer.MAX_VALUE ? (int)length: -1;
+        }
+        @Override public Appendable append(char c) {
+            return append(Character.toString(c));        // not called
+        }
+        @Override public Appendable append(CharSequence s) {
+            return append(s, 0, s.length());
+        }
+        @Override public Appendable append(CharSequence s, int off, int len) {
+            if (sb == null && string == null && sb == null && s instanceof String && off == 0 && len == s.length()) {
+                string = (String)s;
+            } else {
+                if (sb == null) {
+                    int tlen;
+                    if (projectedLength > 0) {
+                        tlen = (int)projectedLength;
+                    } else {
+                        tlen = len;
+                        if (string != null) {
+                            tlen += string.length();
+                        }
+                        if (tlen < MINLEN) {
+                            tlen = MINLEN;
+                        }
+                    }
+                    sb = new StringBuilder(tlen);
+                    if (string != null) {
+                        sb.append(string);
+                        string = null;
+                    }
+                }
+                sb.append(s, off, len);
+            }
+            return this;
+        }
+        @Override public CharSequence subSequence(int start, int end) {
+            if (sb != null) {
+                return sb.subSequence(start, end);
+            } else if (string != null) {
+                return string.subSequence(start, end);
+            } else {
+                throw new IndexOutOfBoundsException();
+            }
+        }
+        @Override public int length() {
+            if (sb != null) {
+                return sb.length();
+            } else if (string != null) {
+                return string.length();
+            } else {
+                return 0;
+            }
+        }
+        @Override public char charAt(int i) {
+            if (sb != null) {
+                return sb.charAt(i);
+            } else if (string != null) {
+                return string.charAt(i);
+            } else {
+                throw new IndexOutOfBoundsException();
+            }
+        }
+        @Override public String toString() {
+            if (sb != null) {
+                return sb.toString();
+            } else if (string != null) {
+                return string;
+            } else {
+                return "";
+            }
+        }
     }
 
 }
