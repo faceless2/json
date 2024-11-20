@@ -102,7 +102,7 @@ public class YamlReader extends AbstractReader {
     private int flowLevel = 0;
     private int tokensTaken = 0;
     private int indent = -1;
-    private boolean allowSimpleKey = true, indentFromList = false;
+    private boolean allowSimpleKey = true;
     private final Input in;
     private final List<Token> tokens = new LinkedList<Token>();        // Usually a queue, but inserts randomly into middle too!
     private final Deque<Indent> indents = new ArrayDeque<Indent>();
@@ -124,6 +124,9 @@ public class YamlReader extends AbstractReader {
         Indent(int indent, boolean fromList) {
             this.indent = indent;
             this.fromList = fromList;
+        }
+        public String toString() {
+            return "{indent:"+indent+",fromList:"+fromList+"}";
         }
     }
 
@@ -423,16 +426,18 @@ public class YamlReader extends AbstractReader {
         while (indent > col) {
             Indent i = indents.removeFirst();
             indent = i.indent;
-            indentFromList = i.fromList;
             tokens.add(Token.BLOCK_END);
         }
     }
 
     private boolean addIndent(int col, boolean fromList) {
-        if (indent < col || (fromList && indent == col && !indentFromList)) {
-            indents.addFirst(new Indent(indent, fromList));
+        // The case this change is designed to fix is "mb-yaml-001"
+        // This change ensures https is a sibling of foo, not a child.
+        // 
+        if (indent < col || (fromList && indent == col && (indents.isEmpty() || !indents.peekFirst().fromList))) {
+            Indent i = new Indent(indent, fromList);
+            indents.addFirst(i);
             indent = col;
-            indentFromList = fromList;
             return true;
         }
         return false;
