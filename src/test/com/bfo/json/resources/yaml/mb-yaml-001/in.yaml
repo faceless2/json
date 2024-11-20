@@ -1,0 +1,7 @@
+foo:
+  users:
+  - name: "mike"
+    plaintext: "secret"
+
+https:
+  type: pkcs12
