@@ -85,7 +85,7 @@ public class JsonWriter implements JsonStream {
             return (mode & STATE_JUSTCLOSED) != 0;
         }
         boolean isDone() {
-            return (mode & STATE_DONE) != 0;
+            return mode == STATE_DONE;
         }
         boolean isRoot() {
             return (mode & STATE_ROOT) != 0;
@@ -478,6 +478,7 @@ public class JsonWriter implements JsonStream {
     }
 
     @Override public boolean event(JsonStream.Event event) throws IOException {
+//        System.out.println("* e="+event+" " + dump());
         if (state == null) {
             state = new State(null, STATE_ROOT);
             state.out = out;

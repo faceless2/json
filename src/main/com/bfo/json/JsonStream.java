@@ -362,6 +362,7 @@ public interface JsonStream {
                 case TYPE_STRING_END:        return "{endString}";
                 case TYPE_BUFFER_END:        return "{endBuffer}";
                 case TYPE_PRIMITIVE:        return this == TRUE ? "{true}" : this == FALSE ? "{false}" : this == NULL ? "{null}" : this == UNDEFINED ? "{undefined}" : data instanceof Number ? "{number " + data + "}" : "{string " + Json.esc((CharSequence)data, null) + "}";
+//                case TYPE_STRING_DATA:       return "{string-data" + (data instanceof Readable ? " readable" : " string " + Json.esc((CharSequence)data, null)) + "}";
                 case TYPE_STRING_DATA:       return "{string-data" + (data instanceof Readable ? " readable" : " string") + "}";
                 case TYPE_BUFFER_DATA:       return "{buffer-data" + (data instanceof ReadableByteChannel ? " readable" : " bytebuffer") + "}";
                 case TYPE_TAG:              return "{tag " + data + "}";
