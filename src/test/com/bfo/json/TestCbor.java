@@ -13,7 +13,7 @@ public class TestCbor {
         System.out.println("  Note tests 18, 19, 20, 22, 23, 25, 27, 28, 29, 31, 32 and 33 are tests of 16-bit precision floats,");
         System.out.println("  which we convert to 32 bit in Java. So they are expected to fail round-trip testing.");
         System.out.println("  Also notes tests 44, 45, 46 involve Cbor \"simple\" types which we have no object for, so we");
-        System.out.println("  convert to tagged-undefined objects. And Test 71 is an indefinate length buffer which we convert");
+        System.out.println("  convert to tagged-undefined objects. Finally test 71 is an indefinite length buffer which we convert");
         System.out.println("  to definite, so the diagnostic will fail there too");
         InputStream in = TestCbor.class.getResourceAsStream("resources/appendix_a.json");         // https://github.com/cbor/test-vectors
         Json j = Json.read(new JsonReader().setInput(in));
