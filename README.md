@@ -14,8 +14,12 @@ Which means although the API is [fully documented](https://faceless2.github.io/j
 ### fast
 * A 2021 Macbook M1 will read Json at about 120MB/s from text (80MB/s from binary, as it has to convert to UTF-8),
 and write at about 400MB/s. It can read CBOR/Msgpack at about 300MB/s and write at 600MB/s. That's ridiculously fast;
-as part of version 4 I had to change the large-file benchmarks to use microseconds. A great deal of effort has been
+as part of version 1.4 I had to change the large-file benchmarks to use microseconds. A great deal of effort has been
 spent on removing buffer copying and avoiding slow codepaths in the JVM - I don't think you'll find a faster Java API.
+
+### streaming (new in v2)
+* As of version 2 reading is block-based. A Reader can be created, and blocks fed into it
+as they arrive. This is new in version 2
 
 ### correct
 * the API has been tested against the Json sample data made available by Nicolas Seriot at
@@ -41,6 +45,8 @@ containing those classes.
 * Java Web Token (JWT) support class for reading/writing/signing/verifying.
 * COSE signed object support class for reading/writing/signing/verifying.
 * Java Web Keys (JWK) support EC, RSA and EdDSA public/private keys, and Hmac, AES-KW and AES-GCM-KW symmetric keys
+* (v2) block-based reader to allow data to be read as it arried
+* (v2) Experimental Yaml parser (derived from https://github.com/EsotericSoftware/yamlbeans)
 
 ## Building and Documentation
 * Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-1.6.jar](https://faceless2.github.io/json/dist/bfojson-1.6.jar)
@@ -86,8 +92,11 @@ A <code>JsonFactory</code> can easily be written to cover as many of these are n
   Buffers, with the extension type stored as a tag from 0..255. Like CBOR, duplicate keys encountered
   during read will throw an IOException.
 
-* It's possible (since v4) to read and write indefinitely large strings and buffers - the [JsonReadOptions.Filter](https://faceless2.github.io/json/docs/api/com/bfo/json/JsonReadOptions.Filter.html) class can be used to divert content away to a File, for example. The use of intermediate buffers has been kept to an absolute minimum.
+* It's possible (since 1.4) to read and write indefinitely large strings and buffers - the [JsonReadOptions.Filter](https://faceless2.github.io/json/docs/api/com/bfo/json/JsonReadOptions.Filter.html) class can be used to divert content away to a File, for example. The use of intermediate buffers has been kept to an absolute minimum.
 
+* Reading Json/CBOR/Msgpack (since 2.0) is block based, to allow reading from packet-based APIs like `java.nio.channels.Selector`
+  or Netty.
+  
 
 ## Examples
 ```java
