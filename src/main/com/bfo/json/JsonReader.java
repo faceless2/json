@@ -58,6 +58,16 @@ public class JsonReader extends AbstractReader {
         return this;
     }
 
+    /**
+     * Set true if the input should accept and discard comments
+     * @param option the option
+     * @return this
+     */
+    public JsonReader setComments(boolean option) {
+        this.optionComments = option;
+        return this;
+    }
+
     @Override public JsonReader setInput(Readable in) {
         return (JsonReader)super.setInput(in);
     }
@@ -172,7 +182,7 @@ public class JsonReader extends AbstractReader {
     private static final int NONE = 0, VALUE = 0x01, KEY = 0x02, COMMA = 0x04, COLON = 0x08, ENDLIST = 0x10, ENDMAP = 0x20;
     private class ObjectState extends State {
         private final int type;
-        private int mode;
+        private int mode, commentState;
         ObjectState(State parent, int type) {
             this.parent = parent;
             this.type = type;
@@ -184,6 +194,12 @@ public class JsonReader extends AbstractReader {
         @Override boolean process() throws IOException {
             int c;
             while ((c=in.get()) >=0 ) {
+                if (commentState == 2) {
+                    if (c == '*') {
+                        commentState = 3;
+                    }
+                    return true;
+                }
                 switch (c) {
                     case ' ':
                     case '\t':
@@ -216,6 +232,22 @@ public class JsonReader extends AbstractReader {
                         setState(newString());
                         enqueue(JsonStream.Event.startString(-1));
                         return false;
+                    case '/':
+                        if (optionComments && commentState == 0) {
+                            commentState = 1;   // expecting '*';
+                        } else if (optionComments && commentState == 3) {
+                            commentState = 0;
+                        } else {
+                            throw new IOException("Unexpected character '" + format(Character.toString((char)c)) + "'");
+                        }
+                        return true;
+                    case '*':
+                        if (commentState == 1) {
+                            commentState = 2;
+                        } else {
+                            throw new IOException("Unexpected character '" + format(Character.toString((char)c)) + "'");
+                        }
+                        return true;
                     default:
                         if (c <= '9' && (c >= '0' || c == '-')) {
                             setState(newNumber(c));
