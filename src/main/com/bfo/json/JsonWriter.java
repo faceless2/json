@@ -18,7 +18,8 @@ public class JsonWriter implements JsonStream {
     private static final int STATE_STRING       = 0x0040;
     private static final int STATE_BUFFER       = 0x0080;
     private static final int STATE_JUSTCLOSED   = 0x0100;
-    private static final int STATE_DONE         = 0x0200;
+    private static final int STATE_EMPTY        = 0x0200;
+    private static final int STATE_DONE         = 0x0400;
 
     private static final int NONE = 0;
     private static final int HEX = 1;
@@ -181,7 +182,7 @@ public class JsonWriter implements JsonStream {
 
         State close() throws IOException {
             if (isList()) {
-                if (pretty) {
+                if (pretty && (state.mode & STATE_EMPTY) == 0) {
                     indent -= JsonWriter.this.indent;
                     out.append('\n');
                     for (int i=0;i<indent;i++) {
@@ -191,7 +192,7 @@ public class JsonWriter implements JsonStream {
                 out.append(']');
                 return parent;
             } else if (isMapKey()) {
-                if (pretty) {
+                if (pretty && (state.mode & STATE_EMPTY) == 0) {
                     indent -= JsonWriter.this.indent;
                     out.append('\n');
                     for (int i=0;i<indent;i++) {
@@ -493,13 +494,15 @@ public class JsonWriter implements JsonStream {
         Appendable out = state.out;
         switch(type) {
             case JsonStream.Event.TYPE_MAP_START:
+                state.mode &= ~STATE_EMPTY;
                 out = state.preValue();
-                state = new State(state, STATE_MAP_KEY);
+                state = new State(state, STATE_MAP_KEY|STATE_EMPTY);
                 out.append('{');
                 break;
             case JsonStream.Event.TYPE_LIST_START:
+                state.mode &= ~STATE_EMPTY;
                 out = state.preValue();
-                state = new State(state, STATE_LIST);
+                state = new State(state, STATE_LIST|STATE_EMPTY);
                 out.append('[');
                 break;
             case JsonStream.Event.TYPE_MAP_END:
@@ -513,6 +516,7 @@ public class JsonWriter implements JsonStream {
                 state.mode |= STATE_JUSTCLOSED;
                 break;
             case JsonStream.Event.TYPE_PRIMITIVE:
+                state.mode &= ~STATE_EMPTY;
                 Object value = event.value();
                 if (state.isMapKey()) {
                     state.preKey();
@@ -549,6 +553,7 @@ public class JsonWriter implements JsonStream {
                 state.postValue();
                 break;
             case JsonStream.Event.TYPE_STRING_START:
+                state.mode &= ~STATE_EMPTY;
                 if (state.isMapKey()) {
                     state.preKey();
                     state.prevKey = null;
@@ -598,6 +603,7 @@ public class JsonWriter implements JsonStream {
                 }
                 break;
             case JsonStream.Event.TYPE_BUFFER_START:
+                state.mode &= ~STATE_EMPTY;
                 if (state.isMapKey()) {
                     state.preKey();
                     state.prevKey = null;
@@ -656,6 +662,7 @@ public class JsonWriter implements JsonStream {
                 }
                 break;
             case JsonStream.Event.TYPE_TAG:
+                state.mode &= ~STATE_EMPTY;
                 if (optionCborDiag != NONE) {
                     state.setTag(event.tagValue());
                 }
