@@ -48,6 +48,10 @@ public class COSE extends Json {
     private static final int HEADER_COUNTERSIG  = 7;
     private static final int HEADER_COUNTERSIG2 = 11;   // https://datatracker.ietf.org/doc/html/rfc9338
     private static final int HEADER_COUNTERSIG02= 12;   // https://datatracker.ietf.org/doc/html/rfc9338
+    private static final int HEADER_X5BAG       = 32;   // https://datatracker.ietf.org/doc/html/rfc9360
+    private static final int HEADER_X5CHAIN     = 33;   // https://datatracker.ietf.org/doc/html/rfc9360
+    private static final int HEADER_X5T         = 34;   // https://datatracker.ietf.org/doc/html/rfc9360
+    private static final int HEADER_X5U         = 35;   // https://datatracker.ietf.org/doc/html/rfc9360
 
     private static final int ALGORITHM_ES256    = -7;
     private static final int ALGORITHM_ES384    = -35;
@@ -299,17 +303,17 @@ public class COSE extends Json {
             Json protatts = getProtectedAttributes();
             Json unprotatts = getUnprotectedAttributes();
             Json list = null;
-            list = list != null ? list : protatts != null ? protatts.get(33) : null;       // x5chain
-            list = list != null ? list : protatts != null ? protatts.get(32) : null;       // x5bag
+            list = list != null ? list : protatts != null ? protatts.get(HEADER_X5CHAIN) : null;  // x5chain
+            list = list != null ? list : protatts != null ? protatts.get(HEADER_X5BAG) : null;    // x5bag
             list = list != null ? list : protatts != null ? protatts.get("x5chain") : null;       // x5chain
-            list = list != null ? list : protatts != null ? protatts.get("x5bag") : null;       // x5bag
+            list = list != null ? list : protatts != null ? protatts.get("x5bag") : null;         // x5bag
             if (list != null) {
                 certs = JWK.extractCertificates(list);
             }
-            list = list != null ? list : unprotatts != null ? unprotatts.get(33) : null;       // x5chain
-            list = list != null ? list : unprotatts != null ? unprotatts.get(32) : null;       // x5bag
+            list = list != null ? list : unprotatts != null ? unprotatts.get(HEADER_X5CHAIN) : null;  // x5chain
+            list = list != null ? list : unprotatts != null ? unprotatts.get(HEADER_X5BAG) : null;    // x5bag
             list = list != null ? list : unprotatts != null ? unprotatts.get("x5chain") : null;       // x5chain
-            list = list != null ? list : unprotatts != null ? unprotatts.get("x5bag") : null;       // x5bag
+            list = list != null ? list : unprotatts != null ? unprotatts.get("x5bag") : null;         // x5bag
             if (list != null) {
                 if (certs != null) {
                     certs = new ArrayList<X509Certificate>();
@@ -320,13 +324,13 @@ public class COSE extends Json {
             }
             if (certs == null) {
                 Json url = null, sha256 = null;
-                url = url != null ? url : protatts != null ? protatts.get(35) : null;       // x5u
-                url = url != null ? url : protatts != null ? protatts.get("x5u") : null;
-                url = url != null ? url : unprotatts != null ? unprotatts.get(35) : null;
-                url = url != null ? url : unprotatts != null ? unprotatts.get("x5u") : null;
-                sha256 = sha256 != null ? sha256 : protatts != null ? protatts.get(34) : null;       // x5t
-                sha256 = sha256 != null ? sha256 : protatts != null ? protatts.get("x5t") : null;       // x5t
-                sha256 = sha256 != null ? sha256 : unprotatts != null ? unprotatts.get(34) : null;       // x5t
+                url = url != null ? url : protatts != null ? protatts.get(HEADER_X5U) : null;               // x5u
+                url = url != null ? url : protatts != null ? protatts.get("x5u") : null;                    // x5u
+                url = url != null ? url : unprotatts != null ? unprotatts.get(HEADER_X5U) : null;           // x5u
+                url = url != null ? url : unprotatts != null ? unprotatts.get("x5u") : null;                // x5u
+                sha256 = sha256 != null ? sha256 : protatts != null ? protatts.get(HEADER_X5T) : null;      // x5t
+                sha256 = sha256 != null ? sha256 : protatts != null ? protatts.get("x5t") : null;           // x5t
+                sha256 = sha256 != null ? sha256 : unprotatts != null ? unprotatts.get(HEADER_X5T) : null;  // x5t
                 sha256 = sha256 != null ? sha256 : unprotatts != null ? unprotatts.get("x5t") : null;       // x5t
                 if (url != null && url.isString()) {
                     try {
@@ -504,7 +508,7 @@ public class COSE extends Json {
                 // Note that 20230204 the state of play is: use "x5chain" in unprotected.
                 // With RFC9360 and the upcoming C2PA draft, it will be: use 33 in protected
                 // -- watch https://github.com/contentauth/c2pa-rs/issues/189
-                // protectedAtts.put(33, j);              // x5chain
+                // protectedAtts.put(HEADER_X5CHAIN, j);              // x5chain
                 unprotectedAtts.put("x5chain", j);
             }
             if (keys.size() == 1) {
