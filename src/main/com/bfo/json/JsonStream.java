@@ -34,7 +34,7 @@ public interface JsonStream {
     public static JsonStream getDebugger(final JsonStream stream) {
         return new JsonStream() {
             public boolean event(Event event) throws IOException {
-                System.out.println(event);
+//                System.out.println(event);
                 return stream != null && stream.event(event);
             }
         };
