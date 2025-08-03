@@ -100,6 +100,14 @@ import java.nio.charset.*;
  * This object is not synchronized, and if it is being modified in one thread while being read in another, external
  * locking should be put in place.
  *
+ * <h2>Overriding </h2>
+ * When overriding this class, for example to compute values on demand, the only methods that need
+ * to be overridden are {@link #value} and the various <code>isNNN()</code> methods, eg {@link #isNull}.
+ * The {@link #getStringStream}, {@link #getStringStreamByteLength}, {@link #getBufferStream} and
+ * {@link #getBufferStreamLength} should also be overridden if appropriate. If the constructor is called
+ * with <code>null</code> as a value, be sure to override {@link #isNull}, and note that hashCode() and equals()
+ * also call {@link #value}
+ *
  * <h2>Examples</h2>
  * <pre style="background: #eee; border: 1px solid #888; font-size: 0.8em">
  * Json json = Json.read("{}");
@@ -1431,7 +1439,7 @@ public class Json {
      * @since 1.5
      */
     public Json sort() {
-        if (core instanceof Map) {
+        if (isMap()) {
             Map<Object,Json> o = _mapValue();
             Map<Object,Json> m = new TreeMap<Object,Json>(new Comparator<Object>() {
                 public int compare(Object o1, Object o2) {
@@ -1816,17 +1824,16 @@ public class Json {
      * @return the string value of this object
      */
     public String stringValue() {
-        if (core == NULL || core == UNDEFINED) {
+        if (isNull() || isUndefined()) {
             return null;
-        } else if (core instanceof String) {
-            return (String)core;
         } else if (isBuffer()) {
             ByteBuffer buf = bufferValue();
             buf = Base64.getUrlEncoder().withoutPadding().encode(buf);
             String s = new String(buf.array(), buf.arrayOffset(), buf.remaining(), StandardCharsets.ISO_8859_1);
             return s;
         } else {
-            return core.toString();
+            Object o = value();
+            return o == null ? null : o.toString();
         }
     }
 
@@ -1880,12 +1887,11 @@ public class Json {
      * @since 1.2
      */
     public ByteBuffer bufferValue() {
-        if (core == NULL || core == UNDEFINED) {
+        if (isNull() || isUndefined()) {
             return null;
-        } else if (core instanceof ByteBuffer) {
-            return (ByteBuffer)((Buffer)core).position(0);  // cast for old Java compilation
-        } else if (core instanceof CharSequence) {
-            CharSequence value = (CharSequence)core;
+        }
+        if (isString()) {
+            CharSequence value = value() instanceof CharSequence ? (CharSequence)value() : stringValue();
             int ilen = value.length();
             if (ilen == 0) {
                 return ByteBuffer.allocate(0);
@@ -1945,7 +1951,12 @@ public class Json {
             }
             return buf;
         } else {
-            throw new ClassCastException("Value is a " + type());
+            Object core = value();
+            if (core instanceof ByteBuffer) {
+                return (ByteBuffer)((Buffer)core).position(0);  // cast for old Java compilation
+            } else {
+                throw new ClassCastException("Value is a " + type());
+            }
         }
     }
 
@@ -1975,21 +1986,20 @@ public class Json {
      * @return the number value of this object
      */
     public Number numberValue() {
-        if (core == NULL || core == UNDEFINED) {
+        if (isNull() || isUndefined()) {
             return null;
-        } else if (core instanceof Number) {
-            return (Number)core;
-        } else if (core instanceof Boolean) {
+        }
+        if (isBoolean()) {
             if (isStrict()) {
-                throw new ClassCastException("Cannot convert boolean " + core + " to number in strict mode");
+                throw new ClassCastException("Cannot convert boolean " + booleanValue() + " to number in strict mode");
             } else {
-                return ((Boolean)core).booleanValue() ? 1 : 0;
+                return booleanValue() ? 1 : 0;
             }
-        } else if (core instanceof CharSequence) {
+        } else if (isString()) {
             if (isStrict()) {
-                throw new ClassCastException("Cannot convert string \"" + esc((CharSequence)core, null) + "\" to number in strict mode");
+                throw new ClassCastException("Cannot convert string \"" + esc(stringValue(), null) + "\" to number in strict mode");
             } else {
-                CharBuffer r = CharBuffer.wrap((CharSequence)core);
+                CharBuffer r = CharBuffer.wrap(value() instanceof CharSequence ? (CharSequence)value() : stringValue());
                 // Necessary to ensure we only parse exactly what is specified at json.org
                 boolean valid = true;
                 boolean real = false;
@@ -2046,13 +2056,18 @@ public class Json {
                 throw new ClassCastException("Cannot convert " + esc(r, null) + " to number");
             }
         } else {
-            throw new ClassCastException("Value is a " + type());
+            Object core = value();
+            if (core instanceof Number) {
+                return (Number)core;
+            } else {
+                throw new ClassCastException("Value is a " + type());
+            }
         }
     }
 
     /**
      * If the specified child of this object exists call
-     * the {@link #intValue} method on it, otherwise return null
+     * the {@link #numberValue} method on it, otherwise return null
      * @return the number value of that object
      * @param key the key
      * @since 1.4
@@ -2075,30 +2090,23 @@ public class Json {
      * @return the int value of this object
      */
     public int intValue() {
-        if (core == NULL || core == UNDEFINED) {
-            throw new ClassCastException("Value is null");
-        } else if (core instanceof Number) {
-            return ((Number)core).intValue();
-        } else if (core instanceof Boolean) {
+        if (isString()) {
+            String s = stringValue();
             if (isStrict()) {
-                throw new ClassCastException("Cannot convert boolean " + core + " to integer in strict mode");
+                throw new ClassCastException("Cannot convert string \"" + esc(s, null) + "\" to integer in strict mode");
             } else {
-                return ((Boolean)core).booleanValue() ? 1 : 0;
-            }
-        } else if (core instanceof CharSequence) {
-            if (isStrict()) {
-                throw new ClassCastException("Cannot convert string \"" + esc((CharSequence)core, null) + "\" to integer in strict mode");
-            } else {
-                CharSequence value = (CharSequence)core;
                 try {
-                    if (value.length() < 12) {
-                        return Integer.parseInt(value.toString());     // Faster than numberValue.toString()
-                    }
+                    return Integer.parseInt(s);     // Faster than numberValue.toString()
                 } catch (NumberFormatException e) {}
-                throw new ClassCastException("Cannot convert " + esc(value, null) + " to int");
+                throw new ClassCastException("Cannot convert " + esc(s, null) + " to integer");
             }
         } else {
-            throw new ClassCastException("Value is a " + type());
+            Number n = numberValue();
+            if (n == null) {
+                throw new ClassCastException("Value is a " + type());
+            } else {
+                return n.intValue();
+            }
         }
     }
 
@@ -2127,26 +2135,23 @@ public class Json {
      * @return the long value of this object
      */
     public long longValue() {
-        if (core == NULL || core == UNDEFINED) {
-            throw new ClassCastException("Value is null");
-        } else if (core instanceof Number) {
-            return ((Number)core).longValue();
-        } else if (core instanceof Boolean) {
-            return intValue();
-        } else if (core instanceof CharSequence) {
+        if (isString()) {
+            String s = stringValue();
             if (isStrict()) {
-                throw new ClassCastException("Cannot convert string \"" + esc((CharSequence)core, null) + "\" to long in strict mode");
+                throw new ClassCastException("Cannot convert string \"" + esc(s, null) + "\" to long in strict mode");
             } else {
-                CharSequence value = core.toString();
                 try {
-                    if (value.length() < 20) {
-                        return Long.parseLong(value.toString()); // Faster than numberValue.toString()
-                    }
+                    return Long.parseLong(s);     // Faster than numberValue.toString()
                 } catch (NumberFormatException e) {}
-                throw new ClassCastException("Cannot convert " + esc(value, null) + " to long");
+                throw new ClassCastException("Cannot convert " + esc(s, null) + " to long");
             }
         } else {
-            throw new ClassCastException("Value is a " + type());
+            Number n = numberValue();
+            if (n == null) {
+                throw new ClassCastException("Value is a " + type());
+            } else {
+                return n.longValue();
+            }
         }
     }
 
@@ -2175,10 +2180,11 @@ public class Json {
      * @return the float value of this object
      */
     public float floatValue() {
-        if (core == NULL || core == UNDEFINED) {
-            throw new ClassCastException("Value is null");
+        Number n = numberValue();
+        if (n == null) {
+            throw new ClassCastException("Value is a " + type());
         } else {
-            return numberValue().floatValue();
+            return n.floatValue();
         }
     }
 
@@ -2207,10 +2213,11 @@ public class Json {
      * @return the double value of this object
      */
     public double doubleValue() {
-        if (core == NULL || core == UNDEFINED) {
-            throw new ClassCastException("Value is null");
+        Number n = numberValue();
+        if (n == null) {
+            throw new ClassCastException("Value is a " + type());
         } else {
-            return numberValue().doubleValue();
+            return n.doubleValue();
         }
     }
 
@@ -2239,25 +2246,29 @@ public class Json {
      * @return the boolean value of this object
      */
     public boolean booleanValue() {
-        if (core == NULL || core == UNDEFINED) {
+        if (isNull() || isUndefined()) {
             throw new ClassCastException("Value is null");
-        } else if (core instanceof Boolean) {
-            return ((Boolean)core).booleanValue();
-        } else if (core instanceof CharSequence) {
+        }
+        if (isString()) {
+            String s = stringValue();
             if (isStrict()) {
-                throw new ClassCastException("Cannot convert string \"" + core + "\" to boolean in strict mode");
+                throw new ClassCastException("Cannot convert string \"" + s + "\" to boolean in strict mode");
             } else {
-                CharSequence value = (CharSequence)core;
-                return !(value.toString().equals("false"));
+                return s != null && !s.equals("false");
             }
-        } else if (core instanceof Number) {
+        } else if (isNumber()) {
             if (isStrict()) {
-                throw new ClassCastException("Cannot convert number " + core + " to boolean in strict mode");
+                throw new ClassCastException("Cannot convert number " + numberValue() + " to boolean in strict mode");
             } else {
                 return floatValue() == 0;
             }
         } else {
-            throw new ClassCastException("Value is a " + type());
+            Object core = value();
+            if (core instanceof Boolean) {
+                return ((Boolean)core).booleanValue();
+            } else {
+                throw new ClassCastException("Value is a " + type());
+            }
         }
     }
 
@@ -2274,11 +2285,11 @@ public class Json {
     }
 
     @SuppressWarnings("unchecked") Map<Object,Json> _mapValue() {
-        return (Map<Object,Json>)core;
+        return (Map<Object,Json>)value();
     }
 
     @SuppressWarnings("unchecked") List<Json> _listValue() {
-        return (List<Json>)core;
+        return (List<Json>)value();
     }
 
     /**
@@ -2287,12 +2298,15 @@ public class Json {
      * @return the read-only map value of this object
      */
     public Map<Object,Json> mapValue() {
-        if (core == NULL || core == UNDEFINED) {
+        if (isNull() || isUndefined()) {
             return null;
-        } else if (core instanceof Map) {
-            return Collections.<Object,Json>unmodifiableMap(_mapValue());
         } else {
-            throw new ClassCastException("Value is a " + type());
+            Object core = value();
+            if (core instanceof Map) {
+                return Collections.<Object,Json>unmodifiableMap(_mapValue());
+            } else {
+                throw new ClassCastException("Value is a " + type());
+            }
         }
     }
 
@@ -2314,12 +2328,15 @@ public class Json {
      * @return the read-only list value of this object
      */
     public List<Json> listValue() {
-        if (core == NULL || core == UNDEFINED) {
+        if (isNull() || isUndefined()) {
             return null;
-        } else if (core instanceof List) {
-            return Collections.<Json>unmodifiableList(_listValue());
         } else {
-            throw new ClassCastException("Value is a " + type());
+            Object core = value();
+            if (core instanceof List) {
+                return Collections.<Json>unmodifiableList(_listValue());
+            } else {
+                throw new ClassCastException("Value is a " + type());
+            }
         }
     }
 
@@ -2381,7 +2398,7 @@ public class Json {
      * Return a hashCode based on the {@link #value()}
      */
     public int hashCode() {
-        return core == NULL || core == UNDEFINED ? 0 : core.hashCode();
+        return isNull() || isUndefined() ? 0 : value().hashCode();
     }
 
     /**
@@ -2394,38 +2411,49 @@ public class Json {
             if (j.getTag() != getTag()) {
                 return false;
             }
-            if (core == NULL || core == UNDEFINED) {
-                return j.core == core;
-            } else if (core.getClass() == j.core.getClass()) {
-                return core.equals(j.core);
-            } else if (core instanceof Number) {
-                if (j.core instanceof Number) {
-                    Number n1 = (Number)core;
-                    Number n2 = (Number)j.core;
-                    // Ensure we only care about the numeric value, not the storage type
-                    BigDecimal b1 = n1 instanceof BigDecimal ? (BigDecimal)n1 : n1 instanceof Float || n1 instanceof Double ? BigDecimal.valueOf(n1.doubleValue()) : n1 instanceof BigInteger ? new BigDecimal((BigInteger)n1) : BigDecimal.valueOf(n1.longValue());
-                    BigDecimal b2 = n2 instanceof BigDecimal ? (BigDecimal)n2 : n2 instanceof Float || n2 instanceof Double ? BigDecimal.valueOf(n2.doubleValue()) : n2 instanceof BigInteger ? new BigDecimal((BigInteger)n2) : BigDecimal.valueOf(n2.longValue());
-                    return b1.compareTo(b2) == 0;
+            if (isNull()) {
+                return j.isNull();
+            } else if (isUndefined()) {
+                return j.isUndefined();
+            } else if (isNumber()) {
+                if (j.isNumber()) {
+                    Number n1 = numberValue();
+                    Number n2 = j.numberValue();
+                    if (n1.getClass() == n2.getClass()) {
+                        return n1.equals(n2);
+                    } else {
+                        // Ensure we only care about the numeric value, not the storage type
+                        BigDecimal b1 = n1 instanceof BigDecimal ? (BigDecimal)n1 : n1 instanceof Float || n1 instanceof Double ? BigDecimal.valueOf(n1.doubleValue()) : n1 instanceof BigInteger ? new BigDecimal((BigInteger)n1) : BigDecimal.valueOf(n1.longValue());
+                        BigDecimal b2 = n2 instanceof BigDecimal ? (BigDecimal)n2 : n2 instanceof Float || n2 instanceof Double ? BigDecimal.valueOf(n2.doubleValue()) : n2 instanceof BigInteger ? new BigDecimal((BigInteger)n2) : BigDecimal.valueOf(n2.longValue());
+                        return b1.compareTo(b2) == 0;
+                    }
                 }
-            } else if (core instanceof CharSequence && j.core instanceof CharSequence) {
-                CharSequence c1 = (CharSequence)core;
-                CharSequence c2 = (CharSequence)j.core;
-                int s = c1.length();
-                if (s == c2.length()) {
-                    for (int i=0;i<s;i++) {
-                        if (c1.charAt(i) != c2.charAt(i)) {
-                            return false;
+            } else if (isString()) {
+                if (j.isString()) {
+                    CharSequence c1 = core instanceof CharSequence ? (CharSequence)core : stringValue();
+                    CharSequence c2 = j.core instanceof CharSequence ? (CharSequence)j.core : j.stringValue();
+                    if (c1.getClass() == c2.getClass()) {
+                        return c1.equals(c2);
+                    } else {
+                        int s = c1.length();
+                        if (s == c2.length()) {
+                            for (int i=0;i<s;i++) {
+                                if (c1.charAt(i) != c2.charAt(i)) {
+                                    return false;
+                                }
+                            }
+                            return true;
                         }
                     }
-                    return true;
                 }
-                return false;
             } else if (isBuffer()) {
                 if (j.isBuffer()) {
-                    return ((Buffer)bufferValue()).position(0).equals(((Buffer)j.bufferValue()).position(0));
+                    Buffer b1 = bufferValue();
+                    Buffer b2 = j.bufferValue();
+                    return b1.position(0).equals(b2.position(0));
                 }
             } else {
-                return core.equals(j.core);
+                return value().equals(j.value());
             }
         }
         return false;
@@ -2530,7 +2558,7 @@ public class Json {
      * @since 1.4
      */
     public Readable getStringStream() throws IOException {
-        final CharBuffer buf = CharBuffer.wrap((CharSequence)core);
+        final CharBuffer buf = CharBuffer.wrap((CharSequence)value());
         return new Readable() {
             @Override public int read(CharBuffer out) throws IOException {
                 int len = Math.min(buf.remaining(), out.remaining());
@@ -2611,3 +2639,4 @@ public class Json {
     }
 
 }
+// To override:
