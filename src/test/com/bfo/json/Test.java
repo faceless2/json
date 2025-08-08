@@ -17,6 +17,10 @@ public class Test {
         System.out.flush();
         TestJSR.main(args);
         System.out.flush();
+        TestPartial.main(args);
+        System.out.flush();
+        TestYaml.main(args);
+        System.out.flush();
         Speed.main(args);
         System.out.flush();
     }

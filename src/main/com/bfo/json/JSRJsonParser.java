@@ -9,27 +9,37 @@ import javax.json.*;
 import javax.json.stream.*;
 import javax.json.stream.JsonParser.Event;
 
-class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
+class JSRJsonParser implements JsonParser, JsonLocation {
 
-    private static final Object COLON = ":", COMMA = ",";
+    private static final int MODE_ROOT = 0, MODE_LIST = 1, MODE_MAPKEY = 2, MODE_MAPVAL = 3;
+    private final JsonReader in;
+    private final InputStream stream;
+    private final Reader reader;
+    private JsonParser.Event event, lastevent;
+    private Object value, lastvalue;
+    private State state;
 
-    private final JsonReader jr;
-    private State s;
-    private Event lastevent, event;
-    private Object lastvalue, value;
-    private long line, col, tell, depth;
-    private boolean done;
-
-    JSRJsonParser(Exception e) {
-        this.event = Event.START_ARRAY; // arbitrary non-null;
-        this.value = e;
-        this.jr = null;
+    JSRJsonParser(JsonReader in, InputStream stream) {
+        this.in = (JsonReader)in.setInput(stream);
+        this.stream = stream;
+        this.reader = null;
+        donext();
     }
 
-    JSRJsonParser(JsonReader jr) {
-        this.jr = jr;
-        this.s = new State(null, ST_IV);
+    JSRJsonParser(JsonReader in, Reader reader) {
+        this.in = (JsonReader)in.setInput(reader);
+        this.stream = null;
+        this.reader = reader;
         donext();
+    }
+
+    private static class State {
+        final State parent;
+        int mode;
+        State(State parent, int mode) {
+            this.parent = parent;
+            this.mode = mode;
+        }
     }
 
     @Override public boolean hasNext() {
@@ -55,12 +65,172 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
         return lastevent;
     }
 
+    @Override public void close() {
+        try {
+            event = lastevent = null;
+            value = lastvalue = null;
+            in.close();
+        } catch (IOException e) {
+            throw new JsonException("IOException", e);
+        }
+    }
+
+    @Override public BigDecimal getBigDecimal() {
+        if (lastvalue != null) {
+            return lastvalue instanceof BigDecimal ? (BigDecimal)lastvalue : lastvalue instanceof Double ? new BigDecimal((Double)lastvalue) : lastvalue instanceof Integer ? new BigDecimal((Integer)lastvalue) : lastvalue instanceof Long ? new BigDecimal((Long)lastvalue) : new BigDecimal((BigInteger)lastvalue);
+        }
+        throw new IllegalStateException();
+    }
+
+    @Override public boolean isIntegralNumber() {
+        if (lastevent == Event.VALUE_NUMBER) {
+            return lastvalue instanceof Integer || lastvalue instanceof Long || lastvalue instanceof BigInteger;
+        }
+        return false;
+    }
+
+    @Override public String getString() {
+        if (lastevent == Event.KEY_NAME || lastevent == Event.VALUE_STRING || lastevent == Event.VALUE_NUMBER) {
+            return lastvalue.toString();
+        }
+        throw new IllegalStateException();
+    }
+
+    @Override public int getInt() {
+        if (lastevent == Event.VALUE_NUMBER) {
+            return ((Number)lastvalue).intValue();
+        }
+        throw new IllegalStateException();
+    }
+
+    @Override public long getLong() {
+        if (lastevent == Event.VALUE_NUMBER) {
+            return ((Number)lastvalue).longValue();
+        }
+        throw new IllegalStateException();
+    }
+
+    @Override public JsonLocation getLocation() {
+        return this;
+    }
+
+    @Override public long getColumnNumber() {
+        return in.getColumnNumber();
+    }
+
+    @Override public long getLineNumber() {
+        return in.getLineNumber();
+    }
+
+    @Override public long getStreamOffset() {
+        return in.getByteNumber();
+    }
+
+    //----------------------------------------------------------------
+
+    private void donext() {
+        try {
+            if (!in.hasNext()) {
+                event = null;
+                return;
+            }
+            JsonStream.Event e = in.next();
+            if (e == null) {
+                value = new EOFException();
+            } else {
+                final int type = e.type();
+                if (type == JsonStream.Event.TYPE_PRIMITIVE) {
+                    if (e.numberValue() != null) {
+                        value = e.numberValue();
+                        event = JsonParser.Event.VALUE_NUMBER;
+                    } else if (Boolean.TRUE.equals(e.booleanValue())) {
+                        value = null;
+                        event = JsonParser.Event.VALUE_TRUE;
+                    } else if (Boolean.FALSE.equals(e.booleanValue())) {
+                        value = null;
+                        event = JsonParser.Event.VALUE_FALSE;
+                    } else if (e.isNull()) {
+                        value = null;
+                        event = JsonParser.Event.VALUE_NULL;
+                    } else if (e.stringValue() != null) {
+                        value = e.stringValue().toString();
+                        event = JsonParser.Event.VALUE_STRING;
+                    } else {
+                        value = new IllegalStateException("Unknown primitive data " + e.value());
+                    }
+                    if (state.mode == MODE_MAPKEY) {
+                        state.mode = MODE_MAPVAL;
+                    } else if (state.mode == MODE_MAPVAL) {
+                        state.mode = MODE_MAPKEY;
+                    }
+                } else if (type == JsonStream.Event.TYPE_STRING_START) {
+                    CharSequence seq = null;
+                    while (in.hasNext() && (e=in.next()).type() == JsonStream.Event.TYPE_STRING_DATA) {
+                        if (e.stringValue() != null) {
+                            if (seq == null) {
+                                seq = e.stringValue().toString();
+                            } else {
+                                if (!(seq instanceof StringBuilder)) {
+                                    seq = new StringBuilder(seq);
+                                }
+                                ((StringBuilder)seq).append(e.stringValue());
+                            }
+                        } else {
+                            // We won't see Reader from the JsonParser
+                            value = new IllegalStateException("Unknown string data " + e.value());
+                        }
+                        e = null;
+                    }
+                    if (e == null) {
+                        value = new EOFException();
+                    } else if (e.type() == JsonStream.Event.TYPE_STRING_END) {
+                        value = seq.toString();
+                        if (state.mode == MODE_MAPKEY) {
+                            event = JsonParser.Event.KEY_NAME;
+                            state.mode = MODE_MAPVAL;
+                        } else if (state.mode == MODE_MAPVAL) {
+                            event = JsonParser.Event.VALUE_STRING;
+                            state.mode = MODE_MAPKEY;
+                        } else if (state.mode == MODE_LIST) {
+                            event = JsonParser.Event.VALUE_STRING;
+                        }
+                    } else {
+                        value = new IllegalStateException("Unexpected event " + e);
+                    }
+                } else if (type == JsonStream.Event.TYPE_MAP_START) {
+                    value = null;
+                    state = new State(state, MODE_MAPKEY);
+                    event = JsonParser.Event.START_OBJECT;
+                } else if (type == JsonStream.Event.TYPE_MAP_END) {
+                    value = null;
+                    state = state.parent;
+                    event = JsonParser.Event.END_OBJECT;
+                } else if (type == JsonStream.Event.TYPE_LIST_START) {
+                    value = null;
+                    state = new State(state, MODE_LIST);
+                    event = JsonParser.Event.START_ARRAY;
+                } else if (type == JsonStream.Event.TYPE_LIST_END) {
+                    value = null;
+                    state = state.parent;
+                    event = JsonParser.Event.END_ARRAY;
+                } else {
+                    value = new IllegalStateException("Unexpected event " + e);
+                }
+            }
+        } catch (IOException e) {
+            value = e;
+        }
+    }
+
+    //----------------------------------------------------------------
+
     @Override public JsonArray getArray() {
         if (lastevent != Event.START_ARRAY) {
             throw new IllegalStateException("Not an array");
         }
-        return (JsonArray)read(lastevent);
+        return (JsonArray)new JSRJsonReader(this).read(lastevent);
     }
+
     @Override public Stream<JsonValue> getArrayStream() {
         if (lastevent != Event.START_ARRAY) {
             throw new IllegalStateException("Not an array");
@@ -82,11 +252,12 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
         };
         return StreamSupport.stream(spliterator, false);
     }
+
     @Override public JsonObject getObject() {
         if (lastevent != Event.START_OBJECT) {
             throw new IllegalStateException("Not an object");
         }
-        return (JsonObject)read(lastevent);
+        return (JsonObject)new JSRJsonReader(this).read(lastevent);
     }
 
     @Override public Stream<Map.Entry<String,JsonValue>> getObjectStream() {
@@ -121,7 +292,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
     }
 
     @Override public JsonValue getValue() {
-        return read(lastevent);
+        return new JSRJsonReader(this).read(lastevent);
     }
 
     @Override public Stream<JsonValue> getValueStream() {
@@ -139,7 +310,7 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
                 if (!hasNext()) {
                     return false;
                 }
-                 next();
+                next();
                 action.accept(getValue());
                 return true;
             }
@@ -177,421 +348,11 @@ class JSRJsonParser implements JsonParser, javax.json.JsonReader, JsonLocation {
         } while (depth != 0);
     }
 
-    @Override public void close() {
-        try {
-            jr.reader.close();
-        } catch (IOException e) {
-            throw new JsonException(e.getMessage(), e);
-        }
-        event = lastevent = null;
-        value = lastvalue = null;
-    }
-
-    @Override public String getString() {
-        if (lastevent == Event.KEY_NAME || lastevent == Event.VALUE_STRING || lastevent == Event.VALUE_NUMBER) {
-            return lastvalue.toString();
-        }
-        throw new IllegalStateException();
-    }
-
-    @Override public boolean isIntegralNumber() {
-        if (lastevent == Event.VALUE_NUMBER) {
-            return lastvalue instanceof Integer || lastvalue instanceof Long || lastvalue instanceof BigInteger;
-        }
-        throw new IllegalStateException();
-    }
-
-    @Override public int getInt() {
-        if (lastevent == Event.VALUE_NUMBER) {
-            return ((Number)lastvalue).intValue();
-        }
-        throw new IllegalStateException();
-    }
-
-    @Override public long getLong() {
-        if (lastevent == Event.VALUE_NUMBER) {
-            return ((Number)lastvalue).longValue();
-        }
-        throw new IllegalStateException();
-    }
-
-    @Override public BigDecimal getBigDecimal() {
-        if (lastevent == Event.VALUE_NUMBER) {
-            return lastvalue instanceof BigDecimal ? (BigDecimal)lastvalue : lastvalue instanceof Double ? new BigDecimal((Double)lastvalue) : lastvalue instanceof Integer ? new BigDecimal((Integer)lastvalue) : lastvalue instanceof Long ? new BigDecimal((Long)lastvalue) : new BigDecimal((BigInteger)lastvalue);
-        }
-        throw new IllegalStateException();
-    }
-
     Number getNumber() {
         if (lastevent == Event.VALUE_NUMBER) {
             return (Number)lastvalue;
         }
         throw new IllegalStateException();
-    }
-
-    private void donext() {
-        if (jr.reader instanceof ContextReader) {
-            line = ((ContextReader)jr.reader).line();
-            col = ((ContextReader)jr.reader).column();
-            tell = ((ContextReader)jr.reader).tell();
-        }
-//        System.out.println("## in donext");
-        try {
-            int c;
-            Event event = null;
-            Object value = null;
-            Object t;
-            while ((t = readToken(c = jr.next())) != null) {
-//                System.out.println("TOKEN="+t+" STATE="+s);
-                if (t == Event.END_ARRAY) {
-                    if ((s.flags & ST_EA) != 0 || (jr.options.isAllowTrailingComma() && (s.flags & ST_AV) != 0)) {
-                        s = s.parent;
-                        s.flags = s.parent == null ? ST_IV : (s.flags & ST_EO) != 0 ? ST_MV : (s.flags & ST_EA) != 0 ? ST_AV : s.flags;
-                        value = null;
-                        event = (Event)t;
-                    } else {
-                        unexpected("", c);
-                    }
-                    if ((s.flags & ST_AV) != 0) {
-                        s.flags = ST_CM|ST_EA;
-                    } else if ((s.flags & ST_MV) != 0) {
-                        s.flags = ST_CM|ST_EO;
-                    } else {
-                        s.flags = 0;
-                    }
-                    break;
-                } else if (t == Event.END_OBJECT) {
-                    if ((s.flags & ST_EO) != 0 || (jr.options.isAllowTrailingComma() && (s.flags & ST_MV) != 0)) {
-                        s = s.parent;
-                        s.flags = s.parent == null ? ST_IV : (s.flags & ST_EO) != 0 ? ST_MV : (s.flags & ST_EA) != 0 ? ST_AV : s.flags;
-                        value = null;
-                        event = (Event)t;
-                    } else {
-                        unexpected("", c);
-                    }
-                    if ((s.flags & ST_AV) != 0) {
-                        s.flags = ST_CM|ST_EA;
-                    } else if ((s.flags & ST_MV) != 0) {
-                        s.flags = ST_CM|ST_EO;
-                    } else {
-                        s.flags = 0;
-                    }
-                    break;
-                } else if (t == Event.START_ARRAY) {
-                    if ((s.flags & (ST_AV|ST_MV|ST_IV)) != 0) {
-                        s.flags = (s.flags & ST_AV) != 0 ? ST_CM|ST_EA : ST_CM|ST_EO;
-                        s = new State(s, ST_AV|ST_EA);
-                        value = null;
-                        event = (Event)t;
-                    } else {
-                        unexpected("", c);
-                    }
-                    break;
-                } else if (t == Event.START_OBJECT) {
-                    if ((s.flags & (ST_IV|ST_AV|ST_MV)) != 0) {
-                        s.flags = (s.flags & ST_AV) != 0 ? ST_CM|ST_EA : ST_CM|ST_EO;
-                        s = new State(s, ST_MK|ST_EO);
-                        value = null;
-                        event = (Event)t;
-                    } else {
-                        unexpected("", c);
-                    }
-                    break;
-                } else if (t == COMMA) {
-                    if ((s.flags & (ST_CM|ST_EA)) == (ST_CM|ST_EA)) {            // comma or end-of-array
-                        s.flags = ST_AV;
-                    } else if ((s.flags & (ST_CM|ST_EO)) == (ST_CM|ST_EO)) {     // comma or end-of-object
-                        s.flags = ST_MK;
-                    } else {
-                        unexpected("", c);
-                    }
-                } else if (t == COLON) {
-                    if ((s.flags & ST_CL) != 0) {
-                        s.flags = ST_MV;
-                    } else {
-                        unexpected("", c);
-                    }
-                } else if ((s.flags & (ST_AV|ST_MV|ST_IV)) != 0) {
-                    if (t instanceof String) {
-                        value = t;
-                        event = Event.VALUE_STRING;
-                    } else if (t instanceof Number) {
-                        value = t;
-                        event = Event.VALUE_NUMBER;
-                    } else if (t instanceof Boolean) {
-                        value = null;
-                        event = t.equals(Boolean.TRUE) ? Event.VALUE_TRUE : Event.VALUE_FALSE;
-                    } else if (t == Json.NULL) {
-                        value = null;
-                        event = Event.VALUE_NULL;
-                    } else {
-                        unexpected("", c);
-                    }
-                    if ((s.flags & ST_AV) != 0) {
-                        s.flags = ST_CM|ST_EA;
-                    } else if ((s.flags & ST_MV) != 0) {
-                        s.flags = ST_CM|ST_EO;
-                    } else {
-                        s.flags = 0;
-                    }
-                    break;
-                } else if ((s.flags & ST_MK) != 0) {
-                    if (t instanceof String) {
-                        value = t;
-                        event = Event.KEY_NAME;
-                        s.flags = ST_CL;
-                    } else {
-                        unexpected("", c);
-                    }
-                    break;
-                } else {
-                    unexpected("", c);
-                }
-            }
-            if (t == null && s.parent != null) {
-                unexpected("", -1);
-            }
-            this.event = event;
-            this.value = value;
-        } catch (Exception e) {
-            this.value = e;
-        }
-//        System.out.println("## out donext: e="+event+" v="+value+"/"+(value==null?null:value.getClass().getName())+" s="+s);
-    }
-
-    private void unexpected(String type, int c) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Unexpected");
-        if (c < 0) {
-            sb.append(" EOF");
-        } else {
-            sb.append(type);
-            sb.append(" character ");
-            if (c >= ' ' && c < 127) {
-                sb.append('\'');
-                sb.append((char)c);
-                sb.append('\'');
-            } else {
-                sb.append("0x");
-                sb.append(Integer.toHexString(c));
-            }
-        }
-        sb.append(" at ");
-        sb.append(jr.reader);
-        throw new JsonParsingException(sb.toString(), this);
-    }
-
-    private Object readToken(int c) throws IOException {
-        if (c < 0) {
-            return null;
-        }
-        Object out = null;
-        if (c == '[') {
-            out = Event.START_ARRAY;
-        } else if (c == '{') {
-            out = Event.START_OBJECT;
-        } else if (c == ']') {
-            out = Event.END_ARRAY;
-        } else if (c == '}') {
-            out = Event.END_OBJECT;
-        } else if (c == ',') {
-            out = COMMA;
-        } else if (c == ':') {
-            out = COLON;
-        } else if ((c <= '9' && c >= '0') || c == '-') {
-            out = jr.readNumber(c);
-        } else if (c == '"') {
-            StringBuilder sb = new StringBuilder();
-            jr.readString(jr.reader, c, Integer.MAX_VALUE, sb);
-            out = sb.toString();
-        } else {
-            StringBuilder sb = new StringBuilder();
-            sb.appendCodePoint(c);
-            int maxlen = 5;
-            while ((c=jr.reader.read())>=0 && (c != ' ' && c != '\n' && c != '\r' && c != '\t' && c != '{' && c != '}' && c != '[' && c != ']' && c != '(' && c != ')' && c != ',' && c != ':') && sb.length() < maxlen) {
-                sb.appendCodePoint(c);
-                jr.reader.mark(1);
-            }
-            jr.reader.reset();
-            String s = sb.toString();
-            if (s.equals("true")) {
-                out = Boolean.TRUE;
-            } else if (s.equals("false")) {
-                out = Boolean.FALSE;
-            } else if (s.equals("null")) {
-                out = Json.NULL;
-            } else {
-                unexpected("", s.codePointAt(0));
-            }
-        }
-        return out;
-    }
-
-    private static final int ST_AV =   1; // arrayvalue
-    private static final int ST_EA =   2; // endarray
-    private static final int ST_EO =   4; // endobject
-    private static final int ST_CM =   8; // array comma
-    private static final int ST_CL =  16; // colon
-    private static final int ST_IV =  32; // isolated value
-    private static final int ST_MV =  64; // map value
-    private static final int ST_MK = 128; // map key
-    private static final int ST_LP = 256; // left-paren
-    private static final int ST_RP = 512; // right-paren
-    private static final int ST_TV =1024; // tag-value
-
-    private static final class State {
-        final State parent;
-        int flags;
-        State(State parent, int flags) {
-            this.parent = parent;
-            this.flags = flags;
-        }
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            if ((flags & ST_AV) != 0) sb.append("array-value ");
-            if ((flags & ST_EA) != 0) sb.append("end-array ");
-            if ((flags & ST_EO) != 0) sb.append("end-object ");
-            if ((flags & ST_CM) != 0) sb.append("comma ");
-            if ((flags & ST_CL) != 0) sb.append("colon ");
-            if ((flags & ST_IV) != 0) sb.append("value ");
-            if ((flags & ST_MV) != 0) sb.append("map-value ");
-            if ((flags & ST_MK) != 0) sb.append("map-key ");
-            if ((flags & ST_LP) != 0) sb.append("left-paren ");
-            if ((flags & ST_RP) != 0) sb.append("right-paren ");
-            if ((flags & ST_TV) != 0) sb.append("tag-value ");
-            if (sb.length() > 0) {
-                sb.setLength(sb.length() - 1);
-            }
-            return "{"+sb.toString()+" p="+parent+"}";
-        }
-    }
-
-    @Override public long getLineNumber() {
-        return line;
-    }
-    @Override public long getColumnNumber() {
-        return col;
-    }
-    @Override public long getStreamOffset() {
-        return tell;
-    }
-    @Override public JsonLocation getLocation() {
-        return this;
-    }
-
-    @Override public JsonArray readArray() {
-        return (JsonArray)readValue();
-    }
-
-    @Override public JsonObject readObject() {
-        return (JsonObject)readValue();
-    }
-
-    @Override public JsonStructure read() {
-        return (JsonStructure)readValue();
-    }
-
-    @Override public JsonValue readValue() {
-        if (done) {
-            throw new IllegalStateException("Already read");
-        }
-        done = true;
-        return read(null);
-    }
-
-    private JsonValue read(JsonParser.Event event) {
-        List<JsonStructure> stack = new ArrayList<JsonStructure>();
-        String key = null;
-        JsonStructure cursor = null;
-
-        while (hasNext()) {
-            if (event == null) {
-                event = next();
-            }
-//            System.out.println("E="+event+" C="+cursor+" K="+key+" S="+stack);
-            switch (event) {
-                case START_ARRAY:
-                    if (cursor instanceof JsonArray) {
-                        stack.add(cursor);
-                        ((JSRJsonArray)cursor).list.add(cursor = new JSRJsonArray(new ArrayList<JsonValue>()));
-                    } else if (cursor instanceof JsonObject) {
-                        stack.add(cursor);
-                        ((JSRJsonObject)cursor).map.put(key, cursor = new JSRJsonArray(new ArrayList<JsonValue>()));
-                    } else {
-                        cursor = new JSRJsonArray(new ArrayList<JsonValue>());
-                    }
-                    break;
-                case START_OBJECT:
-                    if (cursor instanceof JsonArray) {
-                        stack.add(cursor);
-                        ((JSRJsonArray)cursor).list.add(cursor = new JSRJsonObject(new LinkedHashMap<String,JsonValue>()));
-                    } else if (cursor instanceof JsonObject) {
-                        stack.add(cursor);
-                        ((JSRJsonObject)cursor).map.put(key, cursor = new JSRJsonObject(new LinkedHashMap<String,JsonValue>()));
-                    } else {
-                        cursor = new JSRJsonObject(new LinkedHashMap<String,JsonValue>());
-                    }
-                    break;
-                case END_ARRAY:
-                case END_OBJECT:
-                    if (stack.isEmpty()) {
-                        return cursor;
-                    } else {
-                        cursor = stack.remove(stack.size() - 1);
-                    }
-                    break;
-                case VALUE_TRUE:
-                    if (cursor instanceof JsonArray) {
-                        ((JSRJsonArray)cursor).list.add(JsonValue.TRUE);
-                    } else if (cursor instanceof JsonObject) {
-                        ((JSRJsonObject)cursor).map.put(key, JsonValue.TRUE);
-                    } else {
-                        return JsonValue.TRUE;
-                    }
-                    break;
-                case VALUE_FALSE:
-                    if (cursor instanceof JsonArray) {
-                        ((JSRJsonArray)cursor).list.add(JsonValue.FALSE);
-                    } else if (cursor instanceof JsonObject) {
-                        ((JSRJsonObject)cursor).map.put(key, JsonValue.FALSE);
-                    } else {
-                        return JsonValue.FALSE;
-                    }
-                    break;
-                case VALUE_NULL:
-                    if (cursor instanceof JsonArray) {
-                        ((JSRJsonArray)cursor).list.add(JsonValue.NULL);
-                    } else if (cursor instanceof JsonObject) {
-                        ((JSRJsonObject)cursor).map.put(key, JsonValue.NULL);
-                    } else {
-                        return JsonValue.NULL;
-                    }
-                    break;
-                case VALUE_STRING:
-                    if (cursor instanceof JsonArray) {
-                        ((JSRJsonArray)cursor).list.add(new JSRJsonString(getString()));
-                    } else if (cursor instanceof JsonObject) {
-                        ((JSRJsonObject)cursor).map.put(key, new JSRJsonString(getString()));
-                    } else {
-                        return new JSRJsonString(getString());
-                    }
-                    break;
-                case VALUE_NUMBER:
-                    if (cursor instanceof JsonArray) {
-                        ((JSRJsonArray)cursor).list.add(new JSRJsonNumber(getNumber()));
-                    } else if (cursor instanceof JsonObject) {
-                        ((JSRJsonObject)cursor).map.put(key, new JSRJsonNumber(getNumber()));
-                    } else {
-                        return new JSRJsonNumber(getNumber());
-                    }
-                    break;
-                case KEY_NAME:
-                    key = getString();
-                    break;
-            }
-            event = null;
-        }
-        throw new JsonParsingException("EOF", null, this);
     }
 
 }

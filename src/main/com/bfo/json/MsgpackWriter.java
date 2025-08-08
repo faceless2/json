@@ -1,313 +1,510 @@
 package com.bfo.json;
 
-import java.io.*;
 import java.nio.*;
+import java.io.*;
+import java.util.*;
 import java.nio.channels.*;
 import java.nio.charset.*;
 import java.math.*;
-import java.util.*;
 import java.text.*;
 
-class MsgpackWriter {
+/**
+ * A Msgpack writer
+ */
+public class MsgpackWriter implements JsonStream {
+    
+    private static final int STATE_DONE = 0;
+    private static final int STATE_MAP = 1;
+    private static final int STATE_LIST = 2;
+    private static final int STATE_STRING = 3;
+    private static final int STATE_BUFFER = 4;
+    private static final int NO_TAG = -1;
 
-    private final OutputStream out;
-    private final JsonWriteOptions options;
-    private final JsonWriteOptions.Filter filter;
-    private final boolean filtered;
-    private final Appendable stringWriter;
+    private OutputStream out;
+    private long[] stack;
+    private int stackLength;
+    private long state;
+    private long length;
+    private boolean sorted;
+    private int tag;
+    private StringBuilder indeterminateStringBuilder;
+    private ExtendingByteBuffer indeterminateBuffer;
 
-    MsgpackWriter(final OutputStream out, final JsonWriteOptions options, final Json root) {
+    public MsgpackWriter() {
+        stack = new long[32];
+        state = STATE_DONE;
+        tag = NO_TAG;
+    }
+
+    /**
+     * Set the OutputStream to write to
+     * @param out the OutputStream
+     * @return this
+     */
+    public MsgpackWriter setOutput(OutputStream out) {
         this.out = out;
-        this.options = options;
-        this.filtered = options.getFilter() != null;
-        this.filter = options.initializeFilter(root);
-        this.stringWriter = new UTF8Writer(out, options.isNFC()) {
-            @Override void writeLength(int len) throws IOException {
-                if (len <= 31) {
-                    out.write(0xa0 + len);
-                } else if (len <= 255) {
-                    out.write(0xd9);
-                    out.write(len);
-                } else if (len <= 65535) {
-                    out.write(0xda);
-                    out.write(len>>8);
-                    out.write(len);
-                } else {
-                    out.write(0xdb);
-                    out.write(len>>24);
-                    out.write(len>>16);
-                    out.write(len>>8);
-                    out.write(len);
-                }
+        return this;
+    }
+
+    /**
+     * Set the ByteBuffer to write to
+     * @param out the ByteBuffer
+     * @return this
+     */
+    public MsgpackWriter setOutput(final ByteBuffer buf) {
+        this.out = new OutputStream() {
+            public void write(int v) {
+                buf.put((byte)v);
+            }
+            public void write(byte[] v, int off, int len) {
+                buf.put(v, off, len);
             }
         };
+        return this;
     }
 
-    void write(Json j) throws IOException {
-        if (j.isNumber()) {
-            writeNumber(j.numberValue());
-        } else if (j.isBuffer()) {
-            int tag = (int)j.getTag();
-            final ByteBuffer[] holder = new ByteBuffer[] { j.bufferValue() };
-            if (j.getClass() != Json.class) {
-                // Msgpack has no "indefinite length" option, so just make a bytebuffer
-                // from the output written by the proxy
-                ByteArrayOutputStream bout = new ByteArrayOutputStream() {
-                    @Override public void close() {
-                        holder[0] = ByteBuffer.wrap(buf, 0, count);
-                    }
-                };
-                j.writeBuffer(bout);
-                bout.close();
+    /**
+     * Request that map keys are sorted before writing.
+     * @param sorted true if keys should be sorted
+     * @return this
+     */
+    public MsgpackWriter setSorted(boolean sorted) {
+        this.sorted = sorted;
+        return this;
+    }
+
+    public boolean isSorted() {
+        return sorted;
+    }
+
+    private static String stateString(long state) {
+        switch ((int)state) {
+            case STATE_DONE: return "done";
+            case STATE_MAP: return "map";
+            case STATE_LIST: return "list";
+            case STATE_STRING: return "string";
+            case STATE_BUFFER: return "buffer";
+            default: return "unknown-"+state;
+        }
+    }
+    private String dump() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        for (int i=0;i<stackLength;) {
+            if (i > 0) {
+                sb.append(", ");
             }
-            ByteBuffer b = holder[0];
-            b.position(0);
-            int s = b.limit();
-            if (tag >= 0) {
-                if (s == 1) {
-                    out.write(0xd4);
-                    out.write(tag);
-                    Channels.newChannel(out).write(b);
-                } else if (s == 2) {
-                    out.write(0xd5);
-                    out.write(tag);
-                    Channels.newChannel(out).write(b);
-                } else if (s == 4) {
-                    out.write(0xd6);
-                    out.write(tag);
-                    Channels.newChannel(out).write(b);
-                } else if (s == 8) {
-                    out.write(0xd7);
-                    out.write(tag);
-                    Channels.newChannel(out).write(b);
-                } else if (s == 16) {
-                    out.write(0xd8);
-                    out.write(tag);
-                    Channels.newChannel(out).write(b);
-                } else if (s <= 255) {
-                    out.write(0xc7);
-                    out.write(s);
-                    out.write(tag);
-                    Channels.newChannel(out).write(b);
-                } else if (s <= 65535) {
-                    out.write(0xc8);
-                    out.write(s>>8);
-                    out.write(s);
-                    out.write(tag);
-                    Channels.newChannel(out).write(b);
-                } else {
-                    out.write(0xc9);
-                    out.write(s>>24);
-                    out.write(s>>16);
-                    out.write(s>>8);
-                    out.write(s);
-                    out.write(tag);
-                    Channels.newChannel(out).write(b);
+            long len = stack[i++];
+            long state = stack[i++];
+            sb.append("{" + stateString(state) + " len=" + len + "}");
+        }
+        sb.append("]");
+        sb.append(" state="+stateString(state)+" len="+length);
+        return sb.toString();
+    }
+
+    @Override public boolean event(JsonStream.Event event) throws IOException {
+        if (stackLength == 0) {
+            stack[stackLength++] = length = 1;
+            stack[stackLength++] = STATE_DONE;
+        }
+        final int type = event.type();
+        long decrement = 0;
+        int l;
+//        System.out.println("WRITER: e="+event+" " + dump());
+        switch(type) {
+            case JsonStream.Event.TYPE_MAP_START:
+                stack[stackLength++] = length;
+                state = stack[stackLength++] = STATE_MAP;
+                length = event.size();
+                if (length < 0 || length > Integer.MAX_VALUE) {
+                    throw new IllegalStateException("Invalid Msgpack map size " + (length < 0 ? "'indeterminate'" : Long.valueOf(length)));
                 }
-            } else if (s <= 255) {
-                out.write(0xc4);
-                out.write(s);
-                Channels.newChannel(out).write(b);
-            } else if (s <= 65535) {
-                out.write(0xc5);
-                out.write(s >> 8);
-                out.write(s);
-                Channels.newChannel(out).write(b);
-            } else {
-                out.write(0xc6);
-                out.write(s >> 24);
-                out.write(s >> 16);
-                out.write(s >> 8);
-                out.write(s);
-                Channels.newChannel(out).write(b);
-            }
-        } else if (j.isString()) {
-            j.writeString(stringWriter);
-        } else if (j.isList()) {
-            List<Json> list = j._listValue();
-            // todo how do we do filtering here? no indefinite length so not possible without temp buffer
-            int s = list.size();
-            if (s <= 15) {
-                out.write(0x90 | s);
-            } else if (s <= 65535) {
-                out.write(0xdc);
-                out.write(s>>8);
-                out.write(s);
-            } else {
-                out.write(0xdd);
-                out.write(s>>24);
-                out.write(s>>16);
-                out.write(s>>8);
-                out.write(s);
-            }
-            for (Json j2 : list) {
-                write(j2);
-            }
-        } else if (j.isMap()) {
-            Map<Object,Json> map = j._mapValue();
-            // todo how do we do filtering here? no indefinite length so not possible without temp buffer
-            if (options.isSorted()) {
-                Map<Object,Json> m2 = new TreeMap<Object,Json>(new Comparator<Object>() {
-                    public int compare(Object o1, Object o2) {
-                        return o1 instanceof Number && o2 instanceof Number ? Double.valueOf(((Number)o1).doubleValue()).compareTo(((Number)o2).doubleValue()) : o1.toString().compareTo(o2.toString());
-                    }
-                });
-                m2.putAll(map);
-                map = m2;
-            }
-            int s = map.size();
-            if (s <= 15) {
-                out.write(0x80 | s);
-            } else if (s <= 65535) {
-                out.write(0xde);
-                out.write(s>>8);
-                out.write(s);
-            } else {
-                out.write(0xdf);
-                out.write(s>>24);
-                out.write(s>>16);
-                out.write(s>>8);
-                out.write(s);
-            }
-            for (Map.Entry<Object,Json> e : map.entrySet()) {
-                writeMapKey(e.getKey());
-                write(e.getValue());
-            }
-        } else if (j.isBoolean()) {
-            if (j.booleanValue()) {
-                out.write(0xc3);
-            } else {
-                out.write(0xc2);
-            }
-        } else if (j.isNull() || j.isUndefined()) {
-            out.write(0xc0);
-        } else {
-            throw new IOException("Unknown object " + j);
-        }
-    }
-
-    void writeNumber(Number n) throws IOException {
-        if (n instanceof BigDecimal) {      // No BigDecimal in MsgPack
-            n = Double.valueOf(n.doubleValue());
-        }
-        if (n instanceof BigInteger) {
-            BigInteger bi = (BigInteger)n;
-            int bl = bi.bitLength();
-            if (bl == 64 && bi.signum() > 0) {
-                long l = bi.longValue();
-                out.write(0xcf);
-                out.write((int)(l>>56));
-                out.write((int)(l>>48));
-                out.write((int)(l>>40));
-                out.write((int)(l>>32));
-                out.write((int)(l>>24));
-                out.write((int)(l>>16));
-                out.write((int)(l>>8));
-                out.write((int)l);
-                return;
-            } else if (bl <= 64) {
-                n = Long.valueOf(bi.longValue());
-            } else {
-                throw new IllegalArgumentException("Cannot write BigInteger "+bi+" to Msgpack");
-            }
-        }
-        if (n instanceof Long) {
-            long l = n.longValue();
-            if (l < Integer.MIN_VALUE) {
-                out.write(0xd3);
-                out.write((int)(l>>56));
-                out.write((int)(l>>48));
-                out.write((int)(l>>40));
-                out.write((int)(l>>32));
-                out.write((int)(l>>24));
-                out.write((int)(l>>16));
-                out.write((int)(l>>8));
-                out.write((int)l);
-                return;
-            } else if (l > Integer.MAX_VALUE) {
-                out.write(0xcf);
-                out.write((int)(l>>56));
-                out.write((int)(l>>48));
-                out.write((int)(l>>40));
-                out.write((int)(l>>32));
-                out.write((int)(l>>24));
-                out.write((int)(l>>16));
-                out.write((int)(l>>8));
-                out.write((int)l);
-                return;
-            } else {
-                n = Integer.valueOf((int)l);
-            }
-        }
-        if (n instanceof Integer || n instanceof Short || n instanceof Byte) {
-            int i = n.intValue();
-            if (i >= -32 && i < 127) {
-                out.write(i);
-            } else if (i > 0) {
-                if (i <= 0xFF) {
-                    out.write(0xcc);
-                    out.write(i);
-                } else if (i <= 0xFFFF) {
-                    out.write(0xcd);
-                    out.write(i>>8);
-                    out.write(i);
+                l = (int)length;
+                if (length <= 15) {
+                    out.write(0x80 | l);
+                } else if (l <= 65535) {
+                    out.write(0xde);
+                    out.write(l>>8);
+                    out.write(l);
                 } else {
-                    out.write(0xce);
-                    out.write(i>>24);
-                    out.write(i>>16);
-                    out.write(i>>8);
-                    out.write(i);
+                    out.write(0xdf);
+                    out.write(l>>24);
+                    out.write(l>>16);
+                    out.write(l>>8);
+                    out.write(l);
                 }
-            } else if (i >= -128) {
-                out.write(0xd0);
-                out.write(i);
-            } else if (i >= -32768) {
-                out.write(0xd1);
-                out.write(i>>8);
-                out.write(i);
-            } else {
-                out.write(0xd2);
-                out.write(i>>24);
-                out.write(i>>16);
-                out.write(i>>8);
-                out.write(i);
+                length *= 2;
+                tag = NO_TAG;
+                break;
+            case JsonStream.Event.TYPE_LIST_START:
+                stack[stackLength++] = length;
+                state = stack[stackLength++] = STATE_LIST;
+                length = event.size();
+                if (length < 0 || length > Integer.MAX_VALUE) {
+                    throw new IllegalStateException("Invalid Msgpack map size " + (length < 0 ? "'indeterminate'" : Long.valueOf(length)));
+                }
+                l = (int)length;
+                if (l <= 15) {
+                    out.write(0x90 | l);
+                } else if (l <= 65535) {
+                    out.write(0xdc);
+                    out.write(l>>8);
+                    out.write(l);
+                } else {
+                    out.write(0xdd);
+                    out.write(l>>24);
+                    out.write(l>>16);
+                    out.write(l>>8);
+                    out.write(l);
+                }
+                tag = NO_TAG;
+                break;
+            case JsonStream.Event.TYPE_LIST_END:
+                if (length > 0 || (state = stack[--stackLength]) != STATE_LIST) {
+                    throw new IllegalStateException("Unexpected end-list");
+                }
+                length = stack[--stackLength];
+                decrement = 1;
+                break;
+            case JsonStream.Event.TYPE_MAP_END:
+                if (length > 0 || (state = stack[--stackLength]) != STATE_MAP) {
+                    throw new IllegalStateException("Unexpected end-map");
+                }
+                length = stack[--stackLength];
+                decrement = 1;
+                break;
+            case JsonStream.Event.TYPE_BUFFER_START:
+                stack[stackLength++] = length;
+                state = stack[stackLength++] = STATE_BUFFER;
+                length = event.size();
+                l = (int)length;
+                if (length > Integer.MAX_VALUE) {
+                    throw new IllegalStateException("Invalid Msgpack buffer size " + (length < 0 ? "'indeterminate'" : Long.valueOf(length)));
+                } else if (length < 0) {
+                    indeterminateBuffer = new ExtendingByteBuffer();
+                    break;
+                }
+                writeStartBuffer(l, tag);
+                tag = NO_TAG;
+                break;
+            case JsonStream.Event.TYPE_STRING_START:
+                stack[stackLength++] = length;
+                state = stack[stackLength++] = STATE_STRING;
+                length = event.size();
+                if (length > Integer.MAX_VALUE) {
+                    throw new IllegalStateException("Invalid Msgpack string size " + (length < 0 ? "'indeterminate'" : Long.valueOf(length)));
+                } else if (length < 0) {
+                    indeterminateStringBuilder = new StringBuilder();
+                    break;
+                }
+                l = (int)length;
+                writeStartString(l);
+                tag = NO_TAG;
+                break;
+            case JsonStream.Event.TYPE_STRING_DATA:
+                if (state != STATE_STRING) {
+                    throw new IllegalStateException("Unexpected string-data");
+                }
+                if (event.stringValue() != null) {
+                    final CharSequence v = event.stringValue();
+                    if (indeterminateStringBuilder != null) {
+                        indeterminateStringBuilder.append(v);
+                    } else {
+                        decrement = CborWriter.writeUTF8(v, 0, out);
+                    }
+                } else {
+                    final Readable r = event.readableValue();
+                    CharBuffer buf = CharBuffer.allocate(8192);
+                    while (r.read(buf) > 0) {
+                        ((Buffer)buf).flip();
+                        if (indeterminateStringBuilder != null) {
+                            indeterminateStringBuilder.append(buf);
+                        } else {
+                            decrement += CborWriter.writeUTF8(buf, 0, out);
+                        }
+                        buf.clear();
+                    }
+                    if (r instanceof Closeable) {
+                        ((Closeable)r).close();
+                    }
+                }
+                break;
+            case JsonStream.Event.TYPE_BUFFER_DATA:
+                if (state != STATE_BUFFER) {
+                    throw new IllegalStateException("Unexpected buffer-data");
+                }
+                if (event.bufferValue() != null) {
+                    final ByteBuffer buffer = event.bufferValue();
+                    if (indeterminateBuffer != null) {
+                        indeterminateBuffer.write(buffer);
+                    } else {
+                        l = ((Buffer)buffer).remaining();
+                        if (buffer.isDirect()) {
+                            if (out instanceof WritableByteChannel) {
+                                ((WritableByteChannel)out).write(buffer);
+                            } else {
+                                ByteBuffer copy = ByteBuffer.allocate(l);
+                                copy.put(buffer);
+                                out.write(copy.array(), 0, ((Buffer)copy).limit());
+                            }
+                        } else {
+                            out.write(buffer.array(), ((Buffer)buffer).arrayOffset() + ((Buffer)buffer).position(), l);
+                        }
+                        decrement = l;
+                    }
+                } else {
+                    final ReadableByteChannel r = event.readableByteChannelValue();
+                    ByteBuffer buf = ByteBuffer.allocate(8192);
+                    while (r.read(buf) > 0) {
+                        ((Buffer)buf).flip();
+                        if (indeterminateBuffer != null) {
+                            indeterminateBuffer.write(buf);
+                        } else {
+                            out.write(buf.array(), 0, ((Buffer)buf).remaining());
+                            decrement += ((Buffer)buf).remaining();
+                        }
+                        buf.clear();
+                    }
+                    r.close();
+                }
+                break;
+            case JsonStream.Event.TYPE_STRING_END:
+                if ((state = stack[--stackLength]) != STATE_STRING) {
+                    throw new IllegalStateException("Unexpected end-string");
+                } else if (indeterminateStringBuilder != null) {
+                    int utf8l = CborWriter.lengthUTF8(indeterminateStringBuilder);
+                    writeStartString(utf8l);
+                    CborWriter.writeUTF8(indeterminateStringBuilder, utf8l, out);
+                    indeterminateStringBuilder = null;
+                } else if (length > 0) {
+                    throw new IllegalStateException("Unexpected end-string (expecting data)");
+                }
+                length = stack[--stackLength];
+                decrement = 1;
+                tag = NO_TAG;
+                break;
+            case JsonStream.Event.TYPE_BUFFER_END:
+                if ((state = stack[--stackLength]) != STATE_BUFFER) {
+                    throw new IllegalStateException("Unexpected end-buffer");
+                } else if (indeterminateBuffer != null) {
+                    l = indeterminateBuffer.size();
+                    writeStartBuffer(l, tag);
+                    indeterminateBuffer.writeTo(out);
+                    indeterminateBuffer = null;
+                } else if (length > 0) {
+                    throw new IllegalStateException("Unexpected end-buffer");
+                }
+                length = stack[--stackLength];
+                decrement = 1;
+                tag = NO_TAG;
+                break;
+            case JsonStream.Event.TYPE_TAG:
+                tag = (int)event.tagValue();
+                break;
+            case JsonStream.Event.TYPE_PRIMITIVE:
+                final Object value = event.value();
+                if (value instanceof Number) {
+                    Number n = (Number)value;
+                    if (n instanceof BigDecimal) {      // No BigDecimal in MsgPack
+                        n = Double.valueOf(n.doubleValue());
+                    }
+                    if (n instanceof BigInteger) {
+                        BigInteger bi = (BigInteger)n;
+                        int bl = bi.bitLength();
+                        if (bl == 64 && bi.signum() > 0) {
+                            long lv = bi.longValue();
+                            out.write(0xcf);
+                            out.write((int)(lv>>56));
+                            out.write((int)(lv>>48));
+                            out.write((int)(lv>>40));
+                            out.write((int)(lv>>32));
+                            out.write((int)(lv>>24));
+                            out.write((int)(lv>>16));
+                            out.write((int)(lv>>8));
+                            out.write((int)lv);
+                        } else if (bl <= 64) {
+                            n = Long.valueOf(bi.longValue());
+                        } else {
+                            throw new IllegalArgumentException("Cannot write BigInteger "+bi+" to Msgpack");
+                        }
+                    }
+                    if (n instanceof Long) {
+                        long lv = n.longValue();
+                        if (lv < Integer.MIN_VALUE) {
+                            out.write(0xd3);
+                            out.write((int)(lv>>56));
+                            out.write((int)(lv>>48));
+                            out.write((int)(lv>>40));
+                            out.write((int)(lv>>32));
+                            out.write((int)(lv>>24));
+                            out.write((int)(lv>>16));
+                            out.write((int)(lv>>8));
+                            out.write((int)lv);
+                        } else if (lv > Integer.MAX_VALUE) {
+                            out.write(0xcf);
+                            out.write((int)(lv>>56));
+                            out.write((int)(lv>>48));
+                            out.write((int)(lv>>40));
+                            out.write((int)(lv>>32));
+                            out.write((int)(lv>>24));
+                            out.write((int)(lv>>16));
+                            out.write((int)(lv>>8));
+                            out.write((int)lv);
+                        } else {
+                            n = Integer.valueOf((int)lv);
+                        }
+                    }
+                    if (n instanceof Integer || n instanceof Short || n instanceof Byte) {
+                        int i = n.intValue();
+                        if (i >= -32 && i < 127) {
+                            out.write(i);
+                        } else if (i > 0) {
+                            if (i <= 0xFF) {
+                                out.write(0xcc);
+                                out.write(i);
+                            } else if (i <= 0xFFFF) {
+                                out.write(0xcd);
+                                out.write(i>>8);
+                                out.write(i);
+                            } else {
+                                out.write(0xce);
+                                out.write(i>>24);
+                                out.write(i>>16);
+                                out.write(i>>8);
+                                out.write(i);
+                            }
+                        } else if (i >= -128) {
+                            out.write(0xd0);
+                            out.write(i);
+                        } else if (i >= -32768) {
+                            out.write(0xd1);
+                            out.write(i>>8);
+                            out.write(i);
+                        } else {
+                            out.write(0xd2);
+                            out.write(i>>24);
+                            out.write(i>>16);
+                            out.write(i>>8);
+                            out.write(i);
+                        }
+                    } else if (n instanceof Float) {
+                        out.write(0xca);
+                        int v = Float.floatToIntBits(n.floatValue());
+                        out.write(v>>24);
+                        out.write(v>>16);
+                        out.write(v>>8);
+                        out.write(v);
+                    } else if (n instanceof Double) {
+                        out.write(0xcb);
+                        long v = Double.doubleToLongBits(n.doubleValue());
+                        out.write((int)(v>>56));
+                        out.write((int)(v>>48));
+                        out.write((int)(v>>40));
+                        out.write((int)(v>>32));
+                        out.write((int)(v>>24));
+                        out.write((int)(v>>16));
+                        out.write((int)(v>>8));
+                        out.write((int)v);
+                    }
+                } else if (value instanceof CharSequence) {
+                    CharSequence s = (CharSequence)value;
+                    int len = CborWriter.lengthUTF8(s);
+                    writeStartString(len);
+                    CborWriter.writeUTF8(s, len, out);
+                } else if (Boolean.FALSE.equals(value)) {
+                    out.write(0xC2);
+                } else if (Boolean.TRUE.equals(value)) {
+                    out.write(0xC3);
+                } else if (event.isNull() || event.isUndefined()) {
+                    out.write(0xC0);
+                } else {
+                    throw new IllegalStateException("Unsupported primitive " + (value == null ? null : value.getClass().getName()));
+                }
+                tag = NO_TAG;
+                decrement = 1;
+                break;
+            case JsonStream.Event.TYPE_SIMPLE:
+                throw new IllegalStateException("No simple types in Msgpack");
+            default:
+                throw new IllegalStateException("Unknown event 0x" + type);
+        }
+        if (decrement > 0) {
+            length -= decrement;
+            if (length < 0) {
+                throw new IllegalArgumentException("Overflow");
             }
-        } else if (n instanceof Float) {
-            out.write(0xca);
-            int v = Float.floatToIntBits(n.floatValue());
-            out.write(v>>24);
-            out.write(v>>16);
-            out.write(v>>8);
-            out.write(v);
-        } else if (n instanceof Double) {
-            out.write(0xcb);
-            long v = Double.doubleToLongBits(n.doubleValue());
-            out.write((int)(v>>56));
-            out.write((int)(v>>48));
-            out.write((int)(v>>40));
-            out.write((int)(v>>32));
-            out.write((int)(v>>24));
-            out.write((int)(v>>16));
-            out.write((int)(v>>8));
-            out.write((int)v);
+        }
+        return stackLength == 2 && decrement > 0;
+    }
+
+    private void writeStartBuffer(int l, int tag) throws IOException {
+        if (tag >= 0) {
+            if (l == 1) {
+                out.write(0xd4);
+                out.write(tag);
+            } else if (l == 2) {
+                out.write(0xd5);
+                out.write(tag);
+            } else if (l == 4) {
+                out.write(0xd6);
+                out.write(tag);
+            } else if (l == 8) {
+                out.write(0xd7);
+                out.write(tag);
+            } else if (l == 16) {
+                out.write(0xd8);
+                out.write(tag);
+            } else if (l <= 255) {
+                out.write(0xc7);
+                out.write(l);
+                out.write(tag);
+            } else if (l <= 65535) {
+                out.write(0xc8);
+                out.write(l>>8);
+                out.write(l);
+                out.write(tag);
+            } else {
+                out.write(0xc9);
+                out.write(l>>24);
+                out.write(l>>16);
+                out.write(l>>8);
+                out.write(l);
+                out.write(tag);
+            }
+        } else if (l <= 255) {
+            out.write(0xc4);
+            out.write(l);
+        } else if (l <= 65535) {
+            out.write(0xc5);
+            out.write(l>>8);
+            out.write(l);
+        } else {
+            out.write(0xc6);
+            out.write(l>>24);
+            out.write(l>>16);
+            out.write(l>>8);
+            out.write(l);
         }
     }
 
-    private void writeMapKey(Object o) throws IOException {
-        if (o instanceof String) {
-            stringWriter.append((String)o);
-        } else if (o instanceof Number) {
-            writeNumber((Number)o);
-        } else if (o instanceof Boolean) {
-            writeNumber((Number)o);
-        } else if (o instanceof Boolean && ((Boolean)o).booleanValue()) {
-            out.write(0xc3);
-        } else if (o instanceof Boolean) {
-            out.write(0xc2);
-        } else if (o == Json.NULL || o == Json.UNDEFINED) {
-            out.write(0xc0);
+    private void writeStartString(int l) throws IOException {
+        if (l <= 31) {
+            out.write(0xa0 + l);
+        } else if (l <= 255) {
+            out.write(0xd9);
+            out.write(l);
+        } else if (l <= 65535) {
+            out.write(0xda);
+            out.write(l>>8);
+            out.write(l);
         } else {
-            throw new IOException("Unknown map key " + o);
+            out.write(0xdb);
+            out.write(l>>24);
+            out.write(l>>16);
+            out.write(l>>8);
+            out.write(l);
         }
     }
+
 }

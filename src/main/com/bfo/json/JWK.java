@@ -195,11 +195,14 @@ public class JWK extends Json {
                 case 4: kty = "oct"; break;         // "oct" is JWT, sym is name of COSE tag
                 default: kty = Integer.toString(v);
             }
-        } else if (in.has(1)) {
+        } else if (in.isString(1)) {
             kty = in.remove(1).stringValue();
+        } else if (in.isString("kty")) {
+            kty = in.remove("kty").stringValue();
         } else {
-            kty = in.has("kty") ? in.remove("kty").stringValue() : null;
+            throw new IllegalArgumentException("kty not specified");
         }
+
 
         Json out = Json.read("{}");
         out.put("kty", kty);
@@ -564,6 +567,10 @@ public class JWK extends Json {
      * @param ops the key operations, or null to remove any existing ops. Duplicates are discarded
      */
     public void setOps(Collection<String> ops) {
+        // Note: as a reminder to myself, there is no useful correlation between keyusage bits in
+        // X.509 and key_ops in JWK - the purposes for the latter are derived from
+        // https://www.w3.org/TR/WebCryptoAPI/#subtlecrypto-interface-methods, and don't include things
+        // like certificate signing. So don't bother going down that rabbit-hole
         if (ops == null) {
             remove("key_ops");
         } else {
@@ -634,7 +641,7 @@ public class JWK extends Json {
             List<X509Certificate> certs = new ArrayList<X509Certificate>();
             if (jsonurl.isString()) {
                 CertificateFactory factory = CertificateFactory.getInstance("X.509");
-                URL url = new URL(jsonurl.stringValue());
+                URL url = new URI(jsonurl.stringValue()).toURL();
                 InputStream in = null;
                 Collection<? extends Certificate> cl = null;
                 try {
@@ -665,6 +672,8 @@ public class JWK extends Json {
                 }
             }
             return certs;
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException("Invalid URL to \"" + jsonurl.stringValue() + "\"", e);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("Algorithm missing", e);
         } catch (CertificateException e) {
@@ -676,10 +685,11 @@ public class JWK extends Json {
      * Set the list of X.509 certificates specified in the JWK,
      * either as a url or inline.
      * <ul>
-     * <li>If both the url and certs are specified, it's presumed the URL would
-     * retrieve the supplied list. A checksum is calculated and stored.</li>
-     * <li>If only the certs are specified, they are stored in the JWK</li>
+     * <li>If only the certificates are specified, they are stored in the JWK</li>
      * <li>If only the URL is specified, it's stored in the JWK</li>
+     * <li>If both the url and certificates are specified, it's presumed the URL would
+     * retrieve the supplied list. The URL is stored in the JWK, and a checksum is calculated from
+     * the certificates and that is stored as well, but the certificates themselves are not stored.</li>
      * <li>If neither are specified, any existing certificates are removed</li>
      * </ul>
      * @param certs the list of certificates, or null
@@ -1237,6 +1247,8 @@ public class JWK extends Json {
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static Json getEdECKeyDetails(Key key) {
+        // NOTE NOTE - this method compiles under Java 11 but require Java 15 to do anything
+        // useful. If compiling with Java older than 11, just make it return null
         try {
             Json j = Json.read("{}");
             if (EdECPublicKey != null && EdECPublicKey.isInstance(key)) {
@@ -1259,6 +1271,8 @@ public class JWK extends Json {
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static KeySpec generateEdECKeySpec(String crv, boolean xIsOdd, BigInteger y, byte[] d) {
+        // NOTE NOTE - this method compiles under Java 11 but require Java 15 to do anything
+        // useful. If compiling with Java older than 11, just make it throw an Exception
         try {
             NamedParameterSpec np;
             if ("Ed25519".equals(crv)) {

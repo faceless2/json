@@ -44,7 +44,7 @@ import javax.crypto.spec.SecretKeySpec;
  * @see COSE
  * @see JWK
  */
-public class JWT {
+public class JWT implements Principal {
 
     private final Json header, payload;
     private byte[] signature;
@@ -217,7 +217,7 @@ public class JWT {
     }
 
     /**
-     * Return the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.
+     * Return the <i>issued at claim</i> ("iat") in <b>seconds</b> since the epoch.
      * @return the time or 0 if not set
      * @since 5
      */
@@ -226,7 +226,7 @@ public class JWT {
     }
 
     /**
-     * Return the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.
+     * Return the <i>not before claim</i> ("nbf") in <b>seconds</b> since the epoch.
      * @return the time or 0 if not set
      * @since 5
      */
@@ -235,7 +235,7 @@ public class JWT {
     }
 
     /**
-     * Return the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.
+     * Return the <i>expiry claim</i> ("exp"), in <b>seconds</b> since the epoch.
      * @return the time or 0 if not set
      * @since 5
      */
@@ -259,6 +259,13 @@ public class JWT {
      */
     public String getSubject() {
         return payload.isString("sub") ? payload.stringValue("sub") : null;
+    }
+
+    /**
+     * Return the {@link Principal} name, which by default simply calls {@link #getSubject}
+     */
+    public String getName() {
+        return getSubject();
     }
 
     /**
@@ -291,11 +298,11 @@ public class JWT {
      * @since 5
      */
     public String getUniqueID() {
-        return payload.isString("sub") ? payload.stringValue("sub") : null;
+        return payload.isString("jti") ? payload.stringValue("jti") : null;
     }
 
     /**
-     * Set the <i>issued at claim</i> ("iat") in <b>milliseconds</b> since the epoch.
+     * Set the <i>issued at claim</i> ("iat") in <b>seconds</b> since the epoch.
      * @param ms the time, or 0 to unset it
      * @since 5
      */
@@ -303,12 +310,12 @@ public class JWT {
         if (ms <= 0) {
             payload.remove("iat");
         } else {
-            payload.put("iat", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+            payload.put("iat", ms > 20000000000l ? ms / 1000 : ms); // we want seconds but we can sniff ms
         }
     }
 
     /**
-     * Set the <i>not before claim</i> ("nbf") in <b>milliseconds</b> since the epoch.
+     * Set the <i>not before claim</i> ("nbf") in <b>seconds</b> since the epoch.
      * @param ms the time, or 0 to unset it
      * @since 5
      */
@@ -316,12 +323,12 @@ public class JWT {
         if (ms <= 0) {
             payload.remove("nbf");
         } else {
-            payload.put("nbf", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+            payload.put("nbf", ms > 20000000000l ? ms / 1000 : ms); // we want seconds but we can sniff ms
         }
     }
 
     /**
-     * Set the <i>expiry claim</i> ("exp"), in <b>milliseconds</b> since the epoch.
+     * Set the <i>expiry claim</i> ("exp"), in <b>seconds</b> since the epoch.
      * @param ms the time, or 0 to unset it
      * @since 5
      */
@@ -329,7 +336,7 @@ public class JWT {
         if (ms <= 0) {
             payload.remove("exp");
         } else {
-            payload.put("exp", ms < 20000000000l ? ms : ms / 1000); // we want ms but we can sniff seconds
+            payload.put("exp", ms > 20000000000l ? ms / 1000 : ms); // we want seconds but we can sniff ms
         }
     }
 
@@ -401,13 +408,14 @@ public class JWT {
      * If the token has an expiry time and/or not-before time, they
      * will be compared to the supplied time and false returned if
      * they are out of range. If they are not specified, true is returned.
-     * @param time the token issued-at time, or 0 to use the current time
+     * @param time the time in seconds, the token issued-at time, or 0 to use the current time
      * @return if the key can not be determined as invalid at the specified time
      */
     public boolean isValidAt(long time) {
         if (time == 0) {
-            time = System.currentTimeMillis();
+            time = System.currentTimeMillis() / 1000;
         }
+        time = time > 20000000000l ? time / 1000 : time; // we want seconds but we can sniff ms
         if (getExpiry() != 0 && getExpiry() < time) {
             return false;
         }

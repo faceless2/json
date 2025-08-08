@@ -26,7 +26,20 @@
 
   <target name="build">
     <mkdir dir="${classes.main}"/>
+    <mkdir dir="${classes.test}"/>
     <mkdir dir="${dist}"/>
+    <javac encoding="utf-8" debug="true" release="8" destdir="${classes.main}">
+      <src path="${src.main}"/>
+      <exclude name="com/bfo/json/JWT.java"/>
+      <exclude name="com/bfo/json/JWK.java"/>
+      <exclude name="com/bfo/json/COSE.java"/>
+      <compilerarg value="-Xlint:unchecked"/>
+      <compilerarg value="-Xlint:rawtypes"/>
+      <compilerarg value="-Xlint:deprecation"/>
+      <compilerarg value="-Xlint:finally"/>
+      <compilerarg value="-Xlint:overrides"/>
+      <classpath refid="path.build" />
+    </javac>
     <javac encoding="utf-8" debug="true" source="8" target="8" destdir="${classes.main}">
       <src path="${src.main}"/>
       <compilerarg value="-Xlint:unchecked"/>
@@ -43,6 +56,24 @@
     </copy>
     <jar jarfile="${jar.main}" update="false">
       <fileset dir="${classes.main}" />
+    </jar>
+
+    <javac encoding="utf-8" debug="true" source="8" target="8" destdir="${classes.test}">
+      <src path="${src.test}"/>
+      <compilerarg value="-Xlint:unchecked"/>
+      <compilerarg value="-Xlint:deprecation"/>
+      <classpath>
+        <pathelement location="${jar.main}"/>
+        <path refid="path.build"/>
+      </classpath>
+    </javac>
+    <copy todir="${classes.test}">
+      <fileset dir="${src.test}">
+        <exclude name="**/*.java"/>
+      </fileset>
+    </copy>
+    <jar jarfile="${jar.test}" update="false">
+      <fileset dir="${classes.test}" />
     </jar>
   </target>
 
@@ -67,25 +98,6 @@
   </target>
 
   <target name="test" depends="build">
-    <mkdir dir="${classes.test}"/>
-    <javac encoding="utf-8" debug="true" source="8" target="8" destdir="${classes.test}">
-      <src path="${src.test}"/>
-      <compilerarg value="-Xlint:unchecked"/>
-      <compilerarg value="-Xlint:deprecation"/>
-      <classpath>
-        <pathelement location="${jar.main}"/>
-        <path refid="path.build"/>
-      </classpath>
-    </javac>
-    <copy todir="${classes.test}">
-      <fileset dir="${src.test}">
-        <exclude name="**/*.java"/>
-      </fileset>
-    </copy>
-    <jar jarfile="${jar.test}" update="false">
-      <fileset dir="${classes.test}" />
-    </jar>
-
     <java classname="com.bfo.json.Test" fork="true">
       <jvmarg value="-ea"/>
       <classpath>
@@ -93,6 +105,9 @@
        <pathelement location="${jar.test}"/>
        <path refid="path.build"/>
       </classpath>
+      <!--
+      <arg value="twitter.json"/>
+      -->
     </java>
   </target>
 

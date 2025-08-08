@@ -24,7 +24,7 @@ class Seriot {
                 boolean shouldFail = name.startsWith("n_");
                 try {
                     in = Files.newInputStream(path);
-                    Json json = Json.read(in, null);
+                    Json json = Json.read(in);
                     if (shouldFail) {
                         System.out.println("* "+path+": FAIL (parsed when it should have failed)");
                     } else {

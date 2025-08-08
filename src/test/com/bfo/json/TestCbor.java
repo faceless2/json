@@ -5,11 +5,53 @@ import java.text.*;
 import java.math.*;
 import java.io.*;
 import java.nio.*;
+import java.nio.channels.*;
 
 public class TestCbor {
     public static void main(String[] args) throws Exception {
+        System.out.println("----- BEGIN APPENDIX-A CBOR TESTS -----");
+        System.out.println("  Note tests 18, 19, 20, 22, 23, 25, 27, 28, 29, 31, 32 and 33 are tests of 16-bit precision floats,");
+        System.out.println("  which we convert to 32 bit in Java. So they are expected to fail round-trip testing.");
+        System.out.println("  Also notes tests 44, 45, 46 involve Cbor \"simple\" types which we have no object for, so we");
+        System.out.println("  convert to tagged-undefined objects. Finally test 71 is an indefinite length buffer which we convert");
+        System.out.println("  to definite, so the diagnostic will fail there too");
+        InputStream in = TestCbor.class.getResourceAsStream("resources/appendix_a.json");         // https://github.com/cbor/test-vectors
+        Json j = Json.read(new JsonReader().setInput(in));
+        in.close();
+        for (int i=0;i<j.size();i++) {
+            Json test = j.get(i);
+            byte[] hex1 = readHex(test.stringValue("hex"));
+            ByteArrayOutputStream bout = new ByteArrayOutputStream();
+            new CborReader().setDraining().setFinal().setInput(ByteBuffer.wrap(hex1)).write(new CborWriter().setOutput(bout));
+            byte[] hex2 = bout.toByteArray();
+            if (!Arrays.equals(hex1, hex2)) {
+                System.out.println("Test " + i + ": read direct to writer: FAIL (input="+hex(hex1)+" output="+hex(hex2)+" test="+test+")"); // Note tests 44,45,46 will fail
+            }
+            Json cbor = read(test.stringValue("hex"));
+            if (test.booleanValue("roundtrip")) {
+                String hex = write(cbor);
+                if (!hex.equalsIgnoreCase(test.stringValue("hex"))) {
+                    System.out.println("Test " + i + ": roundtrip via Json object: FAIL (input="+test.stringValue("hex")+" output="+hex+")");
+                }
+            }
+            if (test.get("decoded") != null) {
+                String s1 = cbor.toString();
+                String s2 = test.get("decoded").toString();
+                if (!s1.equals(s2)) {
+                    System.out.println("Test " + i + ": decode FAIL: (expected " + s2 + " got " + s1 + ")");
+                }
+            } else {
+                String s1 = cbor.toString(new JsonWriter().setCborDiag("HEX"));
+                String s2 = test.isNull("diagnostic") ? "null" : test.stringValue("diagnostic");
+                if (!s1.equals(s2)) {
+                    System.out.println("Test " + i + ": diagnostic FAIL (expected " + s2 + " got " + s1 + ")");
+                }
+            }
+        }
+        System.out.println("----- END APPENDIX-A CBOR TESTS -----");
+
         System.out.println("----- BEGIN CBOR TESTS -----");
-        Json j = null;
+        j = null;
         String tostring = null;
         assert (j=read("00")).toString().equals("0") && j.getTag() < 0;
         assert (j=read("01")).toString().equals("1");
@@ -42,15 +84,15 @@ public class TestCbor {
         assert (j=read("f90400")).toString().equals("6.1035156e-05");
         assert (j=read("f9c400")).toString().equals("-4");
         assert (j=read("fbc010666666666666")).toString().equals("-4.1");
-        assert (j=read("f97c00")).toString().equals("null");
-        assert (j=read("f97e00")).toString().equals("null");
-        assert (j=read("f9fc00")).toString().equals("null");
-        assert (j=read("fa7f800000")).toString().equals("null");
-        assert (j=read("fa7fc00000")).toString().equals("null");
-        assert (j=read("faff800000")).toString().equals("null");
-        assert (j=read("fb7ff0000000000000")).toString().equals("null") : read("fb7ff0000000000000").toString();        // Infinity
-        assert (j=read("fb7ff8000000000000")).toString().equals("null");        // NaN
-        assert (j=read("fbfff0000000000000")).toString().equals("null");        // -Infinity
+        assert (j=read("f97c00")).numberValue().equals(Float.POSITIVE_INFINITY);        // 16-bit +inf
+        assert Float.isNaN((j=read("f97e00")).numberValue().floatValue());              // 16-bit NaN
+        assert (j=read("f9fc00")).numberValue().equals(Float.NEGATIVE_INFINITY);        // 16-bit -inf
+        assert (j=read("fa7f800000")).numberValue().equals(Float.POSITIVE_INFINITY);    // 32-bit +inf
+        assert Float.isNaN((j=read("fa7fc00000")).numberValue().floatValue());          // 32-bit NaN
+        assert (j=read("faff800000")).numberValue().equals(Float.NEGATIVE_INFINITY);    // 32-bit -inf
+        assert (j=read("fb7ff0000000000000")).numberValue().equals(Double.POSITIVE_INFINITY);    // 64-bit +inf
+        assert Double.isNaN((j=read("fb7ff8000000000000")).numberValue().doubleValue());          // 64-bit NaN
+        assert (j=read("fbfff0000000000000")).numberValue().equals(Double.NEGATIVE_INFINITY);    // 64-bit -inf
         assert (j=read("f4")).toString().equals("false");
         assert (j=read("f5")).toString().equals("true");
         assert (j=read("f6")).toString().equals("null");
@@ -99,7 +141,7 @@ public class TestCbor {
         // Next ones feature integer keys, from example at 
         assert (j=read("a10126")).get(1).intValue() == -7;
         assert (j=read("a10126")).get("1") == null;
-        assert (tostring=(j=read("D8628440A054546869732069732074686520636F6E74656E742E818343A10126A1044231315840E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A")).toString(new JsonWriteOptions().setCborDiag("HEX"))).equals("98([h'',{},h'546869732069732074686520636F6E74656E742E',[[h'A10126',{4:h'3131'},h'E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A']]])") : tostring;
+        assert (tostring=(j=read("D8628440A054546869732069732074686520636F6E74656E742E818343A10126A1044231315840E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A")).toString(new JsonWriter().setCborDiag("HEX"))).equals("98([h'',{},h'546869732069732074686520636F6E74656E742E',[[h'A10126',{4:h'3131'},h'E2AEAFD40D69D19DFE6E52077C5D7FF4E408282CBEFB5D06CBF414AF2E19D982AC45AC98B8544C908B4507DE1E90B717C3D34816FE926A2B98F53AFD2FA0F30A']]])") : tostring;
 
         System.out.println("----- END CBOR TESTS -----");
         System.out.println("----- BEGIN CBOR BIGNUMBER TESTS -----");
@@ -122,11 +164,10 @@ public class TestCbor {
         System.out.println("----- BEGIN CBOR ROUNDTRIP TESTS -----");
         for (String s : INPUT) {
             j = read(s);
-            String s1 = j.toString(new JsonWriteOptions().setCborDiag("HEX"));
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            j.writeCbor(out, null);
-            j = Json.readCbor(new ByteArrayInputStream(out.toByteArray()), null);
-            String s2 = j.toString(new JsonWriteOptions().setCborDiag("HEX"));
+            String s1 = j.toString(new JsonWriter().setCborDiag("HEX"));
+            ByteBuffer buf = j.toCbor();
+            j = Json.readCbor(buf);
+            String s2 = j.toString(new JsonWriter().setCborDiag("HEX"));
             assert s1.equals(s1) : s1 + " != " + s2;
         }
         System.out.println("----- END CBOR ROUNDTRIP TESTS -----");
@@ -142,43 +183,46 @@ public class TestCbor {
             }
             final String targetstring = new String(targetbytes, "ISO-8859-1");
             final Json magicBuffer = new Json(ByteBuffer.wrap("bad".getBytes("UTF-8"))) {
-                @Override protected void writeBuffer(OutputStream out) throws IOException {
-                    out.write(targetbytes);
+                @Override public ReadableByteChannel getBufferStream() throws IOException {
+                    return Channels.newChannel(new ByteArrayInputStream(targetbytes));
+                }
+                @Override public long getBufferStreamLength() throws IOException {
+                    return targetbytes.length;
                 }
             };
             final Json magicString = new Json("bad") {
-                @Override protected void writeString(Appendable out) throws IOException {
-                    out.append(targetstring);
+                @Override public Readable getStringStream() throws IOException {
+                    return new StringReader(targetstring);
+                }
+                @Override public long getStringStreamByteLength() throws IOException {
+                    return -1;
                 }
             };
             j.put("buffer", magicBuffer);
             j.put("string", magicString);
 
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            StringWriter w = new StringWriter();
             ByteBuffer testbuf;
             String teststring;
             Json j2;
 
-            j.writeCbor(out, null);
-            InputStream in = new ByteArrayInputStream(out.toByteArray());
-            j2 = Json.readCbor(in, null);
+            ByteBuffer buf = j.toCbor();
+            j2 = Json.readCbor(buf);
             testbuf = j2.bufferValue("buffer");
             assert Arrays.equals(targetbytes, testbuf.array()) : "cbor proxy buffer: i="+i+" j="+j+" buf="+hex(testbuf.array());
             teststring = j2.stringValue("string");
             assert teststring.equals(targetstring) : "cbor proxy string: i="+i+" j="+j+" s="+teststring;
 
-            j.write(w, null);
-            j2 = Json.read(w.toString());
+            String w = j.toString();
+            j2 = Json.read(w);
             testbuf = j2.bufferValue("buffer");
             assert Arrays.equals(targetbytes, testbuf.array()) : "json proxy buffer: i="+i+" j="+j+" buf="+hex(testbuf.array());
             teststring = j2.stringValue("string");
             assert teststring.equals(targetstring) : "json proxy string: i="+i+" j="+j+" s="+teststring;
 
-            out.reset();
-            j.writeMsgpack(out, null);
-            in = new ByteArrayInputStream(out.toByteArray());
-            j2 = Json.readMsgpack(in, null);
+            ByteArrayOutputStream bout = new ByteArrayOutputStream();
+            j.write(new MsgpackWriter().setOutput(bout));
+            buf = ByteBuffer.wrap(bout.toByteArray());
+            j2 = Json.read(new MsgpackReader().setInput(buf));
             testbuf = j2.bufferValue("buffer");
             assert Arrays.equals(targetbytes, testbuf.array()) : "msgpack proxy buffer: i="+i+" j="+j+" buf="+hex(testbuf.array());
             teststring = j2.stringValue("string");
@@ -199,17 +243,20 @@ public class TestCbor {
 
 
     private static String write(Json j) throws IOException {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        j.writeCbor(out, null);
-        return hex(out.toByteArray());
+        ByteBuffer buf = j.toCbor();
+        return hex(buf.array());
     }
 
-    private static Json read(String s) throws IOException {
+    private static byte[] readHex(String s) throws IOException {
         byte[] b = new byte[s.length() / 2];
         for (int i=0;i<b.length;i++) {
             b[i] = (byte)((Character.digit(s.charAt(i*2), 16) << 4) + Character.digit(s.charAt(i*2 + 1), 16));
         }
-        return Json.readCbor(new ByteArrayInputStream(b), null);
+        return b;
+    }
+
+    private static Json read(String s) throws IOException {
+        return Json.readCbor(ByteBuffer.wrap(readHex(s)));
     }
 
     private static String hex(byte[] in) {

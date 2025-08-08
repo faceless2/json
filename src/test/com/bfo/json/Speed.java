@@ -32,13 +32,16 @@ class Speed {
                         }
                         out.close();
                         byte[] buf = out.toByteArray();
+                        if (buf.length == 0) {
+                            throw new Error("No input on " + s);
+                        }
                         string = new String(buf, "UTF-8");
                         long time, l1;
                         Json json = null;
 
                         l1 = System.nanoTime();
                         for (int i=0;i<PASS;i++) {
-                            json = Json.read(new ByteArrayInputStream(buf), null);
+                            json = Json.read(new JsonReader().setInput(ByteBuffer.wrap(buf)));
                         }
                         time = (System.nanoTime() - l1) / 1000 / PASS;
                         System.out.println("* "+s+": read from binary: "+time+"us, "+(buf.length * 1000000l / 1024 / time)+"Kb/s");
@@ -54,7 +57,7 @@ class Speed {
                         StringBuilder sb = new StringBuilder(string.length());
                         for (int i=0;i<PASS;i++) {
                             sb.setLength(0);
-                            json.write(sb, null);
+                            json.write(new JsonWriter().setOutput(sb));
                         }
                         time = (System.nanoTime() - l1) / 1000 / PASS;
                         System.out.println("* "+s+": write: "+time+"us, "+(sb.length() * 1000000l / 1024 / time)+"Kc/s over " + sb.length()+" chars");
@@ -62,7 +65,7 @@ class Speed {
                         l1 = System.nanoTime();
                         for (int i=0;i<PASS;i++) {
                             out.reset();
-                            json.writeCbor(out, null);
+                            json.write(new CborWriter().setOutput(out));
                         }
                         time = (System.nanoTime() - l1) / 1000 / PASS;
                         System.out.println("* "+s+": write CBOR: "+time+"us, "+(out.size() * 1000000l / 1024 / time)+"Kb/s over " + out.size() + " bytes");
@@ -70,8 +73,7 @@ class Speed {
                         buf = out.toByteArray();
                         l1 = System.nanoTime();
                         for (int i=0;i<PASS;i++) {
-                            ByteArrayInputStream bin = new ByteArrayInputStream(buf);
-                            json = Json.readCbor(bin, null);
+                            json = Json.readCbor(ByteBuffer.wrap(buf));
                         }
                         time = (System.nanoTime() - l1) / 1000 / PASS;
                         System.out.println("* "+s+": read CBOR: "+time+"us, "+(buf.length * 1000000l / 1024 / time)+"Kb/s over " + buf.length + " bytes");
@@ -79,7 +81,7 @@ class Speed {
                         l1 = System.nanoTime();
                         for (int i=0;i<PASS;i++) {
                             out.reset();
-                            json.writeMsgpack(out, null);
+                            json.write(new MsgpackWriter().setOutput(out));
                         }
                         time = (System.nanoTime() - l1) / 1000 / PASS;
                         System.out.println("* "+s+": write Msgpack: "+time+"us, "+(out.size() * 1000000l / 1024 / time)+"Kb/s over " + out.size() + " bytes");
@@ -87,8 +89,7 @@ class Speed {
                         buf = out.toByteArray();
                         l1 = System.nanoTime();
                         for (int i=0;i<PASS;i++) {
-                            ByteArrayInputStream bin = new ByteArrayInputStream(buf);
-                            json = Json.readMsgpack(bin, null);
+                            json = Json.read(new MsgpackReader().setInput(ByteBuffer.wrap(buf)));
                         }
                         time = (System.nanoTime() - l1) / 1000 / PASS;
                         System.out.println("* "+s+": read Msgpack: "+time+"us, "+(buf.length * 1000000l / 1024 / time)+"Kb/s over " + buf.length + " bytes");
