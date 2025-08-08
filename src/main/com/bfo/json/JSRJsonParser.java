@@ -40,6 +40,9 @@ class JSRJsonParser implements JsonParser, JsonLocation {
             this.parent = parent;
             this.mode = mode;
         }
+        public String toString() {
+            return "{mode="+(new String[] { "root", "list", "mapkey", "mapval" })[mode]+(parent==null?"":" parent="+parent) + "}";
+        }
     }
 
     @Override public boolean hasNext() {
@@ -204,6 +207,9 @@ class JSRJsonParser implements JsonParser, JsonLocation {
                 } else if (type == JsonStream.Event.TYPE_MAP_END) {
                     value = null;
                     state = state.parent;
+                    if (state != null && state.mode == MODE_MAPVAL) {
+                        state.mode = MODE_MAPKEY;
+                    }
                     event = JsonParser.Event.END_OBJECT;
                 } else if (type == JsonStream.Event.TYPE_LIST_START) {
                     value = null;
@@ -212,6 +218,9 @@ class JSRJsonParser implements JsonParser, JsonLocation {
                 } else if (type == JsonStream.Event.TYPE_LIST_END) {
                     value = null;
                     state = state.parent;
+                    if (state != null && state.mode == MODE_MAPVAL) {
+                        state.mode = MODE_MAPKEY;
+                    }
                     event = JsonParser.Event.END_ARRAY;
                 } else {
                     value = new IllegalStateException("Unexpected event " + e);
