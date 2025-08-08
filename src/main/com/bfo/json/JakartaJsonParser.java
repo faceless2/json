@@ -5,11 +5,11 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.*;
 import java.math.*;
-import javax.json.*;
-import javax.json.stream.*;
-import javax.json.stream.JsonParser.Event;
+import jakarta.json.*;
+import jakarta.json.stream.*;
+import jakarta.json.stream.JsonParser.Event;
 
-class JSRJsonParser implements JsonParser, JsonLocation {
+class JakartaJsonParser implements JsonParser, JsonLocation {
 
     private static final int MODE_ROOT = 0, MODE_LIST = 1, MODE_MAPKEY = 2, MODE_MAPVAL = 3;
     private final JsonReader in;
@@ -19,14 +19,14 @@ class JSRJsonParser implements JsonParser, JsonLocation {
     private Object value, lastvalue;
     private State state;
 
-    JSRJsonParser(JsonReader in, InputStream stream) {
+    JakartaJsonParser(JsonReader in, InputStream stream) {
         this.in = (JsonReader)in.setInput(stream);
         this.stream = stream;
         this.reader = null;
         donext();
     }
 
-    JSRJsonParser(JsonReader in, Reader reader) {
+    JakartaJsonParser(JsonReader in, Reader reader) {
         this.in = (JsonReader)in.setInput(reader);
         this.stream = null;
         this.reader = reader;
@@ -237,7 +237,7 @@ class JSRJsonParser implements JsonParser, JsonLocation {
         if (lastevent != Event.START_ARRAY) {
             throw new IllegalStateException("Not an array");
         }
-        return (JsonArray)new JSRJsonReader(this).read(lastevent);
+        return (JsonArray)new JakartaJsonReader(this).read(lastevent);
     }
 
     @Override public Stream<JsonValue> getArrayStream() {
@@ -266,7 +266,7 @@ class JSRJsonParser implements JsonParser, JsonLocation {
         if (lastevent != Event.START_OBJECT) {
             throw new IllegalStateException("Not an object");
         }
-        return (JsonObject)new JSRJsonReader(this).read(lastevent);
+        return (JsonObject)new JakartaJsonReader(this).read(lastevent);
     }
 
     @Override public Stream<Map.Entry<String,JsonValue>> getObjectStream() {
@@ -301,7 +301,7 @@ class JSRJsonParser implements JsonParser, JsonLocation {
     }
 
     @Override public JsonValue getValue() {
-        return new JSRJsonReader(this).read(lastevent);
+        return new JakartaJsonReader(this).read(lastevent);
     }
 
     @Override public Stream<JsonValue> getValueStream() {
