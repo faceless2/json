@@ -1,7 +1,8 @@
 # Java JSON, CBOR, Msgpack, JWT, COSE toolkit 
 
 The BFO JSON package is yet another Java JSON parser.
-It supports JSR353 / JSR374 (the `javax.json` package), and also has a custom API
+It supports JSR353 / JSR374 (both the `javax.json` and the `jakarta.json` packages),
+and also has a custom API
 which adds support for Msgpack, CBOR and CBOR-diag (the `com.bfo.json` package).
 
 ### simple
