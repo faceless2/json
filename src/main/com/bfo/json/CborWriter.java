@@ -108,12 +108,18 @@ public class CborWriter implements JsonStream {
 //        System.out.println("WRITER: e="+event+" " + dump());
         switch(type) {
             case JsonStream.Event.TYPE_MAP_START:
+                if (stackLength == stack.length) {
+                    stack = Arrays.copyOf(stack, stackLength+(stackLength>>1));
+                }
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_MAP;
                 length = event.size();
                 writeNum(5, (int)length);
                 break;
             case JsonStream.Event.TYPE_LIST_START:
+                if (stackLength == stack.length) {
+                    stack = Arrays.copyOf(stack, stackLength+(stackLength>>1));
+                }
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_LIST;
                 length = event.size();
@@ -138,12 +144,18 @@ public class CborWriter implements JsonStream {
                 decrement = 1;
                 break;
             case JsonStream.Event.TYPE_BUFFER_START:
+                if (stackLength == stack.length) {
+                    stack = Arrays.copyOf(stack, stackLength+(stackLength>>1));
+                }
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_BUFFER;
                 length = event.size();
                 writeNum(2, length);
                 break;
             case JsonStream.Event.TYPE_STRING_START:
+                if (stackLength == stack.length) {
+                    stack = Arrays.copyOf(stack, stackLength+(stackLength>>1));
+                }
                 stack[stackLength++] = length;
                 state = stack[stackLength++] = STATE_STRING;
                 length = event.size();
