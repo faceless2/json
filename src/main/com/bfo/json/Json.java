@@ -2311,7 +2311,7 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #mapValue} method on it, otherwise return null
      * @return the read-only map value of that object
      * @param key the key
@@ -2341,7 +2341,7 @@ public class Json {
     }
 
     /**
-     * If the specified wchild of this object exists call
+     * If the specified child of this object exists call
      * the {@link #listValue} method on it, otherwise return null
      * @return the read-only list value of that object
      * @param key the key
@@ -2392,6 +2392,18 @@ public class Json {
         } else {
             return value();
         }
+    }
+
+    /**
+     * If the specified child of this object exists call
+     * the {@link #objectValue} method on it, otherwise return null
+     * @return the read-only map value of that object
+     * @return a String, Number, Boolean, Map&lt;String,Object&gt;, List&lt;Object&gt; or null as described
+     * @since 2.0
+     */
+    public Object objectValue(Object key) {
+        Json j = get(key);
+        return j == null ? null : j.objectValue();
     }
 
     /**
