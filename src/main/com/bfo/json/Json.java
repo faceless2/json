@@ -255,6 +255,7 @@ public class Json {
                         }
                         map.put(key, child);
                     }
+                    seen.remove(object);
                     core = map;
                 } else if (object instanceof Collection) {
                     if (seen == null) {
@@ -270,6 +271,7 @@ public class Json {
                         child.parentkey = list.size();
                         list.add(child);
                     }
+                    seen.remove(object);
                     core = list;
                 } else if (object.getClass().isArray()) {
                     if (seen == null) {
@@ -285,6 +287,7 @@ public class Json {
                         child.parentkey = list.size();
                         list.add(child);
                     }
+                    seen.remove(object);
                     core = list;
                 }
             }
