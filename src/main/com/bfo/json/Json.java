@@ -255,6 +255,7 @@ public class Json {
                         }
                         map.put(key, child);
                     }
+                    seen.remove(object);
                     core = map;
                 } else if (object instanceof Collection) {
                     if (seen == null) {
@@ -270,6 +271,7 @@ public class Json {
                         child.parentkey = list.size();
                         list.add(child);
                     }
+                    seen.remove(object);
                     core = list;
                 } else if (object.getClass().isArray()) {
                     if (seen == null) {
@@ -285,6 +287,7 @@ public class Json {
                         child.parentkey = list.size();
                         list.add(child);
                     }
+                    seen.remove(object);
                     core = list;
                 }
             }
@@ -2311,7 +2314,7 @@ public class Json {
     }
 
     /**
-     * If the specified descendant of this object exists call
+     * If the specified child of this object exists call
      * the {@link #mapValue} method on it, otherwise return null
      * @return the read-only map value of that object
      * @param key the key
@@ -2341,7 +2344,7 @@ public class Json {
     }
 
     /**
-     * If the specified wchild of this object exists call
+     * If the specified child of this object exists call
      * the {@link #listValue} method on it, otherwise return null
      * @return the read-only list value of that object
      * @param key the key
@@ -2364,6 +2367,7 @@ public class Json {
      * <li>If this value is a list or map, populate the map values with the output of this method and return as a Map&lt;String,Object&gt; or List&lt;Object&gt;</li>
      * </ul>
      * @return a String, Number, Boolean, Map&lt;String,Object&gt;, List&lt;Object&gt; or null as described
+     * @since 2.1
      */
     public Object objectValue() {
         if (isNull()) {
@@ -2392,6 +2396,18 @@ public class Json {
         } else {
             return value();
         }
+    }
+
+    /**
+     * If the specified child of this object exists call
+     * the {@link #objectValue} method on it, otherwise return null
+     * @return the read-only map value of that object
+     * @return a String, Number, Boolean, Map&lt;String,Object&gt;, List&lt;Object&gt; or null as described
+     * @since 2.0
+     */
+    public Object objectValue(Object key) {
+        Json j = get(key);
+        return j == null ? null : j.objectValue();
     }
 
     /**

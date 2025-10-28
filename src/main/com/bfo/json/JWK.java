@@ -23,6 +23,7 @@ import javax.crypto.spec.SecretKeySpec;
  *  <li>RSASSA-PSS - PS256, PS384, PS512</li>
  *  <li>RSA - RS256, RS384, RS512 (not used in COSE, only JWT)</li>
  *  <li>EdDSA - Ed25519 and Ed448 (requires Java 15 or later)</li>
+ *  <li>ML-DSA (requires Java 24 or later, or BouncyCastle 1.79 or greater as a provider). Only public keys are serialized (new in 2.1)</li>
  * </ul>
  * and symmetric ciphers with a <code>javax.crypto.SecretKey</code>
  * <ul>
@@ -37,6 +38,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class JWK extends Json {
 
     private static final Map<Integer,String> COSE_ALGORITHMS, COSE_EC_REGISTRY, COSE_KEYOPS;
+    private static final Map<String,Json> AKP_DATA;
 
     private Provider provider;
     private List<Key> keys;
@@ -73,6 +75,19 @@ public class JWK extends Json {
      */
     public JWK(Json jwk) {
         super(jwk);
+    }
+
+    /**
+     * Create a new JWK from the specified Json, sharing its content, and set the provider
+     * @param jwk the JWK
+     * @param provider the Provider
+     * @since 2.0
+     */
+    public JWK(Json jwk, Provider provider) {
+        this(jwk);
+        if (provider != null) {
+            setProvider(provider);
+        }
     }
 
     /**
@@ -193,6 +208,8 @@ public class JWK extends Json {
                 case 2: kty = "EC"; break;          // "EC" is JWT, EC2 is name of COSE tag
                 case 3: kty = "RSA"; break;         // https://www.rfc-editor.org/rfc/rfc8230.html
                 case 4: kty = "oct"; break;         // "oct" is JWT, sym is name of COSE tag
+                // 5 and 6 are unsupported
+                case 7: kty = "AKP"; break;         // "AKP" algorithm key-pair, for ML-DSA, SLH-DSA and probably more
                 default: kty = Integer.toString(v);
             }
         } else if (in.isString(1)) {
@@ -248,6 +265,13 @@ public class JWK extends Json {
             Json k = in.has(-1) ? in.remove(-1) : in.remove("k");
             if (k != null && k.isBuffer()) {
                 out.put("k", k.stringValue());
+            }
+        } else if (kty.equals("AKP")) {         // Algorithm Key Pair, for ML-DSA, SLH-DSA and probably more
+            // https://www.ietf.org/archive/id/draft-ietf-cose-dilithium-05.html
+            if (in.isBuffer(-1)) {
+                out.put("pub", in.remove(-1).stringValue());
+            } else if (in.isBuffer(-2)) {
+                out.put("priv", in.remove(-2).stringValue());
             }
         }
         for (Map.Entry<Object,Json> e : in.mapValue().entrySet()) {
@@ -352,6 +376,13 @@ public class JWK extends Json {
             if (in.bufferValue("k") != null) {
                 out.put(-1, in.remove("k").bufferValue());
             }
+        } else if ("AKP".equals(kty)) {
+            out.put(1, 7);
+            if (in.bufferValue("pub") != null) {
+                out.put(-1, in.remove("pub").bufferValue());
+            } else if (in.bufferValue("priv") != null) {
+                out.put(-2, in.remove("priv").bufferValue());
+            }
         } else {
             throw new IllegalArgumentException("Unkown kty \"" + kty + "\"");
         }
@@ -451,6 +482,13 @@ public class JWK extends Json {
         m.put(-37, "PS256");    // https://datatracker.ietf.org/doc/rfc8230/
         m.put(-38, "PS384");    // https://datatracker.ietf.org/doc/rfc8230/
         m.put(-39, "PS512");    // https://datatracker.ietf.org/doc/rfc8230/
+
+        m.put(-48, "ML-DSA-44");        // https://www.ietf.org/archive/id/draft-ietf-cose-dilithium-05.html
+        m.put(-49, "ML-DSA-65");        // https://www.ietf.org/archive/id/draft-ietf-cose-dilithium-05.html
+        m.put(-50, "ML-DSA-87");        // https://www.ietf.org/archive/id/draft-ietf-cose-dilithium-05.html
+        //m.put(-51, "SLH-DSA-SHA2-128s");   // https://datatracker.ietf.org/doc/draft-ietf-cose-sphincs-plus/
+        //m.put(-52, "SLH-DSA-SHAKE-128s");  // https://datatracker.ietf.org/doc/draft-ietf-cose-sphincs-plus/
+        //m.put(-53, "SLH-DSA-SHA2-128f ");  // https://datatracker.ietf.org/doc/draft-ietf-cose-sphincs-plus/
         COSE_ALGORITHMS = Collections.<Integer,String>unmodifiableMap(m);
 
         // https://datatracker.ietf.org/doc/html/rfc9053#table-18
@@ -763,6 +801,7 @@ public class JWK extends Json {
      */
     private static List<Key> getKeys(final Json j, Provider provider) {
         List<Key> keys = new ArrayList<Key>();
+        String alg = null;
         try {
             // https://www.rfc-editor.org/rfc/rfc7518.html - list of algs
             String kty = j.stringValue("kty");
@@ -841,7 +880,7 @@ public class JWK extends Json {
                 } else {
                     throw new IllegalArgumentException("Missing symmetric param k");
                 }
-                String alg = j.stringValue("alg");
+                alg = j.stringValue("alg");
                 if (alg == null) {
                     alg = "none";
                 } else if ("HS256".equals(alg) || "HS384".equals(alg) || "HS512".equals(alg)) {
@@ -883,6 +922,7 @@ public class JWK extends Json {
             } else if ("OKP".equals(kty)) {
                 // https://datatracker.ietf.org/doc/html/rfc8037
                 // This is Java 15 or later
+                alg = "EdDSA";
                 KeyFactory factory = provider == null ? KeyFactory.getInstance("EdDSA") : KeyFactory.getInstance("EdDSA", provider);
                 String crv = j.stringValue("crv");
                 if (j.has("x")) {
@@ -900,13 +940,34 @@ public class JWK extends Json {
                     KeySpec spec = generateEdECKeySpec(crv, false, null, d);
                     keys.add(factory.generatePrivate(spec));
                 }
+            } else if ("AKP".equals(kty)) {
+                alg = j.stringValue("alg");
+                Json v = AKP_DATA.get(alg);
+                if (v != null) {
+                    String factoryName = v.stringValue("factory");
+                    KeyFactory factory = provider == null ? KeyFactory.getInstance(factoryName) : KeyFactory.getInstance(factoryName, provider);
+                    if (j.has("pub")) {
+                        byte[] pub = j.bufferValue("pub").array().clone();
+                        KeySpec spec = generateAKPKeySpec(alg, v, pub, true, provider);
+                        if (spec != null) {
+                            keys.add(factory.generatePublic(spec));
+                        }
+                    }
+                    if (j.has("priv")) {
+                        byte[] priv = j.bufferValue("priv").array().clone();
+                        KeySpec spec = generateAKPKeySpec(alg, v, priv, false, provider);
+                        if (spec != null) {
+                            keys.add(factory.generatePrivate(spec));
+                        }
+                    }
+                }
             } else {
                 throw new IllegalArgumentException("Unknown key type \"" + kty + "\"");
             }
         } catch (InvalidKeySpecException e) {
             throw new IllegalArgumentException("Invalid key", e);
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalArgumentException("Unknown algorithm", e);
+            throw new IllegalArgumentException("Unknown algorithm" + (alg == null ? "" : " " + alg), e);
         }
         return keys;
     }
@@ -1090,6 +1151,7 @@ public class JWK extends Json {
                 if (seentype != 0 && seentype != 4) {
                     throw new IllegalArgumentException("Can't mix Key algorithms");
                 }
+                seentype = 4;
                 put("kty", "OKP");
                 alg = "EdDSA";
                 Json j = getEdECKeyDetails(key);
@@ -1120,7 +1182,22 @@ public class JWK extends Json {
                     put("d", j.get("d"));
                 }
             } else {
-                throw new IllegalArgumentException("Unknown key class " + (key == null ? null : key.getClass().getName()));
+                Json j = getJavaAKPKeyDetails(key);
+                if (j != null) {
+                    int type = j.stringValue("factory").hashCode();
+                    if (seentype != 0 && seentype != type) {
+                        throw new IllegalArgumentException("Can't mix Key algorithms");
+                    }
+                    put("kty", "AKP");
+                    put("alg", j.get("alg"));
+                    if (j.has("pub")) {
+                        put("pub", j.get("pub"));
+                    } else if (j.has("priv")) {
+                        put("priv", j.get("priv"));
+                    }
+                } else {
+                    throw new IllegalArgumentException("Unknown key class " + (key == null ? null : key.getClass().getName()));
+                }
             }
             if (alg != null) {
                 put("alg", alg);
@@ -1219,10 +1296,12 @@ public class JWK extends Json {
 
     //----------------------------------------------------------------------------------
     // EdDSA keys are new in Java 15, but I want library to compile and run under Java 11
-    // So all handling of EdDSA is done with reflection
+    // So all handling of EdDSA is done with reflection. ML-DSA same, but new in Java 24
     //
-    private static final Class<?> EdECKey, EdECPublicKey, EdECPrivateKey, EdECPoint, EdECPublicKeySpec, EdECPrivateKeySpec;
+    private static final Class<?> EdECKey, EdECPublicKey, EdECPrivateKey, EdECPoint, EdECPublicKeySpec, EdECPrivateKeySpec; // Java 15
+    private static final Class<?> AsymmetricKey; // Java 22
     static {
+        // EdDSA
         Class<?> tEdECKey = null, tEdECPublicKey = null, tEdECPrivateKey = null, tEdECPoint = null, tEdECPublicKeySpec = null, tEdECPrivateKeySpec = null;
         try {
             tEdECKey = Class.forName("java.security.interfaces.EdECKey");
@@ -1240,6 +1319,14 @@ public class JWK extends Json {
         EdECPoint = tEdECPoint;
         EdECPublicKeySpec = tEdECPublicKeySpec;
         EdECPrivateKeySpec = tEdECPrivateKeySpec;
+        // ML-DSA
+        Class<?> tAsymmetricKey = null;
+        try {
+            tAsymmetricKey = Class.forName("java.security.AsymmetricKey");
+        } catch (Exception e) {
+            tAsymmetricKey = null;
+        }
+        AsymmetricKey = tAsymmetricKey;
     }
 
     /**
@@ -1297,8 +1384,95 @@ public class JWK extends Json {
             throw new RuntimeException(e);
         }
     }
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static Json getJavaAKPKeyDetails(Key key) {
+        // NOTE NOTE - this method compiles under Java 11 but require Java 22 to do anything
+        // useful. If compiling with Java older than 11, just make it return null
+        try {
+            String name;
+            try {
+                // Java 22 way
+                NamedParameterSpec spec = (NamedParameterSpec)AsymmetricKey.getMethod("getParams").invoke(key);
+                name = spec.getName();
+            } catch (Throwable e) {
+                // BC way
+                AlgorithmParameterSpec spec = (AlgorithmParameterSpec)key.getClass().getMethod("getParameterSpec").invoke(key);
+                name = (String)spec.getClass().getMethod("getName").invoke(spec);
+            }
+            for (Map.Entry<String,Json> e : AKP_DATA.entrySet()) {
+                if (name.equalsIgnoreCase(e.getKey())) {
+                    name = e.getKey();
+                    Json json = e.getValue();
+                    Json j = Json.read("{}");
+                    j.put("alg", name);
+                    j.put("factory", json.stringValue("factory"));
+                    if (key instanceof PublicKey && json.isString("pubprefix")) {
+                        byte[] data = ((PublicKey)key).getEncoded();
+                        byte[] prefix = JWT.hex(json.stringValue("pubprefix"));
+                        data = Arrays.copyOfRange(data, prefix.length, data.length);
+                        j.put("pub", JWT.base64encode(data));
+                        return j;
+                    } else {
+                        // Unsupported. See generateAKPKeySpec for details.
+                        return null;
+                    }
+                }
+            }
+        } catch (Throwable e) {}
+        return null;
+    }
+    /**
+     * Create a new KeySpec for public (if y!=null) or private (if d!=null) EdDSA keys
+     */
+    private static KeySpec generateAKPKeySpec(String alg, Json json, byte[] key, boolean pub, Provider provider) {
+        // AKP keys are extracted from their X.509 encoding, which is a sequence of the key algorithm
+        // and the key itself, always encoded (so far) as a bitstring or octet string. Examples
+        //
+        //  0:d=0  hl=4 l=1330 cons: SEQUENCE
+        //  4:d=1  hl=2 l=  11 cons:  SEQUENCE
+        //  6:d=2  hl=2 l=   9 prim:   OBJECT            :ML-DSA-44
+        // 17:d=1  hl=4 l=1313 prim:  BIT STRING
+        //
+        //  0:d=0  hl=2 l=  48 cons: SEQUENCE
+        //  2:d=1  hl=2 l=  11 cons:  SEQUENCE
+        //  4:d=2  hl=2 l=   9 prim:   OBJECT            :SLH-DSA-SHA2-128f
+        // 15:d=1  hl=2 l=  33 prim:  BIT STRING
+        //
+        // In all these cases the String value is stored in the JWK, so we add or remove the prefix
+        // as appropriate. ML-DSA keys are 1312/1952/2592 bytes, SLH-DSA are 32/48/64 bytes, although
+        // they are all slightly longer when serialized to ASN.1
+        //
+        // Private keys are not supported yet because:
+        //
+        // ML-DSA:
+        //   priv is always a 32-byte seed value, encoded raw. This needs to be converted
+        //   to a 2560, 4032 or 4896-byte ML-DSA private key by calling KeyGen_internal,
+        //   defined in FIPS204 (https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.204.pdf).
+        //   We may be able to do this with BC, certainly not with Java 24.
+        // SLH-DSA:
+        //   too early in spec process to say how it works.
+        //
+        // ML-DSA:  https://cose-wg.github.io/draft-ietf-cose-dilithium/draft-ietf-cose-dilithium.html
+        // SLH-DSA: https://cose-wg.github.io/draft-ietf-cose-sphincs-plus/draft-ietf-cose-sphincs-plus.html
+        //
+        // ***NOTE***: as of 20251028 the SLH-DSA spec is really not fit for implementation; for example, it
+        // refers to COSE keys which are reserved for other algorithms, and only attempts to define three of
+        // the twelve algorithms from FIPS205. There are no test vectors. So this is very much a work-in-progress.
+        // See https://github.com/cose-wg/draft-ietf-cose-sphincs-plus
+        // 
+        if (pub && json.isString("pubprefix")) {
+            byte[] prefix = JWT.hex(json.stringValue("pubprefix"));
+            byte[] data = new byte[prefix.length + key.length];
+            System.arraycopy(prefix, 0, data, 0, prefix.length);
+            System.arraycopy(key, 0, data, prefix.length, key.length);
+            EncodedKeySpec spec = new X509EncodedKeySpec(data, alg);
+            return spec;
+        }
+        return null;
+    }
+
     //
-    // End of reflection nonsense for EdDSA keys
+    // End of reflection nonsense for EdDSA and ML-DSA keys
     //----------------------------------------------------------------------------------
 
     private static final ECParameterSpec ECSPEC_P256 = new ECParameterSpec(new EllipticCurve(new ECFieldFp(new BigInteger("115792089210356248762697446949407573530086143415290314195533631308867097853951")), new BigInteger("115792089210356248762697446949407573530086143415290314195533631308867097853948"), new BigInteger("41058363725152142129326129780047268409114441015993725554835256314039467401291")), new ECPoint(new BigInteger("48439561293906451759052585252797914202762949526041747995844080717082404635286"), new BigInteger("36134250956749795798585127919587881956611106672985015071877198253568414405109")), new BigInteger("115792089210356248762697446949407573529996955224135760342422259061068512044369"), 1);
@@ -1306,4 +1480,28 @@ public class JWK extends Json {
     private static final ECParameterSpec ECSPEC_P384 = new ECParameterSpec(new EllipticCurve(new ECFieldFp(new BigInteger("39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319")), new BigInteger("39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112316"), new BigInteger("27580193559959705877849011840389048093056905856361568521428707301988689241309860865136260764883745107765439761230575")), new ECPoint(new BigInteger("26247035095799689268623156744566981891852923491109213387815615900925518854738050089022388053975719786650872476732087"), new BigInteger("8325710961489029985546751289520108179287853048861315594709205902480503199884419224438643760392947333078086511627871")), new BigInteger("39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643"), 1);
     private static final ECParameterSpec ECSPEC_P521 = new ECParameterSpec(new EllipticCurve(new ECFieldFp(new BigInteger("6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151")), new BigInteger("6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057148"), new BigInteger("1093849038073734274511112390766805569936207598951683748994586394495953116150735016013708737573759623248592132296706313309438452531591012912142327488478985984")), new ECPoint(new BigInteger("2661740802050217063228768716723360960729859168756973147706671368418802944996427808491545080627771902352094241225065558662157113545570916814161637315895999846"), new BigInteger("3757180025770020463545507224491183603594455134769762486694567779615544477440556316691234405012945539562144444537289428522585666729196580810124344277578376784")), new BigInteger("6864797660130609714981900799081393217269435300143305409394463459185543183397655394245057746333217197532963996371363321113864768612440380340372808892707005449"), 1);
 
+    static {
+        Map<String,Json> m = new HashMap<String,Json>();
+        // FIPS204 approved three parameter sets.
+        m.put("ML-DSA-44", Json.read("{\"factory\":\"ML-DSA\", \"pubprefix\":\"30820532300B06096086480165030403110382052100\"}"));
+        m.put("ML-DSA-65", Json.read("{\"factory\":\"ML-DSA\", \"pubprefix\":\"308207B2300B0609608648016503040312038207A100\"}"));
+        m.put("ML-DSA-87", Json.read("{\"factory\":\"ML-DSA\", \"pubprefix\":\"30820A32300B060960864801650304031303820A2100\"}"));
+        // FIPS205 approved twelve parameter sets.
+        m.put("SLH-DSA-SHA2-128s",  Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3030300B0609608648016503040314032100\"}"));
+        m.put("SLH-DSA-SHA2-128f",  Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3030300B0609608648016503040315032100\"}"));
+        m.put("SLH-DSA-SHA2-192s",  Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3040300B0609608648016503040316033100\"}"));
+        m.put("SLH-DSA-SHA2-192f",  Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3040300B0609608648016503040317033100\"}"));
+        m.put("SLH-DSA-SHA2-256s",  Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3050300B0609608648016503040318034100\"}"));
+        m.put("SLH-DSA-SHA2-256f",  Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3050300B0609608648016503040319034100\"}"));
+        m.put("SLH-DSA-SHAKE-128s", Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3030300B060960864801650304031A032100\"}"));
+        m.put("SLH-DSA-SHAKE-128f", Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3030300B060960864801650304031B032100\"}"));
+        m.put("SLH-DSA-SHAKE-192s", Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3040300B060960864801650304031C033100\"}"));
+        m.put("SLH-DSA-SHAKE-192f", Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3040300B060960864801650304031D033100\"}"));
+        m.put("SLH-DSA-SHAKE-256s", Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3050300B060960864801650304031E034100\"}"));
+        m.put("SLH-DSA-SHAKE-256f", Json.read("{\"factory\":\"SLH-DSA\", \"pubprefix\":\"3050300B060960864801650304031F034100\"}"));
+
+        AKP_DATA = Collections.<String,Json>unmodifiableMap(m);
+    }
+
 }
+

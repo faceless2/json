@@ -20,7 +20,7 @@ spent on removing buffer copying and avoiding slow codepaths in the JVM - I don'
 
 ### streaming (new in v2)
 * As of version 2 reading is block-based. A Reader can be created, and blocks fed into it
-as they arrive. This is new in version 2
+as they arrive. This is new in version 2.
 
 ### correct
 * the API has been tested against the Json sample data made available by Nicolas Seriot at
@@ -46,11 +46,11 @@ containing those classes.
 * Java Web Token (JWT) support class for reading/writing/signing/verifying.
 * COSE signed object support class for reading/writing/signing/verifying.
 * Java Web Keys (JWK) support EC, RSA and EdDSA public/private keys, and Hmac, AES-KW and AES-GCM-KW symmetric keys
-* (v2) block-based reader to allow data to be read as it arried
-* (v2) Experimental Yaml parser (derived from https://github.com/EsotericSoftware/yamlbeans)
+* Java Web Keys (JWK) support for ML-DSA (provisional) and SLH-DSA (extremely provisional) - both new in 2.1
+* Experimental Yaml parser (derived from https://github.com/EsotericSoftware/yamlbeans)
 
 ## Building and Documentation
-* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-2.0.jar](https://faceless2.github.io/json/dist/bfojson-2.0.jar)
+* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-2.1.jar](https://faceless2.github.io/json/dist/bfojson-2.1.jar)
 * The API docs will always be available at [https://faceless2.github.io/json/docs/](https://faceless2.github.io/json/docs/)
 * Compiles under Java 11 or later - the API supports EdDSA keys (new in Java 15) via reflection.
 * Or download with `git clone http://github.com/faceless2/json.git`. Type `ant`. Jar is in `dist`, docs are in `docs`
@@ -108,10 +108,12 @@ json.putPath("b.c", new Json("oranges")); // Add an intermediate map and another
 json.putPath("b.c[1]", 3}; // Replace previous string with an array, add a null then a number.
 json.putPath("\"d.e\"", true); // Add a key containing a quote character
 System.out.println(json); // {"a":"apples","b":{"c":[null,3]},"d.e":true}
-json.write(System.out, null); // The same as above, but doesn't serialize to a String first.
-System.out.println(json.getPath("b.c[1]").stringValue()); // "3"
-System.out.println(json.getPath("b.c[1]").intValue()); // 3
+json.write(System.out); // The same as above, but doesn't serialize to a String first.
+json.write(new JsonWriter().setOutput(System.out)); // Same as above, for setting writer options
+System.out.println(json.get("b").get("c").get(1).stringValue()); // "3"
 System.out.println(json.get("b").get("c").get(1).intValue()); // 3
+System.out.println(json.getPath("b.c[1]").stringValue()); // "3" - same as above but using path
+System.out.println(json.getPath("b.c[1]").intValue()); // 3 - same as above but using path
 
 // Types
 json.put("d", "2");
@@ -139,9 +141,10 @@ json.setValue(new Json("string")); // copy value from specified object
 System.out.println(json.value()); // "string"
 
 // Serialization
-json = Json.read("{b:1, a: 2}");  // Fails, keys is not quoted
-json = Json.read(new StringReader("{b: 1, a: 2}"), new JsonReadOptions().setAllowUnquotedKey(true)); // OK
-json.write(System.out, new JsonWriteOptions().setPretty(true).setSorted(true)); // pretty print and sort keys
+String input = "{\"b\":1, /*comment*/ \"a\": 2}";
+json = Json.read(input);  // Fails, comments not allowed
+json = Json.read(new JsonReader().setInput(new StringReader(input)).setComments(true)); // OK
+json.write(new JsonWriter().setOutput(...).setIndent(2).setSorted(true)); // pretty print and sort keys
 // {
 //   "a": 2,
 //   "b": 1,
@@ -152,15 +155,16 @@ json.put("buffer", ByteBuffer.wrap(new byte[] { ... }));   // add a ByteBuffer
 System.out.println(json.get("buffer").type());      // "buffer"
 System.out.println(json.get("buffer").stringValue());  // Base64 encoded value of buffer
 json.setTag(20);        // Set a CBOR tag on a value
-json.writeCbor(new OutputStream(...), null);    // serialize the same JSON object to CBOR
-json = Json.readCbor(new InputStream(...), null);   // read CBOR from an Inputream
+json.write(new CborWriter().setOutput(outputstream));    // serialize the same JSON object to CBOR
+json = Json.read(new CborReader().setInput(inputstream));   // read CBOR from an Inputream
+json = Json.readCbor(inputstream);   // shortcut for the line above
 System.out.println(json.get("buffer").getTag());        // "20"
 System.out.println(json.get("b").getTag());        // "-1", which means no tag
 json.put("nan", Double.NaN);
-json.writeCbor(new OutputStream(...), null);    // infinity is fine in CBOR
-json.write(new StringWriter(), null);    // throws IOException - infinity not allowed in Json
-json.write(new StringWriter(), new JsonWriteOptions().setAllowNaN(true));  // infinity serializes as null
-json.writeMsgpack(new OutputStream(...), null);    // Msgpack instead of CBOR
+json.write(new CborWriter().setOutput(outputstream));    // infinity is fine in CBOR
+json.write(new JsonWriter().setOutput(writer));    // throws IOException - infinity not allowed in Json
+json.write(new JsonWriter().setOutput(writer).setAllowNaN(true));  // infinity serializes as null
+json.write(new MsgpackWriter().setOutput(outputstream));    // Msgpack instead of CBOR
 
 
 // Events
@@ -175,6 +179,8 @@ json.addListener(new JsonListener() {
         }
     }
 });
+
+// Paths as keys
 json.putPath("a.b", true);  // "Added a.b"
 json.getPath("a.b").put("c", true);  // "Added a.b.c"
 json.getPath("a.b").put("c", false);  // "Changed a.b.c" from true to false
@@ -184,6 +190,28 @@ json.removePath("a.b"); // "Removed a.b"
 javax.json.JsonValue jsrvalue = javax.json.Json.createReader(...).readValue(); // object read via JSR374
 bfovalue = new Json(jsrvalue);   // convert from JSR374 to BFO
 jsrvalue = javax.json.Json.createObjectBuilder(bfovalue.mapValue()).build(); // convert from BFO to JSR374
+
+// Factories for type conversion are simple
+JsonFactory factory = new JsonFactory() {
+    public Json toJson(Object o) {
+        if (o instanceof URL) {
+            return "[url] " + o;
+        }
+        return null;
+    }
+    public Object fromJson(Json o) {
+        if (o.isString() && o.startsWith("[url] ")) {
+            return new URL(o.stringValue().substring(6));
+        }
+        return null;
+    }
+};
+Json j = new Json(new URL(...), factory).toString(); // "[url] ..."
+Json j = Json.read("[url] ...");    // read as normal
+j.setFactory(factory);              // ... then set factory on the tree.
+j.object();                         // ... factory ensures object is a URL.
+new Json(Collections.<String,URL>singletonMap(key, url), factory); // collections work with factories too
+
 ```
 
 ### JWK and COSE
@@ -231,6 +259,10 @@ assert jwt.verify(publicKey) == 0;   // Verify with the public key
 
 For both JWT and COSE, the [JWK](https://faceless2.github.io/json/docs/com/bfo/json/JWK.html) utility class can convert
 between the Java `PublicKey`, `PrivateKey` and `SecretKey` implementations and their JWK or COSE-key representations.
+
+EdDSA requires Java 15+, ML-DSA requires Java 24+ or BouncyCastle 1.79+. However these
+are handled with reflection so the library can be compiled and run on Java 11 or later without any problems; the
+new key types will throw an error if they're unsupported when encountered.
 
 # Related projects
 
