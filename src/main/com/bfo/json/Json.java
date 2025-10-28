@@ -2367,6 +2367,7 @@ public class Json {
      * <li>If this value is a list or map, populate the map values with the output of this method and return as a Map&lt;String,Object&gt; or List&lt;Object&gt;</li>
      * </ul>
      * @return a String, Number, Boolean, Map&lt;String,Object&gt;, List&lt;Object&gt; or null as described
+     * @since 2.1
      */
     public Object objectValue() {
         if (isNull()) {

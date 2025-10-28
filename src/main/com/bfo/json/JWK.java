@@ -23,7 +23,7 @@ import javax.crypto.spec.SecretKeySpec;
  *  <li>RSASSA-PSS - PS256, PS384, PS512</li>
  *  <li>RSA - RS256, RS384, RS512 (not used in COSE, only JWT)</li>
  *  <li>EdDSA - Ed25519 and Ed448 (requires Java 15 or later)</li>
- *  <li>ML-DSA (requires Java 24 or later, or BouncyCastle 1.79 or greater as a provider). Only public keys are serialized</li>
+ *  <li>ML-DSA (requires Java 24 or later, or BouncyCastle 1.79 or greater as a provider). Only public keys are serialized (new in 2.1)</li>
  * </ul>
  * and symmetric ciphers with a <code>javax.crypto.SecretKey</code>
  * <ul>

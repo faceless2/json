@@ -46,7 +46,7 @@ containing those classes.
 * Java Web Token (JWT) support class for reading/writing/signing/verifying.
 * COSE signed object support class for reading/writing/signing/verifying.
 * Java Web Keys (JWK) support EC, RSA and EdDSA public/private keys, and Hmac, AES-KW and AES-GCM-KW symmetric keys
-* Java Web Keys (JWK) support for ML-DSA (provisional) and SLH-DSA (extremely provisional)
+* Java Web Keys (JWK) support for ML-DSA (provisional) and SLH-DSA (extremely provisional) - both new in 2.1
 * Experimental Yaml parser (derived from https://github.com/EsotericSoftware/yamlbeans)
 
 ## Building and Documentation
@@ -259,6 +259,10 @@ assert jwt.verify(publicKey) == 0;   // Verify with the public key
 
 For both JWT and COSE, the [JWK](https://faceless2.github.io/json/docs/com/bfo/json/JWK.html) utility class can convert
 between the Java `PublicKey`, `PrivateKey` and `SecretKey` implementations and their JWK or COSE-key representations.
+
+EdDSA requires Java 15+, ML-DSA requires Java 24+ or BouncyCastle 1.79+. However these
+are handled with reflection so the library can be compiled and run on Java 11 or later without any problems; the
+new key types will throw an error if they're unsupported when encountered.
 
 # Related projects
 
