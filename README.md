@@ -50,7 +50,7 @@ containing those classes.
 * Experimental Yaml parser (derived from https://github.com/EsotericSoftware/yamlbeans)
 
 ## Building and Documentation
-* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-2.0.jar](https://faceless2.github.io/json/dist/bfojson-2.0.jar)
+* Prebuilt binary available at [https://faceless2.github.io/json/dist/bfojson-2.1.jar](https://faceless2.github.io/json/dist/bfojson-2.1.jar)
 * The API docs will always be available at [https://faceless2.github.io/json/docs/](https://faceless2.github.io/json/docs/)
 * Compiles under Java 11 or later - the API supports EdDSA keys (new in Java 15) via reflection.
 * Or download with `git clone http://github.com/faceless2/json.git`. Type `ant`. Jar is in `dist`, docs are in `docs`
