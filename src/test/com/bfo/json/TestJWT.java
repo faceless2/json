@@ -45,6 +45,9 @@ public class TestJWT {
                 } else if (e.getMessage().contains("Curve not supported") && jwk.getAlgorithm().equals("ES256K")) {
                     System.out.println("JWK TEST " + i + ": curve not supported, but ES256K was removed so thats OK");
                     jwktests[i] = null;
+                } else if (e.getMessage().contains("Unknown algorithm ML-DSA-")) {
+                    System.out.println("JWK TEST " + i + ": " + e.getMessage()+", but it's new in Java 24 so that's OK");
+                    jwktests[i] = null;
                 } else {
                     System.out.println("JWK TEST " + i);
                     throw e;

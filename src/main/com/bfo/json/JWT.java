@@ -466,6 +466,14 @@ public class JWT implements Principal {
         return encoder.encodeToString(in);
     }
 
+    static byte[] hex(String s) {
+        byte[] buf = new byte[s.length() / 2];
+        for (int i=0;i<s.length();i+=2) {
+            buf[i / 2] = (byte)Integer.parseInt(s.substring(i, i + 2), 16);
+        }
+        return buf;
+    }
+
     static String hex(byte[] in) {
         return hex(in, 0, in.length);
     }
