@@ -1,0 +1,2 @@
+exclude:
+  src/test/com/bfo/json/resources/yaml
