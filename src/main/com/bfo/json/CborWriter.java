@@ -24,7 +24,7 @@ public class CborWriter implements JsonStream {
     private int stackLength;
     private long state;
     private long length;
-    private boolean sorted;
+    private boolean sorted, reduceDecimals;
 
     public CborWriter() {
         stack = new long[32];
@@ -68,8 +68,30 @@ public class CborWriter implements JsonStream {
         return this;
     }
 
+    /**
+     * Return the value passed in to {@link #setSorted}
+     * @return the value
+     */
     public boolean isSorted() {
         return sorted;
+    }
+
+    /**
+     * Request that floating-point values (doubles, floats) are reduced in
+     * precision to 32 or 16 bit values if this can be done without any loss.
+     * @return this
+     */
+    public CborWriter setReduceDecimals(boolean reduce) {
+        this.reduceDecimals = reduce;
+        return this;
+    }
+
+    /**
+     * Return the value passed in to {@link #setReduceDecimals}
+     * @return the value
+     */
+    public boolean isReduceDecimals() {
+        return reduceDecimals;
     }
 
     private static String stateString(long state) {
@@ -304,6 +326,13 @@ public class CborWriter implements JsonStream {
     }
 
     private void writeNumber(Number n) throws IOException {
+        if (reduceDecimals && n instanceof Double) {
+            double ld = n.doubleValue();
+            double fd = (float)ld;
+            if (fd == ld) {
+                n = Float.valueOf((float)fd);
+            }
+        }
 //        System.out.println("NUM: type="+n+"/"+n.getClass().getName());
         if (n instanceof BigDecimal) {
             // No native BigDecimal in CBOR, write as tag 5 [exponent-10, mantissa]
@@ -320,15 +349,22 @@ public class CborWriter implements JsonStream {
                 writeNum(0, l);
             }
         } else if (n instanceof Float) {
-            out.write(250);
-            int v = Float.floatToIntBits(n.floatValue());
-            out.write(v>>24);
-            out.write(v>>16);
-            out.write(v>>8);
-            out.write(v);
+            float f = n.floatValue();
+            final int v = Float.floatToRawIntBits(f), sv;
+            if (reduceDecimals && (sv = floatToF16_lossless(v, f)) >= 0) {
+                out.write(249);
+                out.write(sv>>8);
+                out.write(sv);
+            } else {
+                out.write(250);
+                out.write(v>>24);
+                out.write(v>>16);
+                out.write(v>>8);
+                out.write(v);
+            }
         } else if (n instanceof Double) {
+            long v = Double.doubleToRawLongBits(n.doubleValue());
             out.write(251);
-            long v = Double.doubleToLongBits(n.doubleValue());
             out.write((int)(v>>56));
             out.write((int)(v>>48));
             out.write((int)(v>>40));
@@ -377,6 +413,52 @@ public class CborWriter implements JsonStream {
                 writeNum(1, -i - 1);
             } else {
                 writeNum(0, i);
+            }
+        }
+    }
+
+    /**
+     * Given a float value, return it as a 16-bit float16 if it can be done losslessly, otherwise -1 
+     * * returns value of +/- Inf, primary NaN, all floats converted from F16 input values
+     * * returns -1 for special NaN values that are the primary NaN
+     * * returns -1 for all float values that can not be round-tripped by reading from F16.
+     * @param v the float as a 32-bit int
+     */
+    private static int floatToF16_lossless(final int v, final float f) {
+        if (v == 0x7fc00000) {          // Official NaN value
+            return 0x7E00;
+        } else if (v == 0x7f800000) {   // +ve infinity
+            return 0x7C00;
+        } else if (v == 0xff800000) {   // -ve infinity
+            return 0xFC00;
+        } else if (Float.isNaN(f)) {    // Other NaN, we can't preserve.
+            return -1;                          
+        } else if (v == 0) {
+            return 0;
+        } else {
+            int s = ((v & 0x80000000) >> 16) & 0x8000;
+            int e = ((v >> 23) & 0xFF) - 127;
+            int m = v & 0x7FFFFF;
+            if (e == -127 && m == 0) {
+                return m == 0 ? s : -1;
+            } else if (e <= -25) {
+                return -1;
+            } else if (e < -14) {
+                int shift = 13 + (-14 - e);
+                if ((m & ((1<<shift)-1)) != 0) {
+                    return -1;
+                }
+                m = (m | 0x800000) >> shift;
+                return (s | m) & 0xFFFF;
+            } else if (e <= 15) {
+                if ((m & 0x1FFF) != 0) {
+                    return -1;
+                } else {
+                    m >>= 13;
+                    return (s | ((e + 15)<<10) | m) & 0xFFFF;
+                }
+            } else {
+                return -1;
             }
         }
     }

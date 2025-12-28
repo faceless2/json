@@ -171,6 +171,21 @@ public class TestCbor {
             assert s1.equals(s1) : s1 + " != " + s2;
         }
         System.out.println("----- END CBOR ROUNDTRIP TESTS -----");
+        System.out.println("----- BEGIN CBOR FLOAT REDUCTION TESTS -----");
+        FastByteArrayOutputStream bout = new FastByteArrayOutputStream();
+        int step = 47;  // 1 is exhaustive and has been verified, but takes an age.
+        for (long l=0;l<0xFFFFFFFFL;l+=step) {
+            int i = (int)l;
+            Float f = Float.intBitsToFloat(i);
+            j = new Json(f);
+            bout.reset();
+            j.write(new CborWriter().setOutput(bout).setReduceDecimals(true));
+            Json j2 = Json.read(new CborReader().setInput(bout.toInputStream()));
+            Float f2 = j2.floatValue();
+            int i2 = Float.floatToIntBits(f2);
+            assert Float.isNaN(f) || i == i2 : "input i=0x"+Integer.toHexString(i)+"=" + f +" read=" + f2 + "=0x"+Integer.toHexString(i2);
+        }
+        System.out.println("----- END CBOR FLOAT REDUCTION TESTS -----");
 
         System.out.println("----- BEGIN PROXY WRITE TESTS -----");
         j = Json.read("{}");
@@ -219,7 +234,7 @@ public class TestCbor {
             teststring = j2.stringValue("string");
             assert teststring.equals(targetstring) : "json proxy string: i="+i+" j="+j+" s="+teststring;
 
-            ByteArrayOutputStream bout = new ByteArrayOutputStream();
+            bout.reset();
             j.write(new MsgpackWriter().setOutput(bout));
             buf = ByteBuffer.wrap(bout.toByteArray());
             j2 = Json.read(new MsgpackReader().setInput(buf));
