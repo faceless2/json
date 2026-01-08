@@ -80,6 +80,7 @@ public class CborWriter implements JsonStream {
      * Request that floating-point values (doubles, floats) are reduced in
      * precision to 32 or 16 bit values if this can be done without any loss.
      * @return this
+     * @since 2.1
      */
     public CborWriter setReduceDecimals(boolean reduce) {
         this.reduceDecimals = reduce;
@@ -89,6 +90,7 @@ public class CborWriter implements JsonStream {
     /**
      * Return the value passed in to {@link #setReduceDecimals}
      * @return the value
+     * @since 2.1
      */
     public boolean isReduceDecimals() {
         return reduceDecimals;
@@ -326,11 +328,26 @@ public class CborWriter implements JsonStream {
     }
 
     private void writeNumber(Number n) throws IOException {
-        if (reduceDecimals && n instanceof Double) {
-            double ld = n.doubleValue();
-            double fd = (float)ld;
-            if (fd == ld) {
-                n = Float.valueOf((float)fd);
+        if (reduceDecimals) {
+            // No advantage in representing an int in greater
+            // than four bytes; may as well use a double.
+            if (n instanceof Double) {
+                double d = n.doubleValue();
+                int i = (int)d;
+                if (i == d) {
+                    n = Integer.valueOf(i);
+                } else {
+                    float f = (float)d;
+                    if (f == d) {
+                        n = Float.valueOf(f);
+                    }
+                }
+            } else if (n instanceof Float) {
+                float f = n.floatValue();
+                int i = (int)f;
+                if (i == f) {
+                    n = Integer.valueOf(i);
+                }
             }
         }
 //        System.out.println("NUM: type="+n+"/"+n.getClass().getName());
