@@ -130,7 +130,7 @@ public class CborWriter implements JsonStream {
 //        System.out.println("WRITER: e="+event+" " + dump());
         switch(type) {
             case JsonStream.Event.TYPE_MAP_START:
-                if (stackLength == stack.length) {
+                if (stackLength + 1 >= stack.length) {
                     stack = Arrays.copyOf(stack, stackLength+(stackLength>>1));
                 }
                 stack[stackLength++] = length;
