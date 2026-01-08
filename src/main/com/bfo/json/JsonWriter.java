@@ -86,7 +86,7 @@ public class JsonWriter implements JsonStream {
             return (mode & STATE_JUSTCLOSED) != 0;
         }
         boolean isDone() {
-            return mode == STATE_DONE;
+            return (mode & STATE_DONE) != 0;
         }
         boolean isRoot() {
             return (mode & STATE_ROOT) != 0;
@@ -131,7 +131,7 @@ public class JsonWriter implements JsonStream {
             }
         }
 
-        Appendable preValue() throws IOException {
+        Appendable preValue(boolean stringOrBuffer) throws IOException {
             if (isMidString()) {
                 throw new IllegalStateException("Invalid state (mid-string)");
             } else if (isMidBuffer()) {
@@ -163,7 +163,9 @@ public class JsonWriter implements JsonStream {
                 out.append(colon);
                 mode = STATE_MAP_KEY;
             } else if (isRoot()) {
-                mode = STATE_DONE;
+                if (!stringOrBuffer) {
+                    mode = STATE_DONE;
+                }
             } else {
                 throw new IllegalStateException("Invalid state");
             }
@@ -174,9 +176,13 @@ public class JsonWriter implements JsonStream {
             return out;
         }
 
-        void postValue() throws IOException {
+        void postValue(boolean stringOrBuffer) throws IOException {
             if (tag != 0) {
                 out.append(')');
+                tag = 0;
+            }
+            if (isRoot() && stringOrBuffer) {
+                mode = STATE_DONE;
             }
         }
 
@@ -495,24 +501,24 @@ public class JsonWriter implements JsonStream {
         switch(type) {
             case JsonStream.Event.TYPE_MAP_START:
                 state.mode &= ~STATE_EMPTY;
-                out = state.preValue();
+                out = state.preValue(false);
                 state = new State(state, STATE_MAP_KEY|STATE_EMPTY);
                 out.append('{');
                 break;
             case JsonStream.Event.TYPE_LIST_START:
                 state.mode &= ~STATE_EMPTY;
-                out = state.preValue();
+                out = state.preValue(false);
                 state = new State(state, STATE_LIST|STATE_EMPTY);
                 out.append('[');
                 break;
             case JsonStream.Event.TYPE_MAP_END:
                 state = state.close();
-                state.postValue();
+                state.postValue(false);
                 state.mode |= STATE_JUSTCLOSED;
                 break;
             case JsonStream.Event.TYPE_LIST_END:
                 state = state.close();
-                state.postValue();
+                state.postValue(false);
                 state.mode |= STATE_JUSTCLOSED;
                 break;
             case JsonStream.Event.TYPE_PRIMITIVE:
@@ -525,7 +531,7 @@ public class JsonWriter implements JsonStream {
                     }
                     state.prevKey = value;
                 } else {
-                    out = state.preValue();
+                    out = state.preValue(false);
                 }
                 if (value instanceof Number) {
                     writeNumber((Number)value, out);
@@ -550,7 +556,7 @@ public class JsonWriter implements JsonStream {
                 } else {
                     throw new IllegalStateException("Unknown data " + (value == null ? null : value.getClass().getName()));
                 }
-                state.postValue();
+                state.postValue(false);
                 break;
             case JsonStream.Event.TYPE_STRING_START:
                 state.mode &= ~STATE_EMPTY;
@@ -558,7 +564,7 @@ public class JsonWriter implements JsonStream {
                     state.preKey();
                     state.prevKey = null;
                 } else {
-                    out = state.preValue();
+                    out = state.preValue(true);
                 }
                 out.append('"');
                 state.mode |= STATE_STRING;
@@ -596,7 +602,7 @@ public class JsonWriter implements JsonStream {
                     out.append('"');
                     state.mode &= ~STATE_STRING;
                     if (!state.isMapKey()) {
-                        state.postValue();
+                        state.postValue(true);
                     }
                 } else {
                     throw new IllegalStateException("String not started");
@@ -608,7 +614,7 @@ public class JsonWriter implements JsonStream {
                     state.preKey();
                     state.prevKey = null;
                 } else {
-                    out = state.preValue();
+                    out = state.preValue(true);
                 }
                 if (optionCborDiag == HEX) {
                     out.append("h'");
@@ -655,7 +661,7 @@ public class JsonWriter implements JsonStream {
                     out.append(optionCborDiag == NONE ? '"' : '\'');
                     state.mode &= ~STATE_BUFFER;
                     if (!state.isMapKey()) {
-                        state.postValue();
+                        state.postValue(true);
                     }
                 } else {
                     throw new IllegalStateException("Buffer not started");
