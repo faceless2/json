@@ -664,8 +664,14 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Return true if the specified child of this object is of type "number".</div>
 </dd>
+<dt><a href="com/bfo/json/CborWriter.html#isReduceDecimals()" class="member-name-link">isReduceDecimals()</a> - Method in class com.bfo.json.<a href="com/bfo/json/CborWriter.html" title="class in com.bfo.json">CborWriter</a></dt>
+<dd>
+<div class="block">Return the value passed in to <a href="com/bfo/json/CborWriter.html#setReduceDecimals(boolean)"><code>CborWriter.setReduceDecimals(boolean)</code></a></div>
+</dd>
 <dt><a href="com/bfo/json/CborWriter.html#isSorted()" class="member-name-link">isSorted()</a> - Method in class com.bfo.json.<a href="com/bfo/json/CborWriter.html" title="class in com.bfo.json">CborWriter</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">Return the value passed in to <a href="com/bfo/json/CborWriter.html#setSorted(boolean)"><code>CborWriter.setSorted(boolean)</code></a></div>
+</dd>
 <dt><a href="com/bfo/json/JsonStream.html#isSorted()" class="member-name-link">isSorted()</a> - Method in interface com.bfo.json.<a href="com/bfo/json/JsonStream.html" title="interface in com.bfo.json">JsonStream</a></dt>
 <dd>
 <div class="block">Return true if this JsonStream would prefer Map keys to be sorted.</div>
@@ -992,6 +998,14 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Remove the item at the specified path from this object or one of its descendants.</div>
 </dd>
+<dt><a href="com/bfo/json/CborWriter.html#reset()" class="member-name-link">reset()</a> - Method in class com.bfo.json.<a href="com/bfo/json/CborWriter.html" title="class in com.bfo.json">CborWriter</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="com/bfo/json/JsonStream.html#reset()" class="member-name-link">reset()</a> - Method in interface com.bfo.json.<a href="com/bfo/json/JsonStream.html" title="interface in com.bfo.json">JsonStream</a></dt>
+<dd>
+<div class="block">Reset the stream.</div>
+</dd>
+<dt><a href="com/bfo/json/JsonWriter.html#reset()" class="member-name-link">reset()</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriter.html" title="class in com.bfo.json">JsonWriter</a></dt>
+<dd>&nbsp;</dd>
 </dl>
 <h2 class="title" id="I:S">S</h2>
 <dl class="index">
@@ -1198,6 +1212,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Set the OutputStream to write to</div>
 </dd>
+<dt><a href="com/bfo/json/JsonWriter.html#setOutput(java.io.OutputStream)" class="member-name-link">setOutput(OutputStream)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriter.html" title="class in com.bfo.json">JsonWriter</a></dt>
+<dd>
+<div class="block">Set the OutputStream to write to, encoding the text as UTF-8.</div>
+</dd>
 <dt><a href="com/bfo/json/MsgpackWriter.html#setOutput(java.io.OutputStream)" class="member-name-link">setOutput(OutputStream)</a> - Method in class com.bfo.json.<a href="com/bfo/json/MsgpackWriter.html" title="class in com.bfo.json">MsgpackWriter</a></dt>
 <dd>
 <div class="block">Set the OutputStream to write to</div>
@@ -1209,6 +1227,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/CborWriter.html#setOutput(java.nio.ByteBuffer)" class="member-name-link">setOutput(ByteBuffer)</a> - Method in class com.bfo.json.<a href="com/bfo/json/CborWriter.html" title="class in com.bfo.json">CborWriter</a></dt>
 <dd>
 <div class="block">Set the ByteBuffer to write to</div>
+</dd>
+<dt><a href="com/bfo/json/JsonWriter.html#setOutput(java.nio.ByteBuffer)" class="member-name-link">setOutput(ByteBuffer)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JsonWriter.html" title="class in com.bfo.json">JsonWriter</a></dt>
+<dd>
+<div class="block">Set the ByteBuffer to write to, encoding the text as UTF-8.</div>
 </dd>
 <dt><a href="com/bfo/json/MsgpackWriter.html#setOutput(java.nio.ByteBuffer)" class="member-name-link">setOutput(ByteBuffer)</a> - Method in class com.bfo.json.<a href="com/bfo/json/MsgpackWriter.html" title="class in com.bfo.json">MsgpackWriter</a></dt>
 <dd>
@@ -1247,6 +1269,11 @@ loadScripts(document, 'script');</script>
 <dt><a href="com/bfo/json/JWT.html#setProvider(java.security.Provider)" class="member-name-link">setProvider(Provider)</a> - Method in class com.bfo.json.<a href="com/bfo/json/JWT.html" title="class in com.bfo.json">JWT</a></dt>
 <dd>
 <div class="block">Set the Provider to be used for any cryptographic operations</div>
+</dd>
+<dt><a href="com/bfo/json/CborWriter.html#setReduceDecimals(boolean)" class="member-name-link">setReduceDecimals(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/CborWriter.html" title="class in com.bfo.json">CborWriter</a></dt>
+<dd>
+<div class="block">Request that floating-point values (doubles, floats) are reduced in
+ precision to 32 or 16 bit values if this can be done without any loss.</div>
 </dd>
 <dt><a href="com/bfo/json/CborWriter.html#setSorted(boolean)" class="member-name-link">setSorted(boolean)</a> - Method in class com.bfo.json.<a href="com/bfo/json/CborWriter.html" title="class in com.bfo.json">CborWriter</a></dt>
 <dd>
