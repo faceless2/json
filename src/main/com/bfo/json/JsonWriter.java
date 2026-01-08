@@ -364,6 +364,36 @@ public class JsonWriter implements JsonStream {
     }
 
     /**
+     * Set the OutputStream to write to, encoding the text as UTF-8.
+     * This is equivalent to {@link #setOutput(Appendable) setOutput(new OutputStremWriter(out, "UTF-8"))}
+     * except that it is unbuffered and faster.
+     * @param out the output
+     * @return this
+     * @since 2.1
+     */
+    public JsonWriter setOutput(OutputStream out) {
+        this.out = new UTF8OutputStreamWriter(out);
+        return this;
+    }
+
+    /**
+     * Set the ByteBuffer to write to, encoding the text as UTF-8.
+     * @param out the ByteBuffer
+     * @return this
+     * @since 2.1
+     */
+    public JsonWriter setOutput(final ByteBuffer buf) {
+        return setOutput(new OutputStream() {
+            public void write(int v) {
+                buf.put((byte)v);
+            }
+            public void write(byte[] v, int off, int len) {
+                buf.put(v, off, len);
+            }
+        });
+    }
+
+    /**
      * Set the CharBuffer to write to
      * @param out the output
      * @return this
@@ -382,6 +412,15 @@ public class JsonWriter implements JsonStream {
             }
         };
         return this;
+    }
+
+    @Override public void reset() {
+//        System.out.println("* reset " + dump());
+        if (state != null && !state.isDone()) {
+            throw new IllegalStateException("Not completed: " + state);
+        } else {
+            state = null;
+        }
     }
 
     /*

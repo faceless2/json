@@ -122,6 +122,14 @@ public class CborWriter implements JsonStream {
         return sb.toString();
     }
 
+    @Override public void reset() {
+        if (stackLength != 0 && stack[stackLength - 1] != STATE_DONE) {
+            throw new IllegalStateException("Not Completed " + dump());
+        }
+        state = STATE_DONE;
+        stackLength = 0;
+    }
+
     @Override public boolean event(JsonStream.Event event) throws IOException {
         if (stackLength == 0) {
             stack[stackLength++] = 0;

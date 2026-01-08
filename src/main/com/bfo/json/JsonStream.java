@@ -28,14 +28,29 @@ public interface JsonStream {
     public boolean event(Event event) throws IOException;
 
     /**
+     * Reset the stream. When a single writer is reused for multiple
+     * object written in sequence, this can be called between each object
+     * to reset the internal state.
+     * @throws UnsupportedOperationException if resetting is not supported for this stream type (the default)
+     * @since 2.1
+     */
+    public default void reset() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Return a simple wrapper around the specified Stream which will log events to System.out
      * @param stream the stream to wrap, or null just to print them with no action
      */
     public static JsonStream getDebugger(final JsonStream stream) {
         return new JsonStream() {
-            public boolean event(Event event) throws IOException {
-//                System.out.println(event);
+            @Override public boolean event(Event event) throws IOException {
+                System.out.println(event);
                 return stream != null && stream.event(event);
+            }
+            @Override public void reset() {
+                System.out.println("RESET");
+                stream.reset();
             }
         };
     }
