@@ -722,23 +722,32 @@ public class JsonWriter implements JsonStream {
     private void writeByteBuffer(ByteBuffer buf, Appendable out, int length) throws IOException {
         if (optionCborDiag != HEX) {
             int i = 0;
-            if (b64_0 >= 0 && b64_1 >= 0) {
-                int b2 = buf.get() & 0xff;
-                writeb64(b64_0, b64_1, b2, 4);
-                i++;
-            } else if (b64_0 >= 0) {
-                int b1 = buf.get() & 0xff;
-                int b2 = buf.get() & 0xff;
-                i+=2;
-                writeb64(b64_0, b1, b2, 4);
+            if (b64_0 >= 0) {
+                if (b64_1 >= 0) {
+                    if (length > 0) {
+                        int b2 = buf.get() & 0xff;
+                        writeb64(b64_0, b64_1, b2, 4);
+                        b64_0 = b64_1 = -1;
+                        i++;
+                    }
+                } else if (length > 1) {
+                    int b1 = buf.get() & 0xff;
+                    int b2 = buf.get() & 0xff;
+                    i+=2;
+                    writeb64(b64_0, b1, b2, 4);
+                    b64_0 = -1;
+                } else if (length > 0) {
+                    b64_1 = buf.get() & 0xff;
+                    i++;
+                }
             }
-            for (i=0;i+2<length;i+=3) {
+            while (i + 2 < length) {
                 int b0 = buf.get() & 0xff;
                 int b1 = buf.get() & 0xff;
                 int b2 = buf.get() & 0xff;
                 writeb64(b0, b1, b2, 4);
+                i += 3;
             }
-            b64_0 = b64_1 = -1;
             if (i++ < length) {
                 b64_0 = buf.get() & 0xff;
                 if (i++ < length) {
