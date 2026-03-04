@@ -2167,7 +2167,7 @@ public class Json {
      */
     public long longValue(Object key) {
         Json j = get(key);
-        return j == null ? 0 : j.intValue();
+        return j == null ? 0 : j.longValue();
     }
 
     /**
